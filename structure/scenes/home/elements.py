@@ -750,4 +750,3 @@ HOME_BLOCKING_ELEMENT_IDS = {
     "drying_rack_01",
     "storage_box_01",
 }
-# haoyu branch tests
