@@ -5,7 +5,7 @@ Create a new folder with an all-English path, right-click to open Git Bash or a 
 
 ```bash
 # Download the complete code from the cloud to your local machine
-git clone [https://github.com/1223550690/RAN.git](https://github.com/1223550690/RAN.git)
+git clone https://github.com/1223550690/RAN.git
 
 # After cloning is complete, you must enter this project directory to perform subsequent operations!
 cd RAN
@@ -14,8 +14,8 @@ cd RAN
 2. Configure Local Environment
 ```
 python -m venv .venv 
-source .venv/Scripts/activate  # Activate the virtual environment on Windows 
-pip install -r requirements.txt
+source .venv/Scripts/activate  # Git Bash or
+.\.venv\Scripts\Activate.ps1  # PowerShell
 ```
 
 3. Token Authentication

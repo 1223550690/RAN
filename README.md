@@ -1,23 +1,15 @@
 # RAN
 
-Reusable indoor map and scene-structure definitions extracted from the world
-simulation project.
+RAN aims to extend Human Behavior Simulation with realistic wireless network
+effects. The project starts from a two-dimensional indoor scene structure and
+adds a single-cell radio access network simulation module. Based on each
+Agent's spatial position, channel condition, traffic demand, and basic resource
+scheduling policy, the system will produce network QoS feedback such as latency,
+throughput, packet loss, and congestion state.
 
-This repository contains the standalone `structure` Python package. It defines
-scene schemas, scene builders, registry helpers, and example single-house indoor
-scenes with layout data, element data, and concept images.
-
-The goal is to make it easy to extend the map set. Start by studying the three
-existing scenes in [`structure/scenes`](structure/scenes): `home`, `office`, and
-`potions_teacher_office`. They are all single-building indoor scenes and can be
-used as references for room layout, portals, blocking objects, element metadata,
-and scene builders.
-
-When creating a new scene, first ask AI to produce a concept image, following
-the same pattern as the existing scenes. After that, add the scene folder with
-its `layout.py`, `elements.py`, `scene.py`, `__init__.py`, and image asset. Once
-the scene builder is registered, the package can load the new map through
-`build_scene(...)`.
+The current repository keeps the existing scene structure package and prepares
+the project layout for later Agent, simulation, RAN, service, experiment, and
+test modules.
 
 ## Install
 
@@ -25,7 +17,24 @@ the scene builder is registered, the package can load the new map through
 pip install -e .
 ```
 
-## Quick Start
+## Current Directories
+
+- `structure/`: Existing scene schema, scene builders, scene registry, and
+  indoor map data.
+- `ran/`: Wireless access network models, such as base station, channel,
+  scheduler, traffic, and QoS logic.
+- `agents/`: Agent state, movement, traffic demand, and QoS feedback logic.
+- `simulation/`: Main simulation loop, clock, events, and global state.
+- `services/`: Application-level wrappers that connect scene, Agent, RAN, and
+  metrics modules.
+- `experiments/`: Experiment loading, execution, comparison, and reporting.
+- `configs/`: Project, scene, RAN, scheduler, and experiment configuration.
+- `outputs/`: Local runtime outputs such as logs, metrics, and reports.
+- `tests/`: Automated tests for scene loading, channel models, scheduling, QoS,
+  and simulation flow.
+- `docs/`: Project documentation and team collaboration notes.
+
+## Scene Quick Start
 
 ```python
 from structure import available_scene_names, build_scene
@@ -35,4 +44,50 @@ scene = build_scene("home")
 print(scene.to_dict())
 ```
 
-More details are in [`structure/README.md`](structure/README.md).
+More scene details are in [`structure/README.md`](structure/README.md).
+
+## Structure Smoke Test
+
+Run these commands from the project root to check whether the existing
+`structure` package can still be imported and can build registered scenes.
+
+Install the current project in editable mode:
+
+```bash
+python -m pip install -e .
+```
+
+Check scene registration and build the `home` scene:
+
+```bash
+python -c "from structure import available_scene_names, build_scene; print(available_scene_names()); scene = build_scene('home'); print(scene.node_id, scene.name, len(scene.areas))"
+```
+
+This verifies:
+
+- the project packaging in `pyproject.toml`
+- the `structure` package import
+- the scene registry
+- the `home` scene builder
+- the basic scene object fields
+
+Check the larger `potions_teacher_office` scene:
+
+```bash
+python -c "from structure import build_scene; scene = build_scene('potions_teacher_office'); print(scene.node_id); print(scene.default_agent_start); print(len(scene.get_all_elements()))"
+```
+
+This verifies that a more complex scene can be loaded with its default Agent
+start position and element data.
+
+Run the built-in scene tree demo:
+
+```bash
+python -m structure.scene_tree
+```
+
+This builds and prints the `home` scene tree.
+
+These commands are only minimal smoke tests. They do not verify Agent behavior,
+RAN simulation, scheduling, QoS calculation, path finding, or full coordinate
+validity.
