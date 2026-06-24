@@ -99,6 +99,7 @@ class Area:
     node_id: str
     name: str
     bounds: tuple[float, float, float, float]
+    metadata: dict[str, str] = field(default_factory=dict)
     elements: list[Element] = field(default_factory=list)
 
     def add(self, element: Element) -> None:
@@ -139,6 +140,7 @@ class Area:
             "node_id": self.node_id,
             "name": self.name,
             "bounds": list(self.bounds),
+            "metadata": dict(self.metadata),
             "elements": [element.to_dict() for element in self.elements],
         }
 

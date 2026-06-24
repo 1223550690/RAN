@@ -1,0 +1,148 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --stroke: #d8d8d8;
+  --text: #1f1f1f;
+  --muted: #616161;
+  --accent: #0f6cbd;
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.live-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.live-header {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--stroke);
+  background: rgb(255 255 255 / 88%);
+  backdrop-filter: blur(18px);
+}
+
+.live-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.live-header p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.agent-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.agent-pill {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--stroke);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.preview-surface {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 12px;
+  padding: 12px;
+}
+
+#sceneCanvas {
+  width: 100%;
+  height: calc(100vh - 96px);
+  display: block;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: #f8f8f8;
+}
+
+.console-panel {
+  height: calc(100vh - 96px);
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.console-header {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--stroke);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#llmStatus {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: right;
+}
+
+.console-log {
+  overflow: auto;
+  padding: 10px 12px;
+  background: #111111;
+  color: #f5f5f5;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.console-line {
+  margin-bottom: 5px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 1050px) {
+  .preview-surface {
+    grid-template-columns: 1fr;
+  }
+
+  #sceneCanvas,
+  .console-panel {
+    height: 48vh;
+  }
+}

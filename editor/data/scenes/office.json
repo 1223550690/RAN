@@ -1,0 +1,1754 @@
+{
+  "node_id": "office",
+  "name": "single_office",
+  "default_agent_start": [
+    1.3,
+    8.35
+  ],
+  "portals": [
+    {
+      "id": "office_front_door_portal",
+      "name": "办公室入口门",
+      "kind": "door",
+      "areas": [
+        "entryway",
+        "outside"
+      ],
+      "segment": [
+        [
+          0.75,
+          9.75
+        ],
+        [
+          1.85,
+          9.75
+        ]
+      ]
+    },
+    {
+      "id": "entry_lounge_opening",
+      "name": "入口到接待区通道",
+      "kind": "opening",
+      "areas": [
+        "entryway",
+        "lounge_area"
+      ],
+      "segment": [
+        [
+          1.05,
+          6.2
+        ],
+        [
+          2.15,
+          6.2
+        ]
+      ]
+    },
+    {
+      "id": "lounge_storage_opening",
+      "name": "接待区到文件收纳区通道",
+      "kind": "opening",
+      "areas": [
+        "lounge_area",
+        "storage_archive_area"
+      ],
+      "segment": [
+        [
+          1.0,
+          2.55
+        ],
+        [
+          2.6,
+          2.55
+        ]
+      ]
+    },
+    {
+      "id": "lounge_workspace_opening",
+      "name": "接待区到主办公区通道",
+      "kind": "opening",
+      "areas": [
+        "lounge_area",
+        "main_workspace"
+      ],
+      "segment": [
+        [
+          3.35,
+          2.95
+        ],
+        [
+          3.35,
+          4.15
+        ]
+      ]
+    },
+    {
+      "id": "workspace_print_opening",
+      "name": "主办公区到打印区通道",
+      "kind": "opening",
+      "areas": [
+        "main_workspace",
+        "print_supply_area"
+      ],
+      "segment": [
+        [
+          7.25,
+          1.45
+        ],
+        [
+          7.25,
+          3.75
+        ]
+      ]
+    },
+    {
+      "id": "workspace_meeting_opening",
+      "name": "主办公区到会谈区通道",
+      "kind": "opening",
+      "areas": [
+        "main_workspace",
+        "meeting_area"
+      ],
+      "segment": [
+        [
+          4.4,
+          4.65
+        ],
+        [
+          6.45,
+          4.65
+        ]
+      ]
+    },
+    {
+      "id": "meeting_pantry_opening",
+      "name": "会谈区到茶水区通道",
+      "kind": "opening",
+      "areas": [
+        "meeting_area",
+        "pantry_area"
+      ],
+      "segment": [
+        [
+          4.1,
+          7.15
+        ],
+        [
+          6.8,
+          7.15
+        ]
+      ]
+    },
+    {
+      "id": "pantry_bathroom_opening",
+      "name": "茶水区到卫生间通道",
+      "kind": "door",
+      "areas": [
+        "pantry_area",
+        "bathroom"
+      ],
+      "segment": [
+        [
+          7.25,
+          7.35
+        ],
+        [
+          7.25,
+          8.65
+        ]
+      ]
+    }
+  ],
+  "rendering": {
+    "area_colors": {
+      "storage_archive_area": "#d6b98f",
+      "main_workspace": "#d8a96f",
+      "print_supply_area": "#c6b7a4",
+      "lounge_area": "#a8bf8f",
+      "meeting_area": "#dbc17b",
+      "entryway": "#cfc0b1",
+      "pantry_area": "#d3a36d",
+      "bathroom": "#8fc4d8"
+    }
+  },
+  "areas": [
+    {
+      "node_id": "storage_archive_area",
+      "name": "文件收纳区",
+      "bounds": [
+        0.2,
+        0.35,
+        3.35,
+        2.55
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "bookshelf_left_01",
+          "name": "文件书柜",
+          "center": [
+            1.15,
+            1.25
+          ],
+          "size": [
+            1.2,
+            1.45
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "file_binders_left_01",
+          "name": "书柜文件夹",
+          "center": [
+            1.25,
+            1.1
+          ],
+          "size": [
+            0.75,
+            0.28
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "storage_boxes_left_01",
+          "name": "蓝色收纳盒",
+          "center": [
+            2.55,
+            1.28
+          ],
+          "size": [
+            0.6,
+            0.45
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "trophy_left_01",
+          "name": "奖杯",
+          "center": [
+            1.85,
+            0.88
+          ],
+          "size": [
+            0.25,
+            0.25
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "photo_frame_left_01",
+          "name": "书柜相框",
+          "center": [
+            1.75,
+            0.62
+          ],
+          "size": [
+            0.24,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "certificate_wall_01",
+          "name": "墙上证书",
+          "center": [
+            2.55,
+            0.72
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "drawer_cabinet_left_01",
+          "name": "左侧抽屉柜",
+          "center": [
+            2.65,
+            1.85
+          ],
+          "size": [
+            0.68,
+            0.72
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "main_workspace",
+      "name": "主办公区",
+      "bounds": [
+        3.35,
+        0.35,
+        7.25,
+        4.65
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "office_desk_01",
+          "name": "主办公桌",
+          "center": [
+            5.25,
+            3.1
+          ],
+          "size": [
+            2.35,
+            1.05
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "office_chair_01",
+          "name": "办公椅",
+          "center": [
+            5.2,
+            2.05
+          ],
+          "size": [
+            0.75,
+            0.75
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "desktop_monitor_01",
+          "name": "显示器",
+          "center": [
+            5.5,
+            2.82
+          ],
+          "size": [
+            0.65,
+            0.2
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "keyboard_01",
+          "name": "键盘",
+          "center": [
+            5.18,
+            3.1
+          ],
+          "size": [
+            0.55,
+            0.18
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mouse_01",
+          "name": "鼠标",
+          "center": [
+            5.7,
+            3.12
+          ],
+          "size": [
+            0.18,
+            0.14
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "desk_lamp_01",
+          "name": "办公桌台灯",
+          "center": [
+            6.25,
+            2.72
+          ],
+          "size": [
+            0.3,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "pen_holder_01",
+          "name": "笔筒",
+          "center": [
+            4.72,
+            3.0
+          ],
+          "size": [
+            0.22,
+            0.22
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "notebook_desk_01",
+          "name": "桌面笔记本",
+          "center": [
+            4.5,
+            3.45
+          ],
+          "size": [
+            0.42,
+            0.32
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "document_tray_desk_01",
+          "name": "桌面文件盘",
+          "center": [
+            6.05,
+            3.45
+          ],
+          "size": [
+            0.45,
+            0.35
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "desk_plant_01",
+          "name": "办公桌小绿植",
+          "center": [
+            4.2,
+            2.7
+          ],
+          "size": [
+            0.3,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "window_back_01",
+          "name": "后墙窗户",
+          "center": [
+            5.1,
+            0.48
+          ],
+          "size": [
+            1.85,
+            0.22
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "window_plants_01",
+          "name": "窗台植物",
+          "center": [
+            5.15,
+            1.08
+          ],
+          "size": [
+            0.75,
+            0.3
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "wall_clock_01",
+          "name": "墙钟",
+          "center": [
+            6.72,
+            0.95
+          ],
+          "size": [
+            0.42,
+            0.42
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "workspace_floor_plant_01",
+          "name": "办公区落地植物",
+          "center": [
+            6.95,
+            1.9
+          ],
+          "size": [
+            0.55,
+            0.65
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "print_supply_area",
+      "name": "打印与办公用品区",
+      "bounds": [
+        7.25,
+        0.35,
+        9.45,
+        4.65
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "printer_copier_01",
+          "name": "打印复印机",
+          "center": [
+            8.45,
+            1.45
+          ],
+          "size": [
+            0.85,
+            0.7
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "printer_cabinet_01",
+          "name": "打印机下柜",
+          "center": [
+            8.45,
+            2.25
+          ],
+          "size": [
+            0.78,
+            0.62
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "paper_stack_01",
+          "name": "打印纸",
+          "center": [
+            8.55,
+            1.02
+          ],
+          "size": [
+            0.35,
+            0.25
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "side_storage_cabinet_01",
+          "name": "右侧矮柜",
+          "center": [
+            8.35,
+            3.55
+          ],
+          "size": [
+            0.95,
+            0.72
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "inbox_tray_01",
+          "name": "文件收纳盘",
+          "center": [
+            8.1,
+            3.2
+          ],
+          "size": [
+            0.4,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "wall_board_01",
+          "name": "办公公告板",
+          "center": [
+            9.3,
+            3.05
+          ],
+          "size": [
+            0.16,
+            1.05
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "wall_picture_right_01",
+          "name": "右墙挂画",
+          "center": [
+            9.28,
+            2.0
+          ],
+          "size": [
+            0.15,
+            0.7
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "print_area_plant_01",
+          "name": "打印区绿植",
+          "center": [
+            7.55,
+            1.15
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "lounge_area",
+      "name": "休息接待区",
+      "bounds": [
+        0.2,
+        2.55,
+        3.35,
+        6.2
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "lounge_armchair_01",
+          "name": "绿色单人沙发",
+          "center": [
+            1.35,
+            4.4
+          ],
+          "size": [
+            0.9,
+            0.9
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "side_table_lounge_01",
+          "name": "沙发旁圆桌",
+          "center": [
+            0.78,
+            5.05
+          ],
+          "size": [
+            0.58,
+            0.58
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "table_lamp_lounge_01",
+          "name": "接待区台灯",
+          "center": [
+            0.72,
+            4.92
+          ],
+          "size": [
+            0.25,
+            0.25
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mug_lounge_01",
+          "name": "沙发旁马克杯",
+          "center": [
+            0.88,
+            5.18
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "lounge_rug_01",
+          "name": "接待区地毯",
+          "center": [
+            1.85,
+            4.55
+          ],
+          "size": [
+            1.95,
+            1.65
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "large_floor_plant_01",
+          "name": "接待区大型绿植",
+          "center": [
+            0.72,
+            5.75
+          ],
+          "size": [
+            0.55,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "wall_picture_left_01",
+          "name": "左墙挂画",
+          "center": [
+            0.28,
+            3.7
+          ],
+          "size": [
+            0.16,
+            0.7
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "meeting_area",
+      "name": "小型会谈区",
+      "bounds": [
+        3.35,
+        4.65,
+        7.25,
+        7.15
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "meeting_table_01",
+          "name": "小会谈桌",
+          "center": [
+            5.25,
+            5.8
+          ],
+          "size": [
+            1.25,
+            1.0
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "meeting_chair_left_01",
+          "name": "左侧会谈椅",
+          "center": [
+            4.22,
+            5.82
+          ],
+          "size": [
+            0.55,
+            0.65
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "meeting_chair_right_01",
+          "name": "右侧会谈椅",
+          "center": [
+            6.28,
+            5.82
+          ],
+          "size": [
+            0.55,
+            0.65
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "meeting_rug_01",
+          "name": "会谈区地毯",
+          "center": [
+            5.25,
+            5.9
+          ],
+          "size": [
+            2.4,
+            1.55
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mug_meeting_01",
+          "name": "会谈桌马克杯",
+          "center": [
+            4.95,
+            5.7
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "plant_meeting_01",
+          "name": "会谈桌小植物",
+          "center": [
+            5.28,
+            5.58
+          ],
+          "size": [
+            0.25,
+            0.25
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "tablet_meeting_01",
+          "name": "会谈桌平板",
+          "center": [
+            5.68,
+            5.95
+          ],
+          "size": [
+            0.42,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "entryway",
+      "name": "办公室玄关 / 入口区",
+      "bounds": [
+        0.2,
+        6.2,
+        2.35,
+        9.75
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "office_front_door_01",
+          "name": "办公室入口门",
+          "center": [
+            1.3,
+            9.68
+          ],
+          "size": [
+            1.25,
+            0.16
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "coat_hook_rack_01",
+          "name": "挂衣钩",
+          "center": [
+            0.58,
+            7.3
+          ],
+          "size": [
+            0.18,
+            1.0
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "coat_01",
+          "name": "外套",
+          "center": [
+            0.66,
+            7.25
+          ],
+          "size": [
+            0.28,
+            0.7
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "bag_01",
+          "name": "手提包",
+          "center": [
+            0.92,
+            7.55
+          ],
+          "size": [
+            0.35,
+            0.35
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "shoe_bench_01",
+          "name": "鞋柜",
+          "center": [
+            1.0,
+            8.85
+          ],
+          "size": [
+            1.05,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "entry_mat_01",
+          "name": "入口地垫",
+          "center": [
+            1.45,
+            7.85
+          ],
+          "size": [
+            0.95,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "umbrella_stand_01",
+          "name": "雨伞桶",
+          "center": [
+            2.05,
+            8.55
+          ],
+          "size": [
+            0.35,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "entry_plant_01",
+          "name": "入口绿植",
+          "center": [
+            0.62,
+            9.1
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "pantry_area",
+      "name": "茶水区",
+      "bounds": [
+        3.35,
+        7.15,
+        7.25,
+        9.75
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "mini_fridge_01",
+          "name": "小冰箱",
+          "center": [
+            4.1,
+            8.35
+          ],
+          "size": [
+            0.75,
+            0.95
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "plant_on_fridge_01",
+          "name": "冰箱上的植物",
+          "center": [
+            4.1,
+            7.78
+          ],
+          "size": [
+            0.35,
+            0.35
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "pantry_counter_01",
+          "name": "茶水柜",
+          "center": [
+            5.65,
+            8.35
+          ],
+          "size": [
+            1.55,
+            0.72
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "microwave_01",
+          "name": "微波炉",
+          "center": [
+            5.2,
+            8.08
+          ],
+          "size": [
+            0.45,
+            0.32
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "coffee_machine_01",
+          "name": "咖啡机",
+          "center": [
+            5.92,
+            8.02
+          ],
+          "size": [
+            0.38,
+            0.38
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mug_pantry_01",
+          "name": "茶水区杯子",
+          "center": [
+            5.42,
+            8.7
+          ],
+          "size": [
+            0.2,
+            0.2
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "cups_shelf_01",
+          "name": "杯具架",
+          "center": [
+            5.78,
+            8.72
+          ],
+          "size": [
+            0.45,
+            0.24
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "snack_bag_01",
+          "name": "零食袋",
+          "center": [
+            6.35,
+            8.2
+          ],
+          "size": [
+            0.26,
+            0.32
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "storage_jars_01",
+          "name": "食品罐",
+          "center": [
+            6.22,
+            8.72
+          ],
+          "size": [
+            0.42,
+            0.22
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "bathroom",
+      "name": "卫生间",
+      "bounds": [
+        7.25,
+        6.55,
+        9.45,
+        9.75
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "toilet_01",
+          "name": "马桶",
+          "center": [
+            7.85,
+            7.65
+          ],
+          "size": [
+            0.55,
+            0.75
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "sink_bathroom_01",
+          "name": "卫生间洗手池",
+          "center": [
+            8.68,
+            7.72
+          ],
+          "size": [
+            0.62,
+            0.5
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mirror_bathroom_01",
+          "name": "卫生间镜子",
+          "center": [
+            8.68,
+            7.12
+          ],
+          "size": [
+            0.48,
+            0.12
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "soap_dispenser_01",
+          "name": "洗手液",
+          "center": [
+            8.98,
+            7.55
+          ],
+          "size": [
+            0.14,
+            0.18
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "trash_bin_bathroom_01",
+          "name": "卫生间垃圾桶",
+          "center": [
+            8.95,
+            8.78
+          ],
+          "size": [
+            0.36,
+            0.4
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "bathroom_mat_01",
+          "name": "卫生间地垫",
+          "center": [
+            8.2,
+            8.85
+          ],
+          "size": [
+            0.85,
+            0.52
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "toilet_paper_holder_01",
+          "name": "纸巾架",
+          "center": [
+            7.42,
+            8.12
+          ],
+          "size": [
+            0.16,
+            0.28
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    }
+  ]
+}

@@ -13,6 +13,7 @@ def build_scene_tree(
     default_agent_start: tuple[float, float] | None = None,
     portal_definitions: list[dict] | None = None,
     rendering: dict | None = None,
+    area_metadata: dict[str, dict] | None = None,
 ) -> Home:
     scene = Home(
         node_id=scene_id,
@@ -22,9 +23,10 @@ def build_scene_tree(
         rendering=dict(rendering or {}),
     )
     blocking_ids = blocking_element_ids or set()
+    metadata_by_area = area_metadata or {}
 
     for area_id, area_name, bounds in area_definitions:
-        area = Area(area_id, area_name, bounds)
+        area = Area(area_id, area_name, bounds, metadata=dict(metadata_by_area.get(area_id, {})))
         for item in area_elements.get(area_id, []):
             area.add(
                 Element(

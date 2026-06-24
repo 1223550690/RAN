@@ -1,0 +1,24 @@
+{
+  "scenes": [
+    {
+      "id": "community_outdoor",
+      "name": "社区级室内外平面图",
+      "path": "./data/scenes/community_outdoor.json"
+    },
+    {
+      "id": "home",
+      "name": "2d_home",
+      "path": "./data/scenes/home.json"
+    },
+    {
+      "id": "office",
+      "name": "single_office",
+      "path": "./data/scenes/office.json"
+    },
+    {
+      "id": "potions_teacher_office",
+      "name": "魔药课教师办公室",
+      "path": "./data/scenes/potions_teacher_office.json"
+    }
+  ]
+}
