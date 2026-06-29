@@ -1,0 +1,24 @@
+{
+  "scenes": [
+    {
+      "id": "bristol_topology",
+      "name": "Bristol 2000x2000 topology",
+      "path": "./data/scenes/bristol_topology.json"
+    },
+    {
+      "id": "home",
+      "name": "2d_home",
+      "path": "./data/scenes/home.json"
+    },
+    {
+      "id": "office",
+      "name": "single_office",
+      "path": "./data/scenes/office.json"
+    },
+    {
+      "id": "potions_teacher_office",
+      "name": "Potions teacher office",
+      "path": "./data/scenes/potions_teacher_office.json"
+    }
+  ]
+}

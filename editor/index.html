@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RAN Scene Editor</title>
+    <link rel="stylesheet" href="./src/styles/editor.css">
+  </head>
+  <body>
+    <div id="app" class="editor-shell">
+      <header class="topbar">
+        <div>
+          <h1>RAN Scene Editor</h1>
+          <p>2D scene property editing and live preview</p>
+        </div>
+        <div class="toolbar">
+          <label class="scene-picker">
+            <span>Scene</span>
+            <select id="sceneSelect" title="Select scene"></select>
+          </label>
+          <button id="saveButton" type="button" class="primary" title="Save current changes">Save</button>
+          <button id="fitViewButton" type="button" title="Fit view">Fit</button>
+          <button id="highlightIndoorButton" type="button" title="Highlight indoor areas">Indoor</button>
+          <button id="exportButton" type="button" title="Export current scene JSON">Export JSON</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="property-panel" aria-label="Property editor">
+          <div class="panel-header">
+            <span>Property editor</span>
+          </div>
+          <div id="propertyEditor" class="property-content"></div>
+        </aside>
+
+        <section class="preview-panel" aria-label="Scene preview">
+          <div class="panel-header">
+            <span>Scene preview</span>
+            <div class="preview-tools" aria-label="Map tools">
+              <button id="addRoadButton" type="button" title="Add road segment">Road</button>
+              <button id="addIntersectionButton" type="button" title="Add road intersection">Junction</button>
+              <button id="addPortalButton" type="button" title="Select two objects to create portal">Portal</button>
+              <button id="addWallButton" type="button" title="Add wall">Wall</button>
+              <span id="coordinateText" class="coordinate-text">x -, y -</span>
+            </div>
+            <span id="statusText" class="status-text">Not saved</span>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="sceneCanvas" width="1200" height="820"></canvas>
+            <div id="contextMenu" class="context-menu" hidden></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./src/app/main.js"></script>
+  </body>
+</html>

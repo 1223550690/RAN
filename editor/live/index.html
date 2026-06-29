@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RAN Live Preview</title>
+    <link rel="stylesheet" href="./livePreview.css">
+  </head>
+  <body>
+    <main class="live-shell">
+      <header class="live-header">
+        <div>
+          <h1>Live Preview</h1>
+          <p id="statusText">waiting for simulation state</p>
+        </div>
+        <div id="agentSummary" class="agent-summary"></div>
+      </header>
+      <section class="preview-surface">
+        <canvas id="sceneCanvas" width="1200" height="820"></canvas>
+        <aside class="console-panel">
+          <div class="console-header">
+            <span>运行状态</span>
+            <span id="ranStatus">RAN input unknown</span>
+          </div>
+          <div id="consoleLog" class="console-log"></div>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="./livePreview.js"></script>
+  </body>
+</html>
