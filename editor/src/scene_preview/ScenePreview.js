@@ -1,4 +1,4 @@
-import { createTransform, getSceneBounds, hitTestArea, hitTestElement } from "./geometry.js";
+import { createTransform, getSceneBounds, hitTestElement, hitTestSpatialObject, roadPolygon, spatialObjectBounds } from "./geometry.js";
 
 export class ScenePreview {
   constructor(canvas, options = {}) {
@@ -9,10 +9,12 @@ export class ScenePreview {
     this.hoveredId = null;
     this.selectedId = null;
     this.selectedAreaId = null;
+    this.selectedSpatial = null;
     this.agents = [];
     this.signalMap = null;
     this.qosResults = null;
     this.highlightMode = "none";
+    this.activeTool = "select";
     this.drag = null;
     this.pan = null;
     this.transform = null;
@@ -43,6 +45,11 @@ export class ScenePreview {
     this.render();
   }
 
+  setSelectedSpatial(selection) {
+    this.selectedSpatial = selection;
+    this.render();
+  }
+
   setAgents(agentStates = []) {
     this.agents = agentStates;
     this.render();
@@ -60,6 +67,11 @@ export class ScenePreview {
 
   setHighlightMode(mode) {
     this.highlightMode = mode || "none";
+    this.render();
+  }
+
+  setActiveTool(tool) {
+    this.activeTool = tool || "select";
     this.render();
   }
 
@@ -87,14 +99,19 @@ export class ScenePreview {
     }
 
     this.transform = createTransform(getSceneBounds(this.scene), rect.width, rect.height, 42, this.view);
-    this.drawGrid(rect.width, rect.height);
-    this.drawAreas();
-    this.drawPortals();
-    this.drawElements();
-    this.drawAgentStart();
-    this.drawAgentOverlay();
-    this.drawSignalOverlay();
-    this.drawQosOverlay();
+    this.drawMapFrame();
+    this.withMapClip(() => {
+      this.drawGrid(rect.width, rect.height);
+      this.drawAreas();
+      this.drawRoads();
+      this.drawWalls();
+      this.drawPortals();
+      this.drawElements();
+      this.drawSelectedSpatialHandles();
+      this.drawAgentOverlay();
+      this.drawSignalOverlay();
+      this.drawQosOverlay();
+    });
   }
 
   bindEvents() {
@@ -103,9 +120,14 @@ export class ScenePreview {
     this.canvas.addEventListener("mousemove", (event) => {
       if (!this.scene || !this.transform) return;
       const world = this.eventToWorld(event);
+      this.options.onCoordinate?.({ x: Math.floor(world[0]), y: Math.floor(world[1]) });
 
       if (this.drag) {
-        if (this.drag.mode === "resize") {
+        if (this.drag.kind === "spatial" && this.drag.mode === "resize") {
+          this.options.onSpatialResized?.(this.resizeSpatialRequest(this.drag, world));
+        } else if (this.drag.kind === "spatial") {
+          this.options.onSpatialMoved?.(this.moveSpatialRequest(this.drag, world));
+        } else if (this.drag.mode === "resize") {
           this.options.onElementResized?.(this.resizeRequest(this.drag, world));
         } else {
           this.options.onElementMoved?.({ elementId: this.drag.element.node_id, center: world });
@@ -124,17 +146,17 @@ export class ScenePreview {
       const local = this.eventToLocal(event);
       const handle = this.resizeHandleAt(local);
       const hit = hitTestElement(this.scene, world);
+      const spatialHit = hit ? null : hitTestSpatialObject(this.scene, world);
       const hoveredId = hit?.element.node_id || null;
       if (hit?.element) {
         this.canvas.title = `${hit.element.name} (${hit.element.node_id})`;
       } else {
-        const areaHit = hitTestArea(this.scene, world);
-        this.canvas.title = areaHit?.area ? `${areaHit.area.name} (${areaHit.area.node_id})` : "";
+        this.canvas.title = spatialHit ? `${objectLabel(spatialHit.object)} (${spatialHit.objectId})` : "";
       }
       if (hoveredId !== this.hoveredId) {
         this.options.onHover?.(hoveredId);
       }
-      this.canvas.style.cursor = handle?.cursor || (this.canMoveHit(hit) ? "move" : "default");
+      this.canvas.style.cursor = handle?.cursor || (this.canMoveHit(hit) || this.canMoveSpatialHit(spatialHit) ? "move" : "default");
     });
 
     this.canvas.addEventListener("mouseleave", () => {
@@ -158,14 +180,27 @@ export class ScenePreview {
       if (event.button !== 0) return;
       const local = this.eventToLocal(event);
       const world = this.eventToWorld(event);
+      if (this.activeTool === "portal") {
+        const spatialHit = hitTestSpatialObject(this.scene, world);
+        if (spatialHit) {
+          this.options.onSpatialPick?.({
+            object_type: spatialHit.type,
+            object_id: spatialHit.objectId,
+          });
+        }
+        return;
+      }
       const handle = this.resizeHandleAt(local);
       if (handle) {
-        this.options.onMoveStart?.({ elementId: handle.element.node_id });
+        this.options.onMoveStart?.({});
         this.drag = {
           mode: "resize",
+          kind: handle.kind || "element",
           element: handle.element,
+          spatial: handle.spatial,
           corner: handle.corner,
           anchor: handle.anchor,
+          originalBounds: handle.originalBounds,
         };
         return;
       }
@@ -174,14 +209,26 @@ export class ScenePreview {
       if (hit?.element) {
         this.options.onSelect?.(hit.element.node_id);
       } else {
-        const areaHit = hitTestArea(this.scene, world);
-        if (areaHit?.area) {
-          this.options.onAreaSelect?.(areaHit.area.node_id);
+        const spatialHit = hitTestSpatialObject(this.scene, world);
+        if (spatialHit) {
+          this.options.onSpatialSelect?.({ type: spatialHit.type, id: spatialHit.objectId });
         }
       }
       if (wasSelected && this.canMoveHit(hit)) {
         this.options.onMoveStart?.({ elementId: hit.element.node_id });
         this.drag = { mode: "move", ...hit };
+        return;
+      }
+      const spatialHit = hit ? null : hitTestSpatialObject(this.scene, world);
+      if (this.canMoveSpatialHit(spatialHit)) {
+        this.options.onMoveStart?.({});
+        this.drag = {
+          mode: "move",
+          kind: "spatial",
+          spatial: spatialHit,
+          startWorld: world,
+          original: structuredClone(spatialHit.object),
+        };
       }
     });
 
@@ -196,7 +243,7 @@ export class ScenePreview {
       const local = this.eventToLocal(event);
       const before = this.transform.toWorld(local);
       const factor = event.deltaY < 0 ? 1.12 : 0.88;
-      this.view.scaleMultiplier = Math.min(5, Math.max(0.35, this.view.scaleMultiplier * factor));
+      this.view.scaleMultiplier = Math.min(40, Math.max(0.08, this.view.scaleMultiplier * factor));
       this.render();
       const after = this.transform.toScreen(before);
       this.view.panX += local[0] - after[0];
@@ -209,11 +256,12 @@ export class ScenePreview {
       if (!this.scene || !this.transform) return;
       const world = this.eventToWorld(event);
       const hit = hitTestElement(this.scene, world);
+      const spatialHit = hitTestSpatialObject(this.scene, world);
       this.options.onContextMenu?.({
         client: [event.clientX, event.clientY],
         local: this.eventToLocal(event),
         world,
-        target: hit,
+        target: hit || spatialHit,
       });
     });
   }
@@ -228,40 +276,93 @@ export class ScenePreview {
   }
 
   canMoveHit(hit) {
-    return hit?.element?.movable && hit.element.node_id === this.selectedId;
+    return hit?.element && !hit.element.locked && hit.element.node_id === this.selectedId;
+  }
+
+  canMoveSpatialHit(hit) {
+    return hit
+      && !isObjectLocked(hit.object)
+      && this.selectedSpatial?.type === hit.type
+      && this.selectedSpatial?.id === hit.objectId;
   }
 
   selectedMovableElement() {
     if (!this.selectedId) return null;
     for (const area of this.scene?.areas || []) {
       const element = area.elements.find((item) => item.node_id === this.selectedId);
-      if (element?.movable) return element;
+      if (element && !element.locked) return element;
     }
     return null;
   }
 
   resizeHandleAt(localPoint) {
     const element = this.selectedMovableElement();
-    if (!element || !this.transform) return null;
-    const [x, y, width, height] = this.transform.elementToScreen(element);
+    if (!this.transform) return null;
+    let rect = null;
+    let payload = null;
+    if (element) {
+      rect = this.transform.elementToScreen(element);
+      payload = { kind: "element", element };
+    } else {
+      const spatial = this.selectedSpatialHit();
+      const bounds = spatialObjectBounds(spatial);
+      if (!spatial || isObjectLocked(spatial.object) || !bounds) return null;
+      rect = this.transform.rectToScreen(bounds);
+      payload = { kind: "spatial", spatial, originalBounds: bounds };
+    }
+    const [x, y, width, height] = rect;
+    let bounds = null;
+    if (element) {
+      bounds = [
+        element.center[0] - element.size[0] / 2,
+        element.center[1] - element.size[1] / 2,
+        element.center[0] + element.size[0] / 2,
+        element.center[1] + element.size[1] / 2,
+      ];
+    } else {
+      bounds = payload.originalBounds;
+    }
+    const [minX, minY, maxX, maxY] = bounds;
     const handles = [
-      { corner: "nw", cursor: "nwse-resize", point: [x, y], anchor: [element.center[0] + element.size[0] / 2, element.center[1] + element.size[1] / 2] },
-      { corner: "ne", cursor: "nesw-resize", point: [x + width, y], anchor: [element.center[0] - element.size[0] / 2, element.center[1] + element.size[1] / 2] },
-      { corner: "sw", cursor: "nesw-resize", point: [x, y + height], anchor: [element.center[0] + element.size[0] / 2, element.center[1] - element.size[1] / 2] },
-      { corner: "se", cursor: "nwse-resize", point: [x + width, y + height], anchor: [element.center[0] - element.size[0] / 2, element.center[1] - element.size[1] / 2] },
+      { corner: "nw", cursor: "nwse-resize", point: [x, y], anchor: [maxX, maxY] },
+      { corner: "ne", cursor: "nesw-resize", point: [x + width, y], anchor: [minX, maxY] },
+      { corner: "sw", cursor: "nesw-resize", point: [x, y + height], anchor: [maxX, minY] },
+      { corner: "se", cursor: "nwse-resize", point: [x + width, y + height], anchor: [minX, minY] },
     ];
     const half = this.handleSize / 2;
-    return handles.find((handle) => (
+    const found = handles.find((handle) => (
       localPoint[0] >= handle.point[0] - half
       && localPoint[0] <= handle.point[0] + half
       && localPoint[1] >= handle.point[1] - half
       && localPoint[1] <= handle.point[1] + half
-    )) ? { ...handles.find((handle) => (
-      localPoint[0] >= handle.point[0] - half
-      && localPoint[0] <= handle.point[0] + half
-      && localPoint[1] >= handle.point[1] - half
-      && localPoint[1] <= handle.point[1] + half
-    )), element } : null;
+    ));
+    return found ? { ...found, ...payload } : null;
+  }
+
+  selectedSpatialHit() {
+    if (!this.selectedSpatial || !this.scene) return null;
+    const { type, id } = this.selectedSpatial;
+    if (type === "area") {
+      const object = this.scene.areas.find((area) => area.node_id === id);
+      return object ? { type, object, objectId: id } : null;
+    }
+    if (type === "road_segment") {
+      const object = this.scene.roads?.segments.find((road) => road.road_id === id);
+      return object ? { type, object, objectId: id } : null;
+    }
+    if (type === "road_intersection") {
+      const object = this.scene.roads?.intersections.find((item) => item.intersection_id === id);
+      return object ? { type, object, objectId: id } : null;
+    }
+    if (type === "wall") {
+      const object = this.scene.walls.find((wall) => wall.wall_id === id);
+      return object ? { type, object, objectId: id } : null;
+    }
+    if (type === "portal") {
+      const object = this.scene.portals.find((portal) => portal.id === id);
+      return object ? { type, object, objectId: id } : null;
+    }
+    return null;
   }
 
   resizeRequest(drag, worldPoint) {
@@ -275,22 +376,80 @@ export class ScenePreview {
     };
   }
 
+  moveSpatialRequest(drag, worldPoint) {
+    return {
+      type: drag.spatial.type,
+      id: drag.spatial.objectId,
+      delta: [worldPoint[0] - drag.startWorld[0], worldPoint[1] - drag.startWorld[1]],
+      original: drag.original,
+    };
+  }
+
+  resizeSpatialRequest(drag, worldPoint) {
+    return {
+      type: drag.spatial.type,
+      id: drag.spatial.objectId,
+      anchor: drag.anchor,
+      worldPoint,
+      originalBounds: drag.originalBounds,
+      original: structuredClone(drag.spatial.object),
+    };
+  }
+
   drawBackground(width, height) {
-    this.ctx.fillStyle = "#f8f8f8";
+    this.ctx.fillStyle = "#ffffff";
     this.ctx.fillRect(0, 0, width, height);
   }
 
-  drawGrid(width, height) {
+  drawMapFrame() {
+    const bounds = this.scene?.rendering?.map_bounds;
+    if (!Array.isArray(bounds) || bounds.length !== 4) return;
+    const [x, y, width, height] = this.transform.rectToScreen(bounds);
     this.ctx.save();
-    this.ctx.strokeStyle = "#ececec";
+    this.ctx.fillStyle = "#ffffff";
+    this.ctx.fillRect(x, y, width, height);
+    this.ctx.strokeStyle = "rgb(0 0 0 / 18%)";
     this.ctx.lineWidth = 1;
-    for (let x = 0; x < width; x += 28) {
+    this.ctx.strokeRect(x, y, width, height);
+    this.ctx.restore();
+  }
+
+  withMapClip(draw) {
+    const bounds = this.scene?.rendering?.map_bounds;
+    if (!Array.isArray(bounds) || bounds.length !== 4) {
+      draw();
+      return;
+    }
+    const [x, y, width, height] = this.transform.rectToScreen(bounds);
+    this.ctx.save();
+    this.ctx.beginPath();
+    this.ctx.rect(x, y, width, height);
+    this.ctx.clip();
+    draw();
+    this.ctx.restore();
+  }
+
+  drawGrid(width, height) {
+    if (!this.transform || !this.scene) return;
+    const sceneBounds = getSceneBounds(this.scene);
+    this.ctx.save();
+    this.ctx.strokeStyle = "rgb(120 120 120 / 10%)";
+    this.ctx.lineWidth = 1;
+    const minX = Math.floor(sceneBounds[0]);
+    const minY = Math.floor(sceneBounds[1]);
+    const maxX = Math.ceil(sceneBounds[2]);
+    const maxY = Math.ceil(sceneBounds[3]);
+    for (let worldX = minX; worldX <= maxX; worldX += 1) {
+      const [x] = this.transform.toScreen([worldX, minY]);
+      if (x < -1 || x > width + 1) continue;
       this.ctx.beginPath();
       this.ctx.moveTo(x, 0);
       this.ctx.lineTo(x, height);
       this.ctx.stroke();
     }
-    for (let y = 0; y < height; y += 28) {
+    for (let worldY = minY; worldY <= maxY; worldY += 1) {
+      const [, y] = this.transform.toScreen([minX, worldY]);
+      if (y < -1 || y > height + 1) continue;
       this.ctx.beginPath();
       this.ctx.moveTo(0, y);
       this.ctx.lineTo(width, y);
@@ -343,6 +502,53 @@ export class ScenePreview {
     }
   }
 
+  drawRoads() {
+    for (const road of this.scene.roads?.segments || []) {
+      const points = roadPolygon(road).map((point) => this.transform.toScreen(point));
+      this.ctx.save();
+      this.ctx.fillStyle = "rgb(226 0 0 / 42%)";
+      this.ctx.strokeStyle = "rgb(181 0 0 / 68%)";
+      this.ctx.lineWidth = 2;
+      this.ctx.beginPath();
+      points.forEach((point, index) => {
+        if (index === 0) this.ctx.moveTo(point[0], point[1]);
+        else this.ctx.lineTo(point[0], point[1]);
+      });
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
+
+    for (const intersection of this.scene.roads?.intersections || []) {
+      const [x, y, width, height] = this.transform.rectToScreen(intersection.bounds);
+      this.ctx.save();
+      this.ctx.fillStyle = "#e00000";
+      this.ctx.strokeStyle = "#a80000";
+      this.ctx.lineWidth = 2;
+      this.ctx.fillRect(x, y, width, height);
+      this.ctx.strokeRect(x, y, width, height);
+      this.ctx.restore();
+    }
+  }
+
+  drawWalls() {
+    for (const wall of this.scene.walls || []) {
+      if (!wall.start || !wall.end) continue;
+      const [x1, y1] = this.transform.toScreen(wall.start);
+      const [x2, y2] = this.transform.toScreen(wall.end);
+      this.ctx.save();
+      this.ctx.strokeStyle = wall.wall_type === "exterior" ? "#222222" : "#575757";
+      this.ctx.lineWidth = wall.wall_type === "exterior" ? 4 : 2.5;
+      this.ctx.lineCap = "square";
+      this.ctx.beginPath();
+      this.ctx.moveTo(x1, y1);
+      this.ctx.lineTo(x2, y2);
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
+  }
+
   drawElements() {
     for (const area of this.scene.areas) {
       for (const element of area.elements) {
@@ -354,13 +560,13 @@ export class ScenePreview {
         this.ctx.save();
         this.ctx.globalAlpha = isAreaOverlay && !isHovered && !isSelected ? 0.55 : 1;
         this.ctx.fillStyle = isHovered || isSelected ? "#ffe48a" : areaOverlayHighlight || (element.blocks_movement ? "#606060" : "#ffffff");
-        this.ctx.strokeStyle = isHovered || isSelected ? "#986f00" : element.movable ? "#707070" : "#404040";
+        this.ctx.strokeStyle = isHovered || isSelected ? "#986f00" : element.locked ? "#a6a6a6" : "#707070";
         this.ctx.lineWidth = isHovered || isSelected ? 3 : 1.5;
         this.ctx.fillRect(x, y, width, height);
         this.ctx.globalAlpha = 1;
         this.ctx.strokeRect(x, y, width, height);
 
-        if (element.movable && isSelected) {
+        if (!element.locked && isSelected) {
           this.ctx.fillStyle = "#0f6cbd";
           this.drawResizeHandles(x, y, width, height);
         }
@@ -383,19 +589,22 @@ export class ScenePreview {
     }
   }
 
-  drawAgentStart() {
-    const point = this.scene.default_agent_start;
-    if (!point) return;
-    const [x, y] = this.transform.toScreen(point);
+  drawSelectedSpatialHandles() {
+    const spatial = this.selectedSpatialHit();
+    const bounds = spatialObjectBounds(spatial);
+    if (!spatial || isObjectLocked(spatial.object) || !bounds) return;
+    const [x, y, width, height] = this.transform.rectToScreen(bounds);
     this.ctx.save();
+    this.ctx.strokeStyle = "#986f00";
+    this.ctx.lineWidth = 2;
+    this.ctx.strokeRect(x, y, width, height);
     this.ctx.fillStyle = "#0f6cbd";
-    this.ctx.beginPath();
-    this.ctx.arc(x, y, 6, 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.fillStyle = "#1f1f1f";
-    this.ctx.font = "12px Segoe UI, sans-serif";
-    this.ctx.fillText("start", x + 8, y - 8);
+    this.drawResizeHandles(x, y, width, height);
     this.ctx.restore();
+  }
+
+  drawAgentStart() {
+    return;
   }
 
   drawAgentOverlay() {
@@ -439,4 +648,12 @@ export class ScenePreview {
     if (!this.qosResults) return;
     // Reserved for latency, throughput, packet loss, and congestion overlays.
   }
+}
+
+function objectLabel(object) {
+  return object.name || object.node_id || object.road_id || object.intersection_id || object.wall_id || "object";
+}
+
+function isObjectLocked(object) {
+  return Boolean(object?.locked || object?.metadata?.locked);
 }

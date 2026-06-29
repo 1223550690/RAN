@@ -150,10 +150,32 @@ button.danger {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: 0 14px;
   border-bottom: 1px solid var(--stroke);
   background: var(--surface-raised);
   font-weight: 600;
+}
+
+.preview-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.preview-tools button {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.coordinate-text {
+  min-width: 92px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: right;
 }
 
 .status-text {
@@ -187,8 +209,9 @@ button.danger {
   gap: 8px;
   padding: 0 8px 0 12px;
   cursor: pointer;
-  background: #fafafa;
+  background: #e8eef8;
   border-radius: 8px 8px 0 0;
+  color: #102a4c;
 }
 
 .nested-summary {
@@ -198,12 +221,12 @@ button.danger {
 }
 
 .section-summary:hover {
-  background: #f3f3f3;
+  background: #dbe6f5;
 }
 
 .section-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

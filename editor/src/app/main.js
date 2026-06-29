@@ -11,20 +11,31 @@ const statusText = document.querySelector("#statusText");
 const sceneSelect = document.querySelector("#sceneSelect");
 const saveButton = document.querySelector("#saveButton");
 const highlightIndoorButton = document.querySelector("#highlightIndoorButton");
+const addRoadButton = document.querySelector("#addRoadButton");
+const addIntersectionButton = document.querySelector("#addIntersectionButton");
+const addPortalButton = document.querySelector("#addPortalButton");
+const addWallButton = document.querySelector("#addWallButton");
+const coordinateText = document.querySelector("#coordinateText");
 
 const store = new EditorStore(sampleScene);
 const contextMenu = new ContextMenu(contextMenuElement, store);
 let lastScrolledSelectedId = null;
 let lastScrolledSelectedAreaId = null;
+let lastScrolledSpatialKey = null;
 
 const preview = new ScenePreview(canvas, {
   onHover: (id) => store.setHover(id),
   onSelect: (id) => store.setSelected(id),
   onAreaSelect: (id) => store.setSelectedArea(id),
+  onSpatialSelect: (selection) => store.setSelectedSpatial(selection),
   onMoveStart: () => store.beginMove(),
   onElementMoved: ({ elementId, center }) => store.moveElement(elementId, center),
   onElementResized: ({ elementId, center, size }) => store.resizeElement(elementId, center, size),
+  onSpatialMoved: (request) => store.moveSpatialObject(request),
+  onSpatialResized: (request) => store.resizeSpatialObject(request),
   onContextMenu: (request) => contextMenu.show(request),
+  onCoordinate: (coord) => store.setHoverCoord(coord),
+  onSpatialPick: (endpoint) => store.pickPortalEndpoint(endpoint),
 });
 
 store.subscribe((state, options) => {
@@ -32,6 +43,10 @@ store.subscribe((state, options) => {
   preview.setHovered(state.hoveredId);
   preview.setSelected(state.selectedId);
   preview.setSelectedArea(state.selectedAreaId);
+  preview.setSelectedSpatial(state.selectedSpatial);
+  preview.setActiveTool(state.activeTool);
+  addPortalButton.classList.toggle("active", state.activeTool === "portal");
+  coordinateText.textContent = state.hoverCoord ? `x ${state.hoverCoord.x}, y ${state.hoverCoord.y}` : "x -, y -";
   if (options.renderProperties) {
     renderPropertyEditor(propertyEditor, store);
   }
@@ -46,12 +61,23 @@ store.subscribe((state, options) => {
     lastScrolledSelectedAreaId = state.selectedAreaId;
     window.setTimeout(() => scrollSelectionIntoView(propertyEditor, state), 0);
   }
+  const spatialKey = state.selectedSpatial && state.selectedSpatial.type !== "area"
+    ? `${state.selectedSpatial.type}:${state.selectedSpatial.id}`
+    : null;
+  if (spatialKey && spatialKey !== lastScrolledSpatialKey) {
+    lastScrolledSpatialKey = spatialKey;
+    window.setTimeout(() => scrollSelectionIntoView(propertyEditor, state), 0);
+  }
   statusText.textContent = statusLabel(state);
 });
 
 document.querySelector("#fitViewButton").addEventListener("click", () => preview.fitView());
-saveButton.addEventListener("click", () => store.save());
+saveButton.addEventListener("click", () => saveCurrentScene());
 highlightIndoorButton.addEventListener("click", () => setHighlightMode("indoor"));
+addRoadButton.addEventListener("click", () => store.addRoadSegment());
+addIntersectionButton.addEventListener("click", () => store.addRoadIntersection());
+addWallButton.addEventListener("click", () => store.addWall());
+addPortalButton.addEventListener("click", () => store.setTool("portal"));
 
 window.addEventListener("keydown", (event) => {
   if (!(event.ctrlKey || event.metaKey)) return;
@@ -62,7 +88,7 @@ window.addEventListener("keydown", (event) => {
   }
   if (key === "s") {
     event.preventDefault();
-    store.save();
+    saveCurrentScene();
   }
 });
 
@@ -83,7 +109,7 @@ statusText.textContent = statusLabel(store.snapshot());
 
 async function loadSceneCatalog() {
   try {
-    const response = await fetch("./data/scenes/index.json");
+    const response = await fetch("./data/scenes/index.json", { cache: "no-store" });
     const catalog = await response.json();
     sceneSelect.innerHTML = "";
     for (const scene of catalog.scenes) {
@@ -107,15 +133,28 @@ async function loadSceneCatalog() {
 async function loadSelectedScene() {
   const option = sceneSelect.selectedOptions[0];
   if (!option) return;
-  const response = await fetch(option.dataset.path);
+  if (option.dataset.temporary === "true" || !option.dataset.path) return;
+  store.removeTemporarySceneOptions(sceneSelect);
+  const response = await fetch(option.dataset.path, { cache: "no-store" });
   const scene = await response.json();
-  store.loadScene(option.value, scene);
+  store.loadScene(option.value, scene, { scenePath: option.dataset.path });
+}
+
+async function saveCurrentScene() {
+  try {
+    await store.save();
+  } catch (error) {
+    statusText.textContent = `save failed - ${error.message}`;
+  }
 }
 
 function statusLabel(state) {
   const selected = state.selectedId ? `selected: ${state.selectedId}` : "ready";
-  const saved = state.lastSavedAt ? `上次保存 ${new Date(state.lastSavedAt).toLocaleTimeString()}` : "尚未保存";
-  return `${state.dirty ? "未保存" : "已保存"} · ${saved} · ${selected}`;
+  const saved = state.lastSavedAt ? `last saved ${new Date(state.lastSavedAt).toLocaleTimeString()}` : "not saved";
+  const tool = state.activeTool === "portal"
+    ? `portal: select ${state.portalDraft.length === 0 ? "first" : "second"} object`
+    : selected;
+  return `${state.dirty ? "unsaved" : "saved"} - ${saved} - ${tool}`;
 }
 
 function setHighlightMode(mode) {

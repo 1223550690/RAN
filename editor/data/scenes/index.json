@@ -1,9 +1,9 @@
 {
   "scenes": [
     {
-      "id": "community_outdoor",
-      "name": "社区级室内外平面图",
-      "path": "./data/scenes/community_outdoor.json"
+      "id": "bristol_topology",
+      "name": "Bristol 2000x2000 topology",
+      "path": "./data/scenes/bristol_topology.json"
     },
     {
       "id": "home",
@@ -17,7 +17,7 @@
     },
     {
       "id": "potions_teacher_office",
-      "name": "魔药课教师办公室",
+      "name": "Potions teacher office",
       "path": "./data/scenes/potions_teacher_office.json"
     }
   ]

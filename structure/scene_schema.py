@@ -16,6 +16,7 @@ class Element:
     center: tuple[float, float]
     size: tuple[float, float]
     movable: bool = False
+    locked: bool = False
     blocks_movement: bool = False
     physical_status: ElementStatus = "regular"
     evolution_status: EvolutionStatus = "stable"
@@ -53,6 +54,7 @@ class Element:
             "center": list(self.center),
             "size": list(self.size),
             "movable": self.movable,
+            "locked": self.locked,
             "blocks_movement": self.blocks_movement,
             "physical_status": self.physical_status,
             "evolution_status": self.evolution_status,
@@ -92,6 +94,127 @@ class Element:
             cleaned_value = str(value).strip()
             if cleaned_value:
                 self.state_details[cleaned_key] = cleaned_value
+
+
+@dataclass
+class RoadSegment:
+    road_id: str
+    name: str
+    top: dict[str, float]
+    bottom: dict[str, float]
+    road_type: str = "pedestrian"
+    walkable: bool = True
+    locked: bool = False
+    metadata: dict[str, str] = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return {
+            "road_id": self.road_id,
+            "name": self.name,
+            "kind": "segment",
+            "top": dict(self.top),
+            "bottom": dict(self.bottom),
+            "road_type": self.road_type,
+            "walkable": self.walkable,
+            "locked": self.locked,
+            "metadata": dict(self.metadata),
+        }
+
+
+@dataclass
+class RoadIntersection:
+    intersection_id: str
+    name: str
+    bounds: tuple[float, float, float, float]
+    connected_roads: list[str] = field(default_factory=list)
+    road_type: str = "junction"
+    walkable: bool = True
+    locked: bool = False
+    metadata: dict[str, str] = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return {
+            "intersection_id": self.intersection_id,
+            "name": self.name,
+            "kind": "intersection",
+            "bounds": list(self.bounds),
+            "connected_roads": list(self.connected_roads),
+            "road_type": self.road_type,
+            "walkable": self.walkable,
+            "locked": self.locked,
+            "metadata": dict(self.metadata),
+        }
+
+
+@dataclass
+class WallSegment:
+    wall_id: str
+    name: str
+    start: tuple[float, float]
+    end: tuple[float, float]
+    wall_type: str = "interior"
+    material: str = "drywall"
+    thickness_m: float = 0.2
+    penetration_loss_db: float = 5.0
+    blocks_movement: bool = True
+    locked: bool = False
+    areas: tuple[str | None, str | None] = (None, None)
+    portal_ids: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "wall_id": self.wall_id,
+            "name": self.name,
+            "start": list(self.start),
+            "end": list(self.end),
+            "wall_type": self.wall_type,
+            "material": self.material,
+            "thickness_m": self.thickness_m,
+            "penetration_loss_db": self.penetration_loss_db,
+            "blocks_movement": self.blocks_movement,
+            "locked": self.locked,
+            "areas": list(self.areas),
+            "portal_ids": list(self.portal_ids),
+        }
+
+
+@dataclass
+class Portal:
+    portal_id: str
+    name: str
+    areas: tuple[str, str]
+    segment: tuple[tuple[float, float], tuple[float, float]]
+    kind: str = "opening"
+    endpoints: tuple[dict, dict] | None = None
+    role: str = "passage"
+    locked: bool = False
+    wall_id: str | None = None
+    width_m: float | None = None
+    open: bool = True
+
+    def to_dict(self) -> dict:
+        endpoints = self.endpoints
+        if endpoints is None:
+            endpoints = (
+                {"object_type": "area", "object_id": self.areas[0]},
+                {"object_type": "area", "object_id": self.areas[1]},
+            )
+        data = {
+            "id": self.portal_id,
+            "name": self.name,
+            "kind": self.kind,
+            "role": self.role,
+            "locked": self.locked,
+            "areas": list(self.areas),
+            "endpoints": [dict(endpoints[0]), dict(endpoints[1])],
+            "segment": [list(self.segment[0]), list(self.segment[1])],
+            "open": self.open,
+        }
+        if self.wall_id is not None:
+            data["wall_id"] = self.wall_id
+        if self.width_m is not None:
+            data["width_m"] = self.width_m
+        return data
 
 
 @dataclass
@@ -150,7 +273,10 @@ class Home:
     node_id: str
     name: str
     default_agent_start: tuple[float, float] | None = None
-    portals: list[dict] = field(default_factory=list)
+    portals: list[Portal | dict] = field(default_factory=list)
+    walls: list[WallSegment | dict] = field(default_factory=list)
+    road_segments: list[RoadSegment | dict] = field(default_factory=list)
+    road_intersections: list[RoadIntersection | dict] = field(default_factory=list)
     rendering: dict = field(default_factory=dict)
     areas: list[Area] = field(default_factory=list)
 
@@ -279,7 +405,18 @@ class Home:
             "node_id": self.node_id,
             "name": self.name,
             "default_agent_start": list(self.default_agent_start) if self.default_agent_start is not None else None,
-            "portals": deepcopy(self.portals),
+            "portals": [portal.to_dict() if hasattr(portal, "to_dict") else deepcopy(portal) for portal in self.portals],
+            "walls": [wall.to_dict() if hasattr(wall, "to_dict") else deepcopy(wall) for wall in self.walls],
+            "roads": {
+                "segments": [
+                    road.to_dict() if hasattr(road, "to_dict") else deepcopy(road)
+                    for road in self.road_segments
+                ],
+                "intersections": [
+                    intersection.to_dict() if hasattr(intersection, "to_dict") else deepcopy(intersection)
+                    for intersection in self.road_intersections
+                ],
+            },
             "rendering": deepcopy(self.rendering),
             "areas": [area.to_dict() for area in self.areas],
         }

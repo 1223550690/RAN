@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,32 +11,39 @@
       <header class="topbar">
         <div>
           <h1>RAN Scene Editor</h1>
-          <p>二维场景属性编辑与实时预览</p>
+          <p>2D scene property editing and live preview</p>
         </div>
         <div class="toolbar">
           <label class="scene-picker">
-            <span>场景</span>
-            <select id="sceneSelect" title="选择场景"></select>
+            <span>Scene</span>
+            <select id="sceneSelect" title="Select scene"></select>
           </label>
-          <button id="saveButton" type="button" class="primary" title="保存当前更改">保存</button>
-          <button id="fitViewButton" type="button" title="适配视图">适配</button>
-          <button id="highlightIndoorButton" type="button" title="高亮室内区域">室内</button>
-          <button id="exportButton" type="button" title="导出当前场景 JSON">导出 JSON</button>
+          <button id="saveButton" type="button" class="primary" title="Save current changes">Save</button>
+          <button id="fitViewButton" type="button" title="Fit view">Fit</button>
+          <button id="highlightIndoorButton" type="button" title="Highlight indoor areas">Indoor</button>
+          <button id="exportButton" type="button" title="Export current scene JSON">Export JSON</button>
         </div>
       </header>
 
       <main class="workspace">
-        <aside class="property-panel" aria-label="属性编辑器">
+        <aside class="property-panel" aria-label="Property editor">
           <div class="panel-header">
-            <span>属性编辑器</span>
+            <span>Property editor</span>
           </div>
           <div id="propertyEditor" class="property-content"></div>
         </aside>
 
-        <section class="preview-panel" aria-label="场景预览">
+        <section class="preview-panel" aria-label="Scene preview">
           <div class="panel-header">
-            <span>场景预览</span>
-            <span id="statusText" class="status-text">未保存</span>
+            <span>Scene preview</span>
+            <div class="preview-tools" aria-label="Map tools">
+              <button id="addRoadButton" type="button" title="Add road segment">Road</button>
+              <button id="addIntersectionButton" type="button" title="Add road intersection">Junction</button>
+              <button id="addPortalButton" type="button" title="Select two objects to create portal">Portal</button>
+              <button id="addWallButton" type="button" title="Add wall">Wall</button>
+              <span id="coordinateText" class="coordinate-text">x -, y -</span>
+            </div>
+            <span id="statusText" class="status-text">Not saved</span>
           </div>
           <div class="canvas-wrap">
             <canvas id="sceneCanvas" width="1200" height="820"></canvas>

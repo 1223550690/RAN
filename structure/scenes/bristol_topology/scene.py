@@ -6,11 +6,11 @@ from __future__ import annotations
 from ...scene_schema import Home
 from ...scene_tree import build_scene_tree
 
-from .elements import AREA_ELEMENTS, HOME_BLOCKING_ELEMENT_IDS
+from .elements import AREA_ELEMENTS, BRISTOL_TOPOLOGY_BLOCKING_ELEMENT_IDS
 from .layout import (
     AREA_DEFINITIONS,
     AREA_METADATA,
-    HOME_DEFAULT_AGENT_START,
+    BRISTOL_TOPOLOGY_DEFAULT_AGENT_START,
     PORTAL_DEFINITIONS,
     RENDERING,
     ROAD_INTERSECTION_DEFINITIONS,
@@ -19,14 +19,14 @@ from .layout import (
 )
 
 
-def build_home_tree() -> Home:
+def build_bristol_topology_tree() -> Home:
     return build_scene_tree(
-        scene_id='home',
-        scene_name='2d_home',
+        scene_id='bristol_topology',
+        scene_name='Bristol 2000x2000 topology',
         area_definitions=AREA_DEFINITIONS,
         area_elements=AREA_ELEMENTS,
-        blocking_element_ids=HOME_BLOCKING_ELEMENT_IDS,
-        default_agent_start=HOME_DEFAULT_AGENT_START,
+        blocking_element_ids=BRISTOL_TOPOLOGY_BLOCKING_ELEMENT_IDS,
+        default_agent_start=BRISTOL_TOPOLOGY_DEFAULT_AGENT_START,
         portal_definitions=PORTAL_DEFINITIONS,
         wall_definitions=WALL_DEFINITIONS,
         road_segment_definitions=ROAD_SEGMENT_DEFINITIONS,

@@ -13,10 +13,12 @@ export class ContextMenu {
     this.element.style.top = `${y}px`;
 
     if (request.target?.element) {
-      this.addItem("复制", () => this.store.duplicateElement(request.target.element.node_id));
-      this.addItem("删除", () => this.store.deleteElement(request.target.element.node_id));
+      this.addItem("Duplicate", () => this.store.duplicateElement(request.target.element.node_id));
+      this.addItem("Delete", () => this.store.deleteElement(request.target.element.node_id));
+    } else if (request.target?.type) {
+      this.addItem("Delete", () => this.store.deleteSpatialObject(request.target.type, request.target.objectId));
     } else {
-      this.addItem("添加元素", () => this.store.addElementAt(request.world));
+      this.addItem("Add element", () => this.store.addElementAt(request.world));
     }
 
     this.element.hidden = false;

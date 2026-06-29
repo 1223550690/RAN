@@ -1,5 +1,22 @@
 export function getSceneBounds(scene) {
+  if (Array.isArray(scene.rendering?.map_bounds) && scene.rendering.map_bounds.length === 4) {
+    return scene.rendering.map_bounds.map(Number);
+  }
   const bounds = scene.areas.map((area) => area.bounds);
+  for (const road of scene.roads?.segments || []) {
+    bounds.push(roadBounds(road));
+  }
+  for (const intersection of scene.roads?.intersections || []) {
+    bounds.push(intersection.bounds);
+  }
+  for (const wall of scene.walls || []) {
+    bounds.push([
+      Math.min(wall.start[0], wall.end[0]),
+      Math.min(wall.start[1], wall.end[1]),
+      Math.max(wall.start[0], wall.end[0]),
+      Math.max(wall.start[1], wall.end[1]),
+    ]);
+  }
   const minX = Math.min(...bounds.map((item) => item[0]));
   const minY = Math.min(...bounds.map((item) => item[1]));
   const maxX = Math.max(...bounds.map((item) => item[2]));
@@ -66,6 +83,114 @@ export function hitTestArea(scene, worldPoint) {
     }
   }
   return null;
+}
+
+export function hitTestSpatialObject(scene, worldPoint) {
+  for (let index = (scene.portals || []).length - 1; index >= 0; index -= 1) {
+    const portal = scene.portals[index];
+    if (portal.segment && pointNearSegment(worldPoint, portal.segment[0], portal.segment[1], 6)) {
+      return { type: "portal", object: portal, objectId: portal.id };
+    }
+  }
+  for (let index = (scene.walls || []).length - 1; index >= 0; index -= 1) {
+    const wall = scene.walls[index];
+    if (wall.start && wall.end && pointNearSegment(worldPoint, wall.start, wall.end, 6)) {
+      return { type: "wall", object: wall, objectId: wall.wall_id };
+    }
+  }
+  for (let index = (scene.roads?.intersections || []).length - 1; index >= 0; index -= 1) {
+    const intersection = scene.roads.intersections[index];
+    if (pointInBounds(worldPoint, intersection.bounds)) {
+      return { type: "road_intersection", object: intersection, objectId: intersection.intersection_id };
+    }
+  }
+  for (let index = (scene.roads?.segments || []).length - 1; index >= 0; index -= 1) {
+    const road = scene.roads.segments[index];
+    if (pointInRoadSegment(worldPoint, road)) {
+      return { type: "road_segment", object: road, objectId: road.road_id };
+    }
+  }
+  const areaHit = hitTestArea(scene, worldPoint);
+  if (areaHit?.area) {
+    return { type: "area", object: areaHit.area, objectId: areaHit.area.node_id };
+  }
+  return null;
+}
+
+export function spatialObjectBounds(hit) {
+  if (!hit) return null;
+  if (hit.type === "area") return hit.object.bounds;
+  if (hit.type === "road_intersection") return hit.object.bounds;
+  if (hit.type === "road_segment") return roadBounds(hit.object);
+  if (hit.type === "wall") {
+    return [
+      Math.min(hit.object.start[0], hit.object.end[0]),
+      Math.min(hit.object.start[1], hit.object.end[1]),
+      Math.max(hit.object.start[0], hit.object.end[0]),
+      Math.max(hit.object.start[1], hit.object.end[1]),
+    ];
+  }
+  if (hit.type === "portal") {
+    return [
+      Math.min(hit.object.segment[0][0], hit.object.segment[1][0]),
+      Math.min(hit.object.segment[0][1], hit.object.segment[1][1]),
+      Math.max(hit.object.segment[0][0], hit.object.segment[1][0]),
+      Math.max(hit.object.segment[0][1], hit.object.segment[1][1]),
+    ];
+  }
+  return null;
+}
+
+export function pointInRoadSegment(point, road) {
+  const [x, y] = point;
+  const topY = road.top.y;
+  const bottomY = road.bottom.y;
+  const minY = Math.min(topY, bottomY);
+  const maxY = Math.max(topY, bottomY);
+  if (y < minY || y > maxY || topY === bottomY) return false;
+  const t = (y - topY) / (bottomY - topY);
+  const leftX = road.top.x1 + t * (road.bottom.x1 - road.top.x1);
+  const rightX = road.top.x2 + t * (road.bottom.x2 - road.top.x2);
+  return x >= Math.min(leftX, rightX) && x <= Math.max(leftX, rightX);
+}
+
+export function roadPolygon(road) {
+  return [
+    [road.top.x1, road.top.y],
+    [road.top.x2, road.top.y],
+    [road.bottom.x2, road.bottom.y],
+    [road.bottom.x1, road.bottom.y],
+  ];
+}
+
+export function roadBounds(road) {
+  const points = roadPolygon(road);
+  return [
+    Math.min(...points.map((point) => point[0])),
+    Math.min(...points.map((point) => point[1])),
+    Math.max(...points.map((point) => point[0])),
+    Math.max(...points.map((point) => point[1])),
+  ];
+}
+
+function pointInBounds(point, bounds) {
+  const [x, y] = point;
+  const [minX, minY, maxX, maxY] = bounds;
+  return x >= minX && x <= maxX && y >= minY && y <= maxY;
+}
+
+function pointNearSegment(point, start, end, tolerance) {
+  const [px, py] = point;
+  const [x1, y1] = start;
+  const [x2, y2] = end;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq === 0) return Math.hypot(px - x1, py - y1) <= tolerance;
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lengthSq));
+  const x = x1 + t * dx;
+  const y = y1 + t * dy;
+  return Math.hypot(px - x, py - y) <= tolerance;
 }
 
 export function pointInElement(point, element) {

@@ -19,12 +19,22 @@ class LivePreviewService:
         self.replace_retries = replace_retries
         self.retry_sleep_seconds = retry_sleep_seconds
 
-    def write_state(self, *, tick: int, now_seconds: float, scene, agents: list, console: list[str] | None = None) -> None:
+    def write_state(
+        self,
+        *,
+        tick: int,
+        now_seconds: float,
+        scene,
+        agents: list | None = None,
+        ran_requests: list[dict] | None = None,
+        console: list[str] | None = None,
+    ) -> None:
         payload = {
             "tick": tick,
             "now_seconds": now_seconds,
             "scene": scene.to_dict(),
-            "agents": [agent.to_dict() for agent in agents],
+            "agents": [agent.to_dict() for agent in agents or []],
+            "ran_requests": list(ran_requests or []),
             "console": list(console or [])[-80:],
         }
         temp_path = self.output_path.with_suffix(".json.tmp")
