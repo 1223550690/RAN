@@ -9,7 +9,7 @@ throughput, packet loss, and congestion state.
 
 The current repository keeps the existing scene structure package and prepares
 the project layout for later Agent, simulation, RAN, service, experiment, and
-test modules.
+validation modules.
 
 ## Install
 
@@ -31,13 +31,10 @@ pip install -e .
 - `experiments/`: Experiment loading, execution, comparison, and reporting.
 - `configs/`: Project, scene, RAN, scheduler, and experiment configuration.
 - `outputs/`: Local runtime outputs such as logs, metrics, and reports.
-- `tests/`: Automated tests for scene loading, channel models, scheduling, QoS,
-  and simulation flow.
 - `docs/`: Project documentation and team collaboration notes.
 
-The scene editor also includes a `community_outdoor` map for community-scale
-experiments. It keeps the existing `Area -> Element` model but adds
-`area.metadata.space` to distinguish indoor and outdoor regions.
+There is currently no dedicated `tests/` directory. Add one later when the RAN
+modules and simulation contracts become stable enough for automated checks.
 
 ## Scene Quick Start
 
