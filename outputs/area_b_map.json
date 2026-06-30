@@ -1,0 +1,376 @@
+{
+  "map_id": "area_b",
+  "area_name": "Area B - Research Center and Library",
+  "owner": "Boyu Yan",
+  "description": "Area B contains the Research Center and the Arts and Social Sciences Library. The map is designed with rectangular buildings, separated rooms, walls, obstacles, decorations, and one main portal.",
+  "coordinate_system": {
+    "tile_size": 32,
+    "width": 40,
+    "height": 26
+  },
+  "spawn_point": {
+    "x": 20,
+    "y": 24,
+    "direction": "up"
+  },
+  "portals": [
+    {
+      "id": "area_b_main_portal",
+      "name": "Area B Main Entrance",
+      "type": "portal",
+      "x": 19,
+      "y": 25,
+      "width": 3,
+      "height": 1,
+      "target_area": "main_road",
+      "description": "The single entrance portal for Area B."
+    }
+  ],
+  "buildings": [
+    {
+      "id": "research_center",
+      "name": "Research Center",
+      "full_name": "The Bristol Centre for Nanoscience and Quantum Information",
+      "type": "research_building",
+      "x": 3,
+      "y": 3,
+      "width": 15,
+      "height": 16,
+      "rooms": [
+        {
+          "id": "research_lobby",
+          "name": "Research Lobby",
+          "x": 4,
+          "y": 4,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "id": "quantum_lab",
+          "name": "Quantum Laboratory",
+          "x": 4,
+          "y": 9,
+          "width": 6,
+          "height": 8
+        },
+        {
+          "id": "nanoscience_lab",
+          "name": "Nanoscience Laboratory",
+          "x": 11,
+          "y": 9,
+          "width": 6,
+          "height": 8
+        }
+      ],
+      "doors": [
+        {
+          "id": "research_main_door",
+          "x": 9,
+          "y": 18,
+          "width": 3,
+          "height": 1,
+          "connects": ["outside", "research_lobby"]
+        }
+      ]
+    },
+    {
+      "id": "library",
+      "name": "Library",
+      "full_name": "Arts and Social Sciences Library",
+      "type": "library_building",
+      "x": 22,
+      "y": 3,
+      "width": 15,
+      "height": 16,
+      "rooms": [
+        {
+          "id": "library_lobby",
+          "name": "Library Lobby",
+          "x": 23,
+          "y": 4,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "id": "reading_area",
+          "name": "Reading Area",
+          "x": 23,
+          "y": 9,
+          "width": 6,
+          "height": 8
+        },
+        {
+          "id": "book_stack_area",
+          "name": "Book Stack Area",
+          "x": 30,
+          "y": 9,
+          "width": 6,
+          "height": 8
+        }
+      ],
+      "doors": [
+        {
+          "id": "library_main_door",
+          "x": 28,
+          "y": 18,
+          "width": 3,
+          "height": 1,
+          "connects": ["outside", "library_lobby"]
+        }
+      ]
+    }
+  ],
+  "walls": [
+    {
+      "id": "research_wall_top",
+      "x": 3,
+      "y": 3,
+      "width": 15,
+      "height": 1
+    },
+    {
+      "id": "research_wall_left",
+      "x": 3,
+      "y": 3,
+      "width": 1,
+      "height": 16
+    },
+    {
+      "id": "research_wall_right",
+      "x": 17,
+      "y": 3,
+      "width": 1,
+      "height": 16
+    },
+    {
+      "id": "research_wall_bottom_left",
+      "x": 3,
+      "y": 18,
+      "width": 6,
+      "height": 1
+    },
+    {
+      "id": "research_wall_bottom_right",
+      "x": 12,
+      "y": 18,
+      "width": 6,
+      "height": 1
+    },
+    {
+      "id": "research_inner_wall_horizontal",
+      "x": 4,
+      "y": 8,
+      "width": 13,
+      "height": 1
+    },
+    {
+      "id": "research_inner_wall_vertical",
+      "x": 10,
+      "y": 9,
+      "width": 1,
+      "height": 9
+    },
+    {
+      "id": "library_wall_top",
+      "x": 22,
+      "y": 3,
+      "width": 15,
+      "height": 1
+    },
+    {
+      "id": "library_wall_left",
+      "x": 22,
+      "y": 3,
+      "width": 1,
+      "height": 16
+    },
+    {
+      "id": "library_wall_right",
+      "x": 36,
+      "y": 3,
+      "width": 1,
+      "height": 16
+    },
+    {
+      "id": "library_wall_bottom_left",
+      "x": 22,
+      "y": 18,
+      "width": 6,
+      "height": 1
+    },
+    {
+      "id": "library_wall_bottom_right",
+      "x": 31,
+      "y": 18,
+      "width": 6,
+      "height": 1
+    },
+    {
+      "id": "library_inner_wall_horizontal",
+      "x": 23,
+      "y": 8,
+      "width": 13,
+      "height": 1
+    },
+    {
+      "id": "library_inner_wall_vertical",
+      "x": 29,
+      "y": 9,
+      "width": 1,
+      "height": 9
+    }
+  ],
+  "obstacles": [
+    {
+      "id": "research_lab_table_left",
+      "type": "lab_table",
+      "x": 5,
+      "y": 11,
+      "width": 3,
+      "height": 1
+    },
+    {
+      "id": "research_lab_table_right",
+      "type": "lab_table",
+      "x": 13,
+      "y": 11,
+      "width": 3,
+      "height": 1
+    },
+    {
+      "id": "research_equipment_1",
+      "type": "research_equipment",
+      "x": 5,
+      "y": 14,
+      "width": 2,
+      "height": 2
+    },
+    {
+      "id": "research_equipment_2",
+      "type": "research_equipment",
+      "x": 14,
+      "y": 14,
+      "width": 2,
+      "height": 2
+    },
+    {
+      "id": "library_bookshelf_1",
+      "type": "bookshelf",
+      "x": 31,
+      "y": 10,
+      "width": 1,
+      "height": 6
+    },
+    {
+      "id": "library_bookshelf_2",
+      "type": "bookshelf",
+      "x": 34,
+      "y": 10,
+      "width": 1,
+      "height": 6
+    },
+    {
+      "id": "library_reading_table",
+      "type": "reading_table",
+      "x": 24,
+      "y": 11,
+      "width": 3,
+      "height": 2
+    },
+    {
+      "id": "library_computer_desk",
+      "type": "computer_desk",
+      "x": 24,
+      "y": 15,
+      "width": 3,
+      "height": 1
+    }
+  ],
+  "decorations": [
+    {
+      "id": "research_notice_board",
+      "type": "notice_board",
+      "x": 6,
+      "y": 5,
+      "width": 2,
+      "height": 1
+    },
+    {
+      "id": "research_display_screen",
+      "type": "display_screen",
+      "x": 14,
+      "y": 5,
+      "width": 2,
+      "height": 1
+    },
+    {
+      "id": "library_information_desk",
+      "type": "information_desk",
+      "x": 24,
+      "y": 5,
+      "width": 3,
+      "height": 1
+    },
+    {
+      "id": "library_plant",
+      "type": "plant",
+      "x": 35,
+      "y": 5,
+      "width": 1,
+      "height": 1
+    },
+    {
+      "id": "outside_tree_1",
+      "type": "tree",
+      "x": 2,
+      "y": 21,
+      "width": 1,
+      "height": 1
+    },
+    {
+      "id": "outside_tree_2",
+      "type": "tree",
+      "x": 37,
+      "y": 21,
+      "width": 1,
+      "height": 1
+    }
+  ],
+  "roads": [
+    {
+      "id": "area_b_front_road",
+      "type": "walkway",
+      "x": 2,
+      "y": 21,
+      "width": 36,
+      "height": 2
+    },
+    {
+      "id": "research_path",
+      "type": "walkway",
+      "x": 10,
+      "y": 19,
+      "width": 1,
+      "height": 3
+    },
+    {
+      "id": "library_path",
+      "type": "walkway",
+      "x": 29,
+      "y": 19,
+      "width": 1,
+      "height": 3
+    }
+  ],
+  "collision_layers": [
+    "walls",
+    "obstacles",
+    "building_boundaries"
+  ],
+  "design_rules": {
+    "rectangular_buildings_only": true,
+    "no_slanted_edges": true,
+    "rooms_separated_by_walls": true,
+    "single_area_entrance": true
+  }
+}
