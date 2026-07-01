@@ -1,5 +1,6 @@
 import {
   cloneScene,
+  createArea,
   createElement,
   createPortal,
   createRoadIntersection,
@@ -118,6 +119,14 @@ export class EditorStore {
     this.selectedSpatial = selection;
     this.selectedId = null;
     this.selectedAreaId = selection?.type === "area" ? selection.id : null;
+    this.emit({ renderProperties: false });
+  }
+
+  clearSelection() {
+    this.selectedId = null;
+    this.selectedAreaId = null;
+    this.selectedSpatial = null;
+    this.hoveredId = null;
     this.emit({ renderProperties: false });
   }
 
@@ -244,6 +253,17 @@ export class EditorStore {
     const area = findAreaAt(this.scene, point);
     if (!area) return null;
     return this.addElement(area.node_id, point);
+  }
+
+  addArea() {
+    this.recordChange();
+    const area = createArea(this.scene);
+    this.scene.areas.push(area);
+    this.selectedAreaId = area.node_id;
+    this.selectedId = null;
+    this.selectedSpatial = { type: "area", id: area.node_id };
+    this.markDirty({ renderProperties: true });
+    return area;
   }
 
   addRoadSegment() {
@@ -507,9 +527,23 @@ export class EditorStore {
     if (!parentSource) return;
     const parentScene = normalizeStructureScene(cloneScene(parentSource));
     const parentArea = findArea(parentScene, parentAreaId);
-    const childArea = this.scene.areas[0];
-    if (!parentArea || !childArea) return;
-    parentArea.elements = childArea.elements.map((element) => mapChildElementToParent(element, childArea.bounds, parentArea.bounds));
+    if (!parentArea) return;
+    parentArea.areas = this.scene.areas
+      .filter((area) => area.metadata?.source !== "auto_open_space")
+      .map((area) => cloneScene(area));
+    const openSpaceArea = this.scene.areas.find((area) => area.metadata?.source === "auto_open_space");
+    const childBounds = this.scene.rendering?.map_bounds || [
+      0,
+      0,
+      parentArea.bounds[2] - parentArea.bounds[0],
+      parentArea.bounds[3] - parentArea.bounds[1],
+    ];
+    parentArea.elements = openSpaceArea
+      ? openSpaceArea.elements.map((element) => mapChildElementToParent(element, childBounds, parentArea.bounds))
+      : [];
+    parentArea.walls = (this.scene.walls || []).map((wall) => cloneScene(wall));
+    parentArea.portals = (this.scene.portals || []).map((portal) => cloneScene(portal));
+    parentArea.rendering = cloneScene(this.scene.rendering || {});
     this.parentSceneCache.set(parentKey, parentScene);
     this.parentScenePathCache.set(parentKey, this.scene.metadata.parent_scene_path);
     return parentScene;
@@ -670,6 +704,27 @@ function createAreaScene(area, parentSceneKey, parentScenePath) {
   const width = Math.max(1, Math.round(area.bounds[2] - area.bounds[0]));
   const height = Math.max(1, Math.round(area.bounds[3] - area.bounds[1]));
   const childBounds = [0, 0, width, height];
+  const openAreaId = `${area.node_id}_open_space`;
+  const childAreas = [
+    {
+      node_id: openAreaId,
+      name: `${area.name} open space`,
+      bounds: childBounds,
+      metadata: {
+        space: "indoor",
+        area_type: "open_space",
+        parent_area_id: area.node_id,
+        source: "auto_open_space",
+        locked: true,
+      },
+      elements: (area.elements || []).map((element) => mapParentElementToChild(element, area.bounds, childBounds)),
+      areas: [],
+      portals: [],
+      walls: [],
+      rendering: {},
+    },
+    ...(area.areas || []).map((childArea) => cloneScene(childArea)),
+  ];
   return {
     node_id: area.node_id,
     name: area.name,
@@ -678,6 +733,7 @@ function createAreaScene(area, parentSceneKey, parentScenePath) {
       parent_scene_key: parentSceneKey,
       parent_scene_path: parentScenePath,
       parent_area_id: area.node_id,
+      parent_area_bounds: area.bounds.slice(),
     },
     default_agent_start: [Math.round(width / 2), Math.round(height / 2)],
     portals: [],
@@ -685,22 +741,14 @@ function createAreaScene(area, parentSceneKey, parentScenePath) {
     roads: { segments: [], intersections: [] },
     rendering: {
       map_bounds: childBounds,
+      ...(area.rendering || {}),
       area_colors: {
-        [`${area.node_id}_interior`]: "#b7f7c2",
+        [openAreaId]: "#eadb96",
+        ...(area.rendering?.area_colors || {}),
       },
     },
-    areas: [
-      {
-        node_id: `${area.node_id}_interior`,
-        name: `${area.name} interior`,
-        bounds: [0, 0, width, height],
-        metadata: {
-          space: "indoor",
-          area_type: area.metadata?.area_type || "building",
-          parent_area_id: area.node_id,
-        },
-        elements: area.elements.map((element) => mapParentElementToChild(element, area.bounds, childBounds)),
-      },
-    ],
+    areas: childAreas,
+    portals: (area.portals || []).map((portal) => cloneScene(portal)),
+    walls: (area.walls || []).map((wall) => cloneScene(wall)),
   };
 }

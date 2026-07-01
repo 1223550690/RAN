@@ -19,6 +19,14 @@ AREA_METADATA = {'kitchen': {},
  'main_balcony': {},
  'utility_balcony': {}}
 
+AREA_CHILD_AREAS = {}
+
+AREA_WALL_DEFINITIONS = {}
+
+AREA_PORTAL_DEFINITIONS = {}
+
+AREA_RENDERING = {}
+
 PORTAL_DEFINITIONS = [{'id': 'front_door_portal',
   'name': '入户门',
   'kind': 'door',

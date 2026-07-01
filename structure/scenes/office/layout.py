@@ -19,6 +19,14 @@ AREA_METADATA = {'storage_archive_area': {},
  'pantry_area': {},
  'bathroom': {}}
 
+AREA_CHILD_AREAS = {}
+
+AREA_WALL_DEFINITIONS = {}
+
+AREA_PORTAL_DEFINITIONS = {}
+
+AREA_RENDERING = {}
+
 PORTAL_DEFINITIONS = [{'id': 'office_front_door_portal',
   'name': '办公室入口门',
   'kind': 'door',

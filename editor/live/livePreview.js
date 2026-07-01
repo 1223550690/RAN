@@ -4,9 +4,43 @@ const canvas = document.querySelector("#sceneCanvas");
 const statusText = document.querySelector("#statusText");
 const agentSummary = document.querySelector("#agentSummary");
 const ranStatus = document.querySelector("#ranStatus");
-const consoleLog = document.querySelector("#consoleLog");
+const runtimeLog = document.querySelector("#runtimeLog");
+const queryLog = document.querySelector("#queryLog");
+const coordinateText = document.querySelector("#coordinateText");
+const commandForm = document.querySelector("#commandForm");
+const commandInput = document.querySelector("#commandInput");
 
-const preview = new ScenePreview(canvas);
+const commandLines = [];
+
+const preview = new ScenePreview(canvas, {
+  onCoordinate: (coord) => {
+    coordinateText.textContent = `x ${coord.x}, y ${coord.y}`;
+  },
+});
+
+commandForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const command = commandInput.value.trim();
+  if (!command) return;
+  commandInput.value = "";
+  if (command.toLowerCase() === "clear") {
+    commandLines.length = 0;
+    renderQueryConsole();
+    return;
+  }
+  commandLines.push(`> ${command}`);
+  try {
+    const response = await fetch(`/api/map/query?command=${encodeURIComponent(command)}`, { cache: "no-store" });
+    const result = await response.json();
+    commandLines.push(JSON.stringify(result, null, 2));
+  } catch (error) {
+    commandLines.push(`error: ${error.message}`);
+  }
+  trimCommandLines();
+  renderQueryConsole();
+});
+
+let lastStateLines = [];
 
 async function refresh() {
   try {
@@ -36,15 +70,37 @@ function renderConsole(state) {
   const requests = state.ran_requests || [];
   ranStatus.textContent = requests.length ? `RAN requests ${requests.length}` : "RAN input disabled";
 
-  consoleLog.innerHTML = "";
-  const lines = state.console || [];
-  for (const line of lines.slice(-60)) {
+  lastStateLines = state.console || [];
+  renderRuntimeConsole(lastStateLines);
+}
+
+function renderRuntimeConsole(stateLines) {
+  runtimeLog.innerHTML = "";
+  for (const line of stateLines.slice(-60)) {
     const row = document.createElement("div");
     row.className = "console-line";
     row.textContent = line;
-    consoleLog.append(row);
+    runtimeLog.append(row);
   }
-  consoleLog.scrollTop = consoleLog.scrollHeight;
+  runtimeLog.scrollTop = runtimeLog.scrollHeight;
+}
+
+function renderQueryConsole() {
+  queryLog.innerHTML = "";
+  const lines = commandLines.slice(-60);
+  for (const line of lines) {
+    const row = document.createElement("div");
+    row.className = "console-line";
+    row.textContent = line;
+    queryLog.append(row);
+  }
+  queryLog.scrollTop = queryLog.scrollHeight;
+}
+
+function trimCommandLines() {
+  if (commandLines.length > 90) {
+    commandLines.splice(0, commandLines.length - 90);
+  }
 }
 
 refresh();

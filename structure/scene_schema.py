@@ -224,6 +224,10 @@ class Area:
     bounds: tuple[float, float, float, float]
     metadata: dict[str, str] = field(default_factory=dict)
     elements: list[Element] = field(default_factory=list)
+    areas: list["Area"] = field(default_factory=list)
+    portals: list[Portal | dict] = field(default_factory=list)
+    walls: list[WallSegment | dict] = field(default_factory=list)
+    rendering: dict = field(default_factory=dict)
 
     def add(self, element: Element) -> None:
         self.elements.append(element)
@@ -265,6 +269,10 @@ class Area:
             "bounds": list(self.bounds),
             "metadata": dict(self.metadata),
             "elements": [element.to_dict() for element in self.elements],
+            "areas": [area.to_dict() for area in self.areas],
+            "portals": [portal.to_dict() if hasattr(portal, "to_dict") else dict(portal) for portal in self.portals],
+            "walls": [wall.to_dict() if hasattr(wall, "to_dict") else dict(wall) for wall in self.walls],
+            "rendering": dict(self.rendering),
         }
 
 

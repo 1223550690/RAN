@@ -17,6 +17,10 @@ def build_scene_tree(
     road_intersection_definitions: list[dict] | None = None,
     rendering: dict | None = None,
     area_metadata: dict[str, dict] | None = None,
+    area_child_areas: dict[str, list[dict]] | None = None,
+    area_wall_definitions: dict[str, list[dict]] | None = None,
+    area_portal_definitions: dict[str, list[dict]] | None = None,
+    area_rendering: dict[str, dict] | None = None,
 ) -> Home:
     scene = Home(
         node_id=scene_id,
@@ -30,28 +34,61 @@ def build_scene_tree(
     )
     blocking_ids = blocking_element_ids or set()
     metadata_by_area = area_metadata or {}
+    child_areas_by_area = area_child_areas or {}
+    walls_by_area = area_wall_definitions or {}
+    portals_by_area = area_portal_definitions or {}
+    rendering_by_area = area_rendering or {}
 
     for area_id, area_name, bounds in area_definitions:
-        area = Area(area_id, area_name, bounds, metadata=dict(metadata_by_area.get(area_id, {})))
-        for item in area_elements.get(area_id, []):
-            area.add(
-                Element(
-                    node_id=item["node_id"],
-                    name=item["name"],
-                    center=item["center"],
-                    size=item["size"],
-                    movable=item.get("movable", False),
-                    locked=item.get("locked", False),
-                    blocks_movement=item.get("blocks_movement", item["node_id"] in blocking_ids),
-                    physical_status=item.get("physical_status", item.get("status", "regular")),
-                    evolution_status=item.get("evolution_status", "stable"),
-                    interaction_status=item.get("interaction_status", "idle"),
-                    state_details=dict(item.get("state_details", {}) or {}),
-                )
-            )
+        area = build_area(
+            {
+                "node_id": area_id,
+                "name": area_name,
+                "bounds": bounds,
+                "metadata": dict(metadata_by_area.get(area_id, {})),
+                "elements": area_elements.get(area_id, []),
+                "areas": child_areas_by_area.get(area_id, []),
+                "walls": walls_by_area.get(area_id, []),
+                "portals": portals_by_area.get(area_id, []),
+                "rendering": rendering_by_area.get(area_id, {}),
+            },
+            blocking_ids,
+        )
         scene.add(area)
 
     return scene
+
+
+def build_area(item: dict, blocking_ids: set[str]) -> Area:
+    area = Area(
+        item["node_id"],
+        item.get("name", item["node_id"]),
+        tuple(item.get("bounds", (0, 0, 1, 1))),
+        metadata=dict(item.get("metadata", {}) or {}),
+        portals=[build_portal(portal) for portal in item.get("portals", [])],
+        walls=[build_wall_segment(wall) for wall in item.get("walls", [])],
+        rendering=dict(item.get("rendering", {}) or {}),
+    )
+    for element in item.get("elements", []):
+        area.add(build_element(element, blocking_ids))
+    area.areas = [build_area(child, blocking_ids) for child in item.get("areas", [])]
+    return area
+
+
+def build_element(item: dict, blocking_ids: set[str]) -> Element:
+    return Element(
+        node_id=item["node_id"],
+        name=item["name"],
+        center=tuple(item["center"]),
+        size=tuple(item["size"]),
+        movable=item.get("movable", False),
+        locked=item.get("locked", False),
+        blocks_movement=item.get("blocks_movement", item["node_id"] in blocking_ids),
+        physical_status=item.get("physical_status", item.get("status", "regular")),
+        evolution_status=item.get("evolution_status", "stable"),
+        interaction_status=item.get("interaction_status", "idle"),
+        state_details=dict(item.get("state_details", {}) or {}),
+    )
 
 
 def build_portal(item: dict) -> Portal:

@@ -9,7 +9,11 @@ from ...scene_tree import build_scene_tree
 from .elements import AREA_ELEMENTS, BRISTOL_TOPOLOGY_BLOCKING_ELEMENT_IDS
 from .layout import (
     AREA_DEFINITIONS,
+    AREA_CHILD_AREAS,
     AREA_METADATA,
+    AREA_PORTAL_DEFINITIONS,
+    AREA_RENDERING,
+    AREA_WALL_DEFINITIONS,
     BRISTOL_TOPOLOGY_DEFAULT_AGENT_START,
     PORTAL_DEFINITIONS,
     RENDERING,
@@ -33,4 +37,8 @@ def build_bristol_topology_tree() -> Home:
         road_intersection_definitions=ROAD_INTERSECTION_DEFINITIONS,
         rendering=RENDERING,
         area_metadata=AREA_METADATA,
+        area_child_areas=AREA_CHILD_AREAS,
+        area_wall_definitions=AREA_WALL_DEFINITIONS,
+        area_portal_definitions=AREA_PORTAL_DEFINITIONS,
+        area_rendering=AREA_RENDERING,
     )
