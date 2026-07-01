@@ -83,6 +83,26 @@ def write_structure_scene(scene: dict) -> None:
         for area in scene.get("areas", [])
         if area.get("elements")
     }
+    area_child_areas = {
+        area["node_id"]: [normalize_area_for_python(child) for child in area.get("areas", [])]
+        for area in scene.get("areas", [])
+        if area.get("areas")
+    }
+    area_wall_definitions = {
+        area["node_id"]: area.get("walls", [])
+        for area in scene.get("areas", [])
+        if area.get("walls")
+    }
+    area_portal_definitions = {
+        area["node_id"]: area.get("portals", [])
+        for area in scene.get("areas", [])
+        if area.get("portals")
+    }
+    area_rendering = {
+        area["node_id"]: area.get("rendering", {})
+        for area in scene.get("areas", [])
+        if area.get("rendering")
+    }
     blocking_ids = {
         element["node_id"]
         for area in scene.get("areas", [])
@@ -105,6 +125,10 @@ def write_structure_scene(scene: dict) -> None:
         generated_header()
         + f"AREA_DEFINITIONS = {python_literal(area_definitions)}\n\n"
         + f"AREA_METADATA = {python_literal(area_metadata)}\n\n"
+        + f"AREA_CHILD_AREAS = {python_literal(area_child_areas)}\n\n"
+        + f"AREA_WALL_DEFINITIONS = {python_literal(area_wall_definitions)}\n\n"
+        + f"AREA_PORTAL_DEFINITIONS = {python_literal(area_portal_definitions)}\n\n"
+        + f"AREA_RENDERING = {python_literal(area_rendering)}\n\n"
         + f"PORTAL_DEFINITIONS = {python_literal(scene.get('portals', []))}\n\n"
         + f"WALL_DEFINITIONS = {python_literal(scene.get('walls', []))}\n\n"
         + f"ROAD_SEGMENT_DEFINITIONS = {python_literal(roads.get('segments', []))}\n\n"
@@ -121,7 +145,11 @@ def write_structure_scene(scene: dict) -> None:
         + f"from .elements import AREA_ELEMENTS, {package_name.upper()}_BLOCKING_ELEMENT_IDS\n"
         + "from .layout import (\n"
         + "    AREA_DEFINITIONS,\n"
+        + "    AREA_CHILD_AREAS,\n"
         + "    AREA_METADATA,\n"
+        + "    AREA_PORTAL_DEFINITIONS,\n"
+        + "    AREA_RENDERING,\n"
+        + "    AREA_WALL_DEFINITIONS,\n"
         + f"    {package_name.upper()}_DEFAULT_AGENT_START,\n"
         + "    PORTAL_DEFINITIONS,\n"
         + "    RENDERING,\n"
@@ -143,6 +171,10 @@ def write_structure_scene(scene: dict) -> None:
         + "        road_intersection_definitions=ROAD_INTERSECTION_DEFINITIONS,\n"
         + "        rendering=RENDERING,\n"
         + "        area_metadata=AREA_METADATA,\n"
+        + "        area_child_areas=AREA_CHILD_AREAS,\n"
+        + "        area_wall_definitions=AREA_WALL_DEFINITIONS,\n"
+        + "        area_portal_definitions=AREA_PORTAL_DEFINITIONS,\n"
+        + "        area_rendering=AREA_RENDERING,\n"
         + "    )\n",
         encoding="utf-8",
     )
@@ -203,6 +235,20 @@ def normalize_element_for_python(element: dict) -> dict:
         "evolution_status": element.get("evolution_status", "stable"),
         "interaction_status": element.get("interaction_status", "idle"),
         "state_details": dict(element.get("state_details", {}) or {}),
+    }
+
+
+def normalize_area_for_python(area: dict) -> dict:
+    return {
+        "node_id": area["node_id"],
+        "name": area.get("name", area["node_id"]),
+        "bounds": tuple(area.get("bounds", (0, 0, 1, 1))),
+        "metadata": dict(area.get("metadata", {}) or {}),
+        "elements": [normalize_element_for_python(element) for element in area.get("elements", [])],
+        "areas": [normalize_area_for_python(child) for child in area.get("areas", [])],
+        "portals": list(area.get("portals", []) or []),
+        "walls": list(area.get("walls", []) or []),
+        "rendering": dict(area.get("rendering", {}) or {}),
     }
 
 

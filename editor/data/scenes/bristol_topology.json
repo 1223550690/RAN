@@ -847,12 +847,993 @@
       ],
       "metadata": {
         "space": "indoor",
-        "area_type": "building",
+        "area_type": "student_union",
         "color_group": "orange",
         "walkable": true,
-        "locked": true
+        "locked": true,
+        "has_detail_scene": true,
+        "detail_model": "rooms_with_auto_open_space"
       },
-      "elements": []
+      "elements": [
+        {
+          "node_id": "student_union_desks",
+          "name": "Desks",
+          "center": [
+            393,
+            380
+          ],
+          "size": [
+            16,
+            164
+          ],
+          "movable": true,
+          "locked": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {}
+        }
+      ],
+      "areas": [
+        {
+          "node_id": "student_union_food_service_north",
+          "name": "Food Service North",
+          "bounds": [
+            0,
+            0,
+            146,
+            80
+          ],
+          "metadata": {
+            "space": "indoor",
+            "area_type": "food_service",
+            "locked": true
+          },
+          "elements": [
+            {
+              "node_id": "student_union_servery",
+              "name": "Servery",
+              "center": [
+                84,
+                14
+              ],
+              "size": [
+                98,
+                16
+              ],
+              "movable": true,
+              "locked": true,
+              "blocks_movement": false,
+              "physical_status": "regular",
+              "evolution_status": "stable",
+              "interaction_status": "idle",
+              "state_details": {
+                "asset_type": "servery"
+              }
+            },
+            {
+              "node_id": "student_union_dining_table_1",
+              "name": "Dining Table 1",
+              "center": [
+                43,
+                48
+              ],
+              "size": [
+                38,
+                22
+              ],
+              "movable": true,
+              "locked": true,
+              "blocks_movement": false,
+              "physical_status": "regular",
+              "evolution_status": "stable",
+              "interaction_status": "idle",
+              "state_details": {
+                "asset_type": "dining_table"
+              }
+            },
+            {
+              "node_id": "student_union_dining_table_2",
+              "name": "Dining Table 2",
+              "center": [
+                101,
+                48
+              ],
+              "size": [
+                38,
+                22
+              ],
+              "movable": true,
+              "locked": true,
+              "blocks_movement": false,
+              "physical_status": "regular",
+              "evolution_status": "stable",
+              "interaction_status": "idle",
+              "state_details": {
+                "asset_type": "dining_table"
+              }
+            }
+          ],
+          "areas": [],
+          "portals": [],
+          "walls": [],
+          "rendering": {}
+        },
+        {
+          "node_id": "student_union_food_service_south",
+          "name": "Food Service South",
+          "bounds": [
+            0,
+            80,
+            41,
+            158
+          ],
+          "metadata": {
+            "space": "indoor",
+            "area_type": "food_service",
+            "locked": true
+          },
+          "elements": [],
+          "areas": [],
+          "portals": [],
+          "walls": [],
+          "rendering": {}
+        },
+        {
+          "node_id": "student_union_wc",
+          "name": "WC",
+          "bounds": [
+            146,
+            0,
+            184,
+            62
+          ],
+          "metadata": {
+            "space": "indoor",
+            "area_type": "restroom",
+            "locked": true
+          },
+          "elements": [
+            {
+              "node_id": "student_union_toilet_fixture",
+              "name": "Toilet Fixture",
+              "center": [
+                166,
+                20
+              ],
+              "size": [
+                9,
+                17
+              ],
+              "movable": true,
+              "locked": true,
+              "blocks_movement": false,
+              "physical_status": "regular",
+              "evolution_status": "stable",
+              "interaction_status": "idle",
+              "state_details": {
+                "asset_type": "toilet"
+              }
+            }
+          ],
+          "areas": [],
+          "portals": [],
+          "walls": [],
+          "rendering": {}
+        },
+        {
+          "node_id": "student_union_conference_room",
+          "name": "Conference Room",
+          "bounds": [
+            184,
+            0,
+            251,
+            62
+          ],
+          "metadata": {
+            "space": "indoor",
+            "area_type": "conference_room",
+            "locked": true
+          },
+          "elements": [
+            {
+              "node_id": "student_union_conference_table",
+              "name": "Conference Table",
+              "center": [
+                218,
+                36
+              ],
+              "size": [
+                34,
+                16
+              ],
+              "movable": true,
+              "locked": true,
+              "blocks_movement": false,
+              "physical_status": "regular",
+              "evolution_status": "stable",
+              "interaction_status": "idle",
+              "state_details": {
+                "asset_type": "conference_table"
+              }
+            }
+          ],
+          "areas": [],
+          "portals": [],
+          "walls": [],
+          "rendering": {}
+        },
+        {
+          "node_id": "student_union_activity_space",
+          "name": "Student Activity Space",
+          "bounds": [
+            251,
+            0,
+            293,
+            62
+          ],
+          "metadata": {
+            "space": "indoor",
+            "area_type": "activity_space",
+            "locked": true
+          },
+          "elements": [],
+          "areas": [],
+          "portals": [],
+          "walls": [],
+          "rendering": {}
+        },
+        {
+          "node_id": "student_union_services",
+          "name": "Student Services",
+          "bounds": [
+            251,
+            112,
+            293,
+            230
+          ],
+          "metadata": {
+            "space": "indoor",
+            "area_type": "student_services",
+            "locked": true
+          },
+          "elements": [],
+          "areas": [],
+          "portals": [],
+          "walls": [],
+          "rendering": {}
+        },
+        {
+          "node_id": "student_union_entrance_lobby",
+          "name": "Entrance Lobby",
+          "bounds": [
+            97,
+            315,
+            194,
+            350
+          ],
+          "metadata": {
+            "space": "indoor",
+            "area_type": "entrance_lobby",
+            "locked": true
+          },
+          "elements": [],
+          "areas": [],
+          "portals": [],
+          "walls": [],
+          "rendering": {}
+        }
+      ],
+      "portals": [
+        {
+          "id": "student_union_west_entry",
+          "name": "West side door",
+          "kind": "building_entrance",
+          "role": "passage",
+          "locked": true,
+          "areas": [
+            "student_union_open_space",
+            "outside"
+          ],
+          "endpoints": [
+            {
+              "object_type": "area",
+              "object_id": "student_union_open_space"
+            },
+            {
+              "object_type": "area",
+              "object_id": "outside"
+            }
+          ],
+          "segment": [
+            [
+              20,
+              158
+            ],
+            [
+              34,
+              158
+            ]
+          ],
+          "wall_id": null,
+          "width_m": 1.5,
+          "open": true
+        },
+        {
+          "id": "student_union_food_service_south_door",
+          "name": "Food service south door",
+          "kind": "door",
+          "role": "passage",
+          "locked": true,
+          "areas": [
+            "student_union_food_service_south",
+            "student_union_open_space"
+          ],
+          "endpoints": [
+            {
+              "object_type": "area",
+              "object_id": "student_union_food_service_south"
+            },
+            {
+              "object_type": "area",
+              "object_id": "student_union_open_space"
+            }
+          ],
+          "segment": [
+            [
+              20,
+              158
+            ],
+            [
+              34,
+              158
+            ]
+          ],
+          "wall_id": null,
+          "width_m": 1.5,
+          "open": true
+        },
+        {
+          "id": "student_union_wc_door",
+          "name": "WC door",
+          "kind": "door",
+          "role": "passage",
+          "locked": true,
+          "areas": [
+            "student_union_wc",
+            "student_union_open_space"
+          ],
+          "endpoints": [
+            {
+              "object_type": "area",
+              "object_id": "student_union_wc"
+            },
+            {
+              "object_type": "area",
+              "object_id": "student_union_open_space"
+            }
+          ],
+          "segment": [
+            [
+              158,
+              62
+            ],
+            [
+              176,
+              62
+            ]
+          ],
+          "wall_id": null,
+          "width_m": 1.5,
+          "open": true
+        },
+        {
+          "id": "student_union_conference_door",
+          "name": "Conference room door",
+          "kind": "door",
+          "role": "passage",
+          "locked": true,
+          "areas": [
+            "student_union_conference_room",
+            "student_union_open_space"
+          ],
+          "endpoints": [
+            {
+              "object_type": "area",
+              "object_id": "student_union_conference_room"
+            },
+            {
+              "object_type": "area",
+              "object_id": "student_union_open_space"
+            }
+          ],
+          "segment": [
+            [
+              192,
+              62
+            ],
+            [
+              211,
+              62
+            ]
+          ],
+          "wall_id": null,
+          "width_m": 1.5,
+          "open": true
+        },
+        {
+          "id": "student_union_activity_door",
+          "name": "Activity space door",
+          "kind": "door",
+          "role": "passage",
+          "locked": true,
+          "areas": [
+            "student_union_activity_space",
+            "student_union_open_space"
+          ],
+          "endpoints": [
+            {
+              "object_type": "area",
+              "object_id": "student_union_activity_space"
+            },
+            {
+              "object_type": "area",
+              "object_id": "student_union_open_space"
+            }
+          ],
+          "segment": [
+            [
+              258,
+              62
+            ],
+            [
+              277,
+              62
+            ]
+          ],
+          "wall_id": null,
+          "width_m": 1.5,
+          "open": true
+        },
+        {
+          "id": "student_union_services_door",
+          "name": "Student services door",
+          "kind": "door",
+          "role": "passage",
+          "locked": true,
+          "areas": [
+            "student_union_services",
+            "student_union_open_space"
+          ],
+          "endpoints": [
+            {
+              "object_type": "area",
+              "object_id": "student_union_services"
+            },
+            {
+              "object_type": "area",
+              "object_id": "student_union_open_space"
+            }
+          ],
+          "segment": [
+            [
+              258,
+              230
+            ],
+            [
+              277,
+              230
+            ]
+          ],
+          "wall_id": null,
+          "width_m": 1.5,
+          "open": true
+        },
+        {
+          "id": "student_union_main_entry_left",
+          "name": "Main entrance left opening",
+          "kind": "building_entrance",
+          "role": "passage",
+          "locked": true,
+          "areas": [
+            "student_union_entrance_lobby",
+            "student_union_open_space"
+          ],
+          "endpoints": [
+            {
+              "object_type": "area",
+              "object_id": "student_union_entrance_lobby"
+            },
+            {
+              "object_type": "area",
+              "object_id": "student_union_open_space"
+            }
+          ],
+          "segment": [
+            [
+              97,
+              315
+            ],
+            [
+              123,
+              315
+            ]
+          ],
+          "wall_id": null,
+          "width_m": 1.5,
+          "open": true
+        },
+        {
+          "id": "student_union_main_entry_right",
+          "name": "Main entrance right opening",
+          "kind": "building_entrance",
+          "role": "passage",
+          "locked": true,
+          "areas": [
+            "student_union_entrance_lobby",
+            "student_union_open_space"
+          ],
+          "endpoints": [
+            {
+              "object_type": "area",
+              "object_id": "student_union_entrance_lobby"
+            },
+            {
+              "object_type": "area",
+              "object_id": "student_union_open_space"
+            }
+          ],
+          "segment": [
+            [
+              160,
+              315
+            ],
+            [
+              194,
+              315
+            ]
+          ],
+          "wall_id": null,
+          "width_m": 1.5,
+          "open": true
+        },
+        {
+          "id": "student_union_food_service_join",
+          "name": "Food service geometry join",
+          "kind": "geometry_join",
+          "role": "connection",
+          "locked": true,
+          "areas": [
+            "student_union_food_service_north",
+            "student_union_food_service_south"
+          ],
+          "endpoints": [
+            {
+              "object_type": "area",
+              "object_id": "student_union_food_service_north"
+            },
+            {
+              "object_type": "area",
+              "object_id": "student_union_food_service_south"
+            }
+          ],
+          "segment": [
+            [
+              0,
+              80
+            ],
+            [
+              41,
+              80
+            ]
+          ],
+          "wall_id": null,
+          "width_m": 0,
+          "open": true
+        }
+      ],
+      "walls": [
+        {
+          "wall_id": "student_union_wall_north",
+          "name": "North exterior wall",
+          "start": [
+            0,
+            0
+          ],
+          "end": [
+            293,
+            0
+          ],
+          "wall_type": "exterior",
+          "material": "brick",
+          "thickness_m": 0.35,
+          "penetration_loss_db": 12,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_east",
+          "name": "East exterior wall",
+          "start": [
+            293,
+            0
+          ],
+          "end": [
+            293,
+            350
+          ],
+          "wall_type": "exterior",
+          "material": "brick",
+          "thickness_m": 0.35,
+          "penetration_loss_db": 12,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_south",
+          "name": "South exterior wall",
+          "start": [
+            293,
+            350
+          ],
+          "end": [
+            0,
+            350
+          ],
+          "wall_type": "exterior",
+          "material": "brick",
+          "thickness_m": 0.35,
+          "penetration_loss_db": 12,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_west",
+          "name": "West exterior wall",
+          "start": [
+            0,
+            350
+          ],
+          "end": [
+            0,
+            0
+          ],
+          "wall_type": "exterior",
+          "material": "brick",
+          "thickness_m": 0.35,
+          "penetration_loss_db": 12,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_food_service_east",
+          "name": "Food service east wall",
+          "start": [
+            146,
+            0
+          ],
+          "end": [
+            146,
+            80
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_food_service_south",
+          "name": "Food service south wall",
+          "start": [
+            41,
+            80
+          ],
+          "end": [
+            146,
+            80
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_west_lobby_return",
+          "name": "West lobby return wall",
+          "start": [
+            41,
+            80
+          ],
+          "end": [
+            41,
+            158
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_west_opening",
+          "name": "West internal opening wall",
+          "start": [
+            0,
+            158
+          ],
+          "end": [
+            41,
+            158
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_top_rooms_south",
+          "name": "Top rooms south wall",
+          "start": [
+            146,
+            62
+          ],
+          "end": [
+            293,
+            62
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_wc_conference",
+          "name": "WC conference divider",
+          "start": [
+            184,
+            0
+          ],
+          "end": [
+            184,
+            62
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_conference_activity",
+          "name": "Conference activity divider",
+          "start": [
+            251,
+            0
+          ],
+          "end": [
+            251,
+            62
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_left_common_divider",
+          "name": "Left common area divider",
+          "start": [
+            97,
+            112
+          ],
+          "end": [
+            97,
+            230
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_right_common_divider",
+          "name": "Right common area divider",
+          "start": [
+            194,
+            112
+          ],
+          "end": [
+            194,
+            230
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_services_west",
+          "name": "Services west wall",
+          "start": [
+            251,
+            112
+          ],
+          "end": [
+            251,
+            230
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_services_north",
+          "name": "Services north wall",
+          "start": [
+            251,
+            112
+          ],
+          "end": [
+            293,
+            112
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_services_south",
+          "name": "Services south wall",
+          "start": [
+            251,
+            230
+          ],
+          "end": [
+            293,
+            230
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_entrance_west",
+          "name": "Entrance west wall",
+          "start": [
+            97,
+            315
+          ],
+          "end": [
+            97,
+            350
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_entrance_north",
+          "name": "Entrance north wall",
+          "start": [
+            97,
+            315
+          ],
+          "end": [
+            194,
+            315
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        },
+        {
+          "wall_id": "student_union_wall_entrance_east",
+          "name": "Entrance east wall",
+          "start": [
+            194,
+            315
+          ],
+          "end": [
+            194,
+            350
+          ],
+          "wall_type": "interior",
+          "material": "drywall",
+          "thickness_m": 0.2,
+          "penetration_loss_db": 5,
+          "blocks_movement": true,
+          "locked": true,
+          "areas": [],
+          "portal_ids": []
+        }
+      ],
+      "rendering": {
+        "map_bounds": [
+          0,
+          0,
+          293,
+          350
+        ],
+        "area_colors": {
+          "block_09_student_union_open_space": "#eadb96",
+          "student_union_open_space": "#eadb96",
+          "student_union_wc": "#f1d89b",
+          "student_union_conference_room": "#f1d89b",
+          "student_union_activity_space": "#f1d89b",
+          "student_union_services": "#f1d89b",
+          "student_union_entrance_lobby": "#f1d89b",
+          "student_union_food_service_north": "#f1d89b",
+          "student_union_food_service_south": "#f1d89b"
+        }
+      }
     },
     {
       "node_id": "gym_sports_centre",
@@ -870,7 +1851,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "block_11_research",
@@ -888,7 +1873,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "block_12_library",
@@ -906,7 +1895,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "royal_fort_north_green",
@@ -924,7 +1917,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "royal_fort_middle_green",
@@ -942,7 +1939,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "royal_fort_south_green",
@@ -960,7 +1961,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "football_ground",
@@ -978,7 +1983,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "wills_physics_laboratory",
@@ -996,7 +2005,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "physics_central_tower",
@@ -1014,7 +2027,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "physics_west_annex",
@@ -1032,7 +2049,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "block_07_east_building",
@@ -1050,7 +2071,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "student_housing_east",
@@ -1067,7 +2092,11 @@
         "color_group": "purple",
         "walkable": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "residential_long_block",
@@ -1085,7 +2114,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "ensuite_residence",
@@ -1103,7 +2136,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     },
     {
       "node_id": "coliving_space",
@@ -1121,7 +2158,11 @@
         "walkable": true,
         "locked": true
       },
-      "elements": []
+      "elements": [],
+      "areas": [],
+      "portals": [],
+      "walls": [],
+      "rendering": {}
     }
   ]
 }

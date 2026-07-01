@@ -14,6 +14,7 @@ export class ScenePreview {
     this.signalMap = null;
     this.qosResults = null;
     this.highlightMode = "none";
+    this.buildingOverlayVisible = false;
     this.activeTool = "select";
     this.drag = null;
     this.pan = null;
@@ -70,6 +71,11 @@ export class ScenePreview {
     this.render();
   }
 
+  setBuildingOverlayVisible(visible) {
+    this.buildingOverlayVisible = Boolean(visible);
+    this.render();
+  }
+
   setActiveTool(tool) {
     this.activeTool = tool || "select";
     this.render();
@@ -89,6 +95,11 @@ export class ScenePreview {
     this.render();
   }
 
+  isInsideSceneBounds(world) {
+    const bounds = getSceneBounds(this.scene);
+    return world[0] >= bounds[0] && world[0] <= bounds[2] && world[1] >= bounds[1] && world[1] <= bounds[3];
+  }
+
   render() {
     const rect = this.canvas.getBoundingClientRect();
     this.ctx.clearRect(0, 0, rect.width, rect.height);
@@ -103,6 +114,7 @@ export class ScenePreview {
     this.withMapClip(() => {
       this.drawGrid(rect.width, rect.height);
       this.drawAreas();
+      this.drawBuildingAreaOverlays();
       this.drawRoads();
       this.drawWalls();
       this.drawPortals();
@@ -120,7 +132,11 @@ export class ScenePreview {
     this.canvas.addEventListener("mousemove", (event) => {
       if (!this.scene || !this.transform) return;
       const world = this.eventToWorld(event);
-      this.options.onCoordinate?.({ x: Math.floor(world[0]), y: Math.floor(world[1]) });
+      const hoveredOverlay = this.buildingOverlayAt(world);
+      this.options.onCoordinate?.({
+        x: Math.floor(world[0]),
+        y: Math.floor(world[1]),
+      });
 
       if (this.drag) {
         if (this.drag.kind === "spatial" && this.drag.mode === "resize") {
@@ -147,9 +163,12 @@ export class ScenePreview {
       const handle = this.resizeHandleAt(local);
       const hit = hitTestElement(this.scene, world);
       const spatialHit = hit ? null : hitTestSpatialObject(this.scene, world);
+      const overlayHit = hit ? null : hoveredOverlay;
       const hoveredId = hit?.element.node_id || null;
       if (hit?.element) {
         this.canvas.title = `${hit.element.name} (${hit.element.node_id})`;
+      } else if (overlayHit) {
+        this.canvas.title = overlayTitle(overlayHit);
       } else {
         this.canvas.title = spatialHit ? `${objectLabel(spatialHit.object)} (${spatialHit.objectId})` : "";
       }
@@ -180,6 +199,10 @@ export class ScenePreview {
       if (event.button !== 0) return;
       const local = this.eventToLocal(event);
       const world = this.eventToWorld(event);
+      if (!this.isInsideSceneBounds(world)) {
+        this.options.onClearSelection?.();
+        return;
+      }
       if (this.activeTool === "portal") {
         const spatialHit = hitTestSpatialObject(this.scene, world);
         if (spatialHit) {
@@ -476,6 +499,45 @@ export class ScenePreview {
     }
   }
 
+  drawBuildingAreaOverlays() {
+    if (!this.buildingOverlayVisible) return;
+    for (const parentArea of this.scene.areas || []) {
+      for (const childArea of parentArea.areas || []) {
+        if (childArea.metadata?.source === "auto_open_space") continue;
+        const globalBounds = childAreaGlobalBounds(parentArea, childArea);
+        const [x, y, width, height] = this.transform.rectToScreen(globalBounds);
+        const fill = parentArea.rendering?.area_colors?.[childArea.node_id] || "#f1d89b";
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.48;
+        this.ctx.fillStyle = fill;
+        this.ctx.fillRect(x, y, width, height);
+        this.ctx.globalAlpha = 1;
+        this.ctx.strokeStyle = "#6f5f2a";
+        this.ctx.setLineDash([4, 3]);
+        this.ctx.lineWidth = 1.5;
+        this.ctx.strokeRect(x, y, width, height);
+        this.ctx.restore();
+      }
+    }
+  }
+
+  buildingOverlayAt(world) {
+    if (!this.buildingOverlayVisible) return null;
+    for (let parentIndex = (this.scene.areas || []).length - 1; parentIndex >= 0; parentIndex -= 1) {
+      const parentArea = this.scene.areas[parentIndex];
+      const childAreas = parentArea.areas || [];
+      for (let childIndex = childAreas.length - 1; childIndex >= 0; childIndex -= 1) {
+        const childArea = childAreas[childIndex];
+        if (childArea.metadata?.source === "auto_open_space") continue;
+        const globalBounds = childAreaGlobalBounds(parentArea, childArea);
+        if (pointInBounds(world, globalBounds)) {
+          return { parentArea, childArea, globalBounds };
+        }
+      }
+    }
+    return null;
+  }
+
   areaHighlight(area) {
     const space = area.metadata?.space;
     if (this.highlightMode === "indoor" && space === "indoor") {
@@ -551,15 +613,19 @@ export class ScenePreview {
 
   drawElements() {
     for (const area of this.scene.areas) {
+      if (!this.scene.metadata?.editor_child_scene && isDetailArea(area)) {
+        continue;
+      }
       for (const element of area.elements) {
         const [x, y, width, height] = this.transform.elementToScreen(element);
         const isHovered = element.node_id === this.hoveredId;
         const isSelected = element.node_id === this.selectedId;
         const isAreaOverlay = element.state_details?.preview_kind === "area";
         const areaOverlayHighlight = isAreaOverlay && this.highlightMode === "indoor" ? "#b7f7c2" : null;
+        const elementFill = element.blocks_movement ? "#606060" : "#ffffff";
         this.ctx.save();
         this.ctx.globalAlpha = isAreaOverlay && !isHovered && !isSelected ? 0.55 : 1;
-        this.ctx.fillStyle = isHovered || isSelected ? "#ffe48a" : areaOverlayHighlight || (element.blocks_movement ? "#606060" : "#ffffff");
+        this.ctx.fillStyle = isHovered || isSelected ? "#ffe48a" : areaOverlayHighlight || elementFill;
         this.ctx.strokeStyle = isHovered || isSelected ? "#986f00" : element.locked ? "#a6a6a6" : "#707070";
         this.ctx.lineWidth = isHovered || isSelected ? 3 : 1.5;
         this.ctx.fillRect(x, y, width, height);
@@ -654,6 +720,49 @@ function objectLabel(object) {
   return object.name || object.node_id || object.road_id || object.intersection_id || object.wall_id || "object";
 }
 
+function overlayTitle(hit) {
+  return [
+    `${hit.parentArea.name} / ${hit.childArea.name}`,
+    `local: ${formatBounds(hit.childArea.bounds)}`,
+    `global: ${formatBounds(hit.globalBounds)}`,
+  ].join("\n");
+}
+
+function childAreaGlobalBounds(parentArea, childArea) {
+  const localBounds = parentArea.rendering?.map_bounds || [
+    0,
+    0,
+    parentArea.bounds[2] - parentArea.bounds[0],
+    parentArea.bounds[3] - parentArea.bounds[1],
+  ];
+  const start = localPointToGlobal([childArea.bounds[0], childArea.bounds[1]], parentArea, localBounds);
+  const end = localPointToGlobal([childArea.bounds[2], childArea.bounds[3]], parentArea, localBounds);
+  return [start[0], start[1], end[0], end[1]];
+}
+
+function localPointToGlobal(point, parentArea, localBounds) {
+  const parentWidth = Math.max(1, parentArea.bounds[2] - parentArea.bounds[0]);
+  const parentHeight = Math.max(1, parentArea.bounds[3] - parentArea.bounds[1]);
+  const localWidth = Math.max(1, localBounds[2] - localBounds[0]);
+  const localHeight = Math.max(1, localBounds[3] - localBounds[1]);
+  return [
+    parentArea.bounds[0] + (point[0] - localBounds[0]) * parentWidth / localWidth,
+    parentArea.bounds[1] + (point[1] - localBounds[1]) * parentHeight / localHeight,
+  ];
+}
+
+function pointInBounds(point, bounds) {
+  return point[0] >= bounds[0] && point[0] <= bounds[2] && point[1] >= bounds[1] && point[1] <= bounds[3];
+}
+
+function formatBounds(bounds) {
+  return `[${bounds.map((value) => Number(value).toFixed(1).replace(/\.0$/, "")).join(", ")}]`;
+}
+
 function isObjectLocked(object) {
   return Boolean(object?.locked || object?.metadata?.locked);
+}
+
+function isDetailArea(area) {
+  return Boolean(area?.metadata?.has_detail_scene || area?.areas?.length || area?.walls?.length || area?.portals?.length);
 }

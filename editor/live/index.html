@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,16 +13,32 @@
           <h1>Live Preview</h1>
           <p id="statusText">waiting for simulation state</p>
         </div>
-        <div id="agentSummary" class="agent-summary"></div>
+        <div class="header-tools">
+          <div id="coordinateText" class="coordinate-readout">x -, y -</div>
+          <div id="agentSummary" class="agent-summary"></div>
+        </div>
       </header>
       <section class="preview-surface">
         <canvas id="sceneCanvas" width="1200" height="820"></canvas>
         <aside class="console-panel">
-          <div class="console-header">
-            <span>运行状态</span>
-            <span id="ranStatus">RAN input unknown</span>
+          <div class="runtime-panel">
+            <div class="console-header">
+              <span>Runtime Status</span>
+              <span id="ranStatus">RAN input unknown</span>
+            </div>
+            <div id="runtimeLog" class="console-log runtime-log"></div>
           </div>
-          <div id="consoleLog" class="console-log"></div>
+          <div class="query-panel">
+            <div class="console-header">
+              <span>Map Query Console</span>
+              <span>services.MapService</span>
+            </div>
+            <div id="queryLog" class="console-log query-log"></div>
+            <form id="commandForm" class="command-form">
+              <input id="commandInput" type="text" autocomplete="off" placeholder="area 500 300 | pos object_id | help">
+              <button type="submit">Run</button>
+            </form>
+          </div>
         </aside>
       </section>
     </main>

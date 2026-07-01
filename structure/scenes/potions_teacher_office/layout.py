@@ -19,6 +19,14 @@ AREA_METADATA = {'entrance_area': {},
  'cleanup_area': {},
  'ingredient_storage_area': {}}
 
+AREA_CHILD_AREAS = {}
+
+AREA_WALL_DEFINITIONS = {}
+
+AREA_PORTAL_DEFINITIONS = {}
+
+AREA_RENDERING = {}
+
 PORTAL_DEFINITIONS = [{'id': 'office_door_corridor_portal',
   'name': '厚重木门到旧石廊',
   'kind': 'door',

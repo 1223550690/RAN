@@ -90,7 +90,7 @@ function areasSection(state, store) {
   for (const area of state.scene.areas) {
     body.appendChild(areaCard(area, store, state));
   }
-  return section("Areas", "Areas", [body], null);
+  return section("Areas", "Areas", [body], iconButton("+", "Add area", () => store.addArea()));
 }
 
 function areaCard(area, store, state) {
@@ -207,7 +207,9 @@ function portalsEditorSection(scene, store) {
     const title = document.createElement("div");
     title.className = "object-title";
     title.textContent = `${portal.name} (${portal.kind})`;
-    header.append(title);
+    const remove = iconButton("×", "Delete portal", () => store.deleteSpatialObject("portal", portal.id));
+    remove.classList.add("danger");
+    header.append(title, remove);
     const fields = document.createElement("div");
     fields.className = "collapsible-fields";
     fields.append(
@@ -290,7 +292,9 @@ function wallsEditorSection(scene, store) {
     const title = document.createElement("div");
     title.className = "object-title";
     title.textContent = `${wall.name} (${wall.wall_type})`;
-    header.append(title);
+    const remove = iconButton("×", "Delete wall", () => store.deleteSpatialObject("wall", wall.wall_id));
+    remove.classList.add("danger");
+    header.append(title, remove);
     const fields = document.createElement("div");
     fields.className = "collapsible-fields";
     fields.append(
@@ -375,8 +379,13 @@ function section(title, label, children, action = null) {
 }
 
 function bindSummaryToggle(details, summary) {
+  summary.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("button")) return;
+    event.preventDefault();
+  });
   summary.addEventListener("click", (event) => {
     event.preventDefault();
+    event.stopPropagation();
     if (event.target.closest("button")) return;
     details.open = !details.open;
   });
