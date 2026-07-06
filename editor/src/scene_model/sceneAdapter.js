@@ -110,11 +110,11 @@ function normalizeRoadEdge(edge = {}) {
 }
 
 function normalizeWall(wall) {
+  const segment = Array.isArray(wall.segment) ? wall.segment : [wall.start, wall.end];
   return {
     wall_id: wall.wall_id || wall.id,
     name: wall.name || wall.wall_id || wall.id,
-    start: normalizePoint(wall.start),
-    end: normalizePoint(wall.end),
+    segment: normalizeSegment(segment),
     wall_type: wall.wall_type || "interior",
     material: wall.material || "drywall",
     thickness_m: Number(wall.thickness_m || 0.2),
@@ -192,8 +192,7 @@ export function createWall(scene) {
   return {
     wall_id: id,
     name: "New wall",
-    start: [round(cx - 40), round(cy)],
-    end: [round(cx + 40), round(cy)],
+    segment: [[round(cx - 40), round(cy)], [round(cx + 40), round(cy)]],
     wall_type: "interior",
     material: "drywall",
     thickness_m: 0.2,

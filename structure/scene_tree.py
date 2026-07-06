@@ -119,11 +119,14 @@ def endpoint_area_ids(endpoints: list[dict]) -> tuple[str, str]:
 
 def build_wall_segment(item: dict) -> WallSegment:
     wall_id = item.get("wall_id") or item.get("id")
+    segment = item.get("segment")
+    start = item.get("start") or segment[0]
+    end = item.get("end") or segment[1]
     return WallSegment(
         wall_id=wall_id,
         name=item.get("name", wall_id or "wall"),
-        start=tuple(item["start"]),
-        end=tuple(item["end"]),
+        start=tuple(start),
+        end=tuple(end),
         wall_type=item.get("wall_type", "interior"),
         material=item.get("material", "drywall"),
         thickness_m=item.get("thickness_m", 0.2),

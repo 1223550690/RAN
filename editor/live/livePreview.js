@@ -17,6 +17,7 @@ const preview = new ScenePreview(canvas, {
     coordinateText.textContent = `x ${coord.x}, y ${coord.y}`;
   },
 });
+preview.setBuildingWallOverlayVisible(true);
 
 commandForm.addEventListener("submit", async (event) => {
   event.preventDefault();

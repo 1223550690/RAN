@@ -19,9 +19,7 @@ const coordinateText = document.querySelector("#coordinateText");
 
 const store = new EditorStore(sampleScene);
 const contextMenu = new ContextMenu(contextMenuElement, store);
-let lastScrolledSelectedId = null;
-let lastScrolledSelectedAreaId = null;
-let lastScrolledSpatialKey = null;
+let lastScrolledTarget = null;
 
 const preview = new ScenePreview(canvas, {
   onHover: (id) => store.setHover(id),
@@ -45,6 +43,7 @@ store.subscribe((state, options) => {
   preview.setSelected(state.selectedId);
   preview.setSelectedArea(state.selectedAreaId);
   preview.setSelectedSpatial(state.selectedSpatial);
+  preview.setSpatialGroupHover(state.spatialGroupHover);
   preview.setActiveTool(state.activeTool);
   addPortalButton.classList.toggle("active", state.activeTool === "portal");
   coordinateText.textContent = coordinateLabel(state.hoverCoord, state.scene);
@@ -54,20 +53,13 @@ store.subscribe((state, options) => {
   if (options.updateHighlights) {
     updatePropertyHighlights(propertyEditor, state);
   }
-  if (state.selectedId && state.selectedId !== lastScrolledSelectedId) {
-    lastScrolledSelectedId = state.selectedId;
+  const scrollTarget = selectedScrollTarget(state);
+  if (scrollTarget && scrollTarget !== lastScrolledTarget) {
+    lastScrolledTarget = scrollTarget;
     window.setTimeout(() => scrollSelectionIntoView(propertyEditor, state), 0);
   }
-  if (state.selectedAreaId && state.selectedAreaId !== lastScrolledSelectedAreaId) {
-    lastScrolledSelectedAreaId = state.selectedAreaId;
-    window.setTimeout(() => scrollSelectionIntoView(propertyEditor, state), 0);
-  }
-  const spatialKey = state.selectedSpatial && state.selectedSpatial.type !== "area"
-    ? `${state.selectedSpatial.type}:${state.selectedSpatial.id}`
-    : null;
-  if (spatialKey && spatialKey !== lastScrolledSpatialKey) {
-    lastScrolledSpatialKey = spatialKey;
-    window.setTimeout(() => scrollSelectionIntoView(propertyEditor, state), 0);
+  if (!scrollTarget) {
+    lastScrolledTarget = null;
   }
   statusText.textContent = statusLabel(state);
 });
@@ -165,6 +157,16 @@ function coordinateLabel(coord, scene) {
     return `local x ${coord.x}, y ${coord.y} | global x ${global.x}, y ${global.y}`;
   }
   return `global x ${coord.x}, y ${coord.y}`;
+}
+
+function selectedScrollTarget(state) {
+  const sceneKey = state.sceneKey || state.scene?.node_id || "scene";
+  if (state.selectedId) return `${sceneKey}:element:${state.selectedId}`;
+  if (state.selectedAreaId) return `${sceneKey}:area:${state.selectedAreaId}`;
+  if (state.selectedSpatial?.type && state.selectedSpatial?.id) {
+    return `${sceneKey}:${state.selectedSpatial.type}:${state.selectedSpatial.id}`;
+  }
+  return null;
 }
 
 function childLocalToParentGlobal(coord, scene) {

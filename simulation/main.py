@@ -48,7 +48,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ticks", type=int, default=200, help="number of ticks to run")
     parser.add_argument("--tick-ms", type=int, default=500, help="milliseconds per tick")
     parser.add_argument("-p", "--preview", action="store_true", help="open the live preview page")
-    parser.add_argument("--preview-port", type=int, default=8765, help="preview server port")
+    parser.add_argument("--preview-port", type=int, default=8766, help="preview server port")
     parser.add_argument("--console", action="store_true", help="open an interactive map query console")
     return parser.parse_args()
 
@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
 def run_console(scene) -> None:
     map_service = MapService()
     print(f"map console scene={scene.node_id}", flush=True)
-    print("commands: area <x> <y> | pos <object_id> | help | quit", flush=True)
+    print("commands: area <x> <y> | pos <object_id> | walls <x1> <y1> <x2> <y2> | help | quit", flush=True)
     while True:
         try:
             raw = input("map> ").strip()
@@ -72,6 +72,7 @@ def run_console(scene) -> None:
         if command == "help":
             print("area <x> <y>      query area at map coordinate", flush=True)
             print("pos <object_id>   query object bounds/center by id", flush=True)
+            print("walls <x1> <y1> <x2> <y2>   query walls crossed by a coordinate line", flush=True)
             print("quit              exit console", flush=True)
             continue
         if command == "area" and len(parts) == 3:
@@ -86,7 +87,19 @@ def run_console(scene) -> None:
             result = map_service.get_object_position(scene, parts[1])
             print(json.dumps(result or {"error": "not found", "object_id": parts[1]}, ensure_ascii=False, indent=2), flush=True)
             continue
-        print("unknown command. use: area <x> <y> | pos <object_id> | help | quit", flush=True)
+        if command == "walls" and len(parts) == 5:
+            try:
+                result = map_service.get_walls_between(
+                    scene,
+                    (float(parts[1]), float(parts[2])),
+                    (float(parts[3]), float(parts[4])),
+                )
+            except ValueError:
+                print("invalid coordinate", flush=True)
+                continue
+            print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)
+            continue
+        print("unknown command. use: area <x> <y> | pos <object_id> | walls <x1> <y1> <x2> <y2> | help | quit", flush=True)
 
 
 def start_preview_server(port: int, scene) -> None:
@@ -134,16 +147,26 @@ class MapPreviewRequestHandler(SimpleHTTPRequestHandler):
         if name == "pos" and len(parts) == 2:
             result = self.map_service.get_object_position(self.scene, parts[1])
             return result or {"error": "not found", "object_id": parts[1]}
+        if name == "walls" and len(parts) == 5:
+            try:
+                return self.map_service.get_walls_between(
+                    self.scene,
+                    (float(parts[1]), float(parts[2])),
+                    (float(parts[3]), float(parts[4])),
+                )
+            except ValueError as exc:
+                raise ValueError("invalid coordinate") from exc
         if name == "help":
             return {
                 "commands": [
                     "area <x> <y>",
                     "pos <object_id>",
+                    "walls <x1> <y1> <x2> <y2>",
                     "help",
                     "clear",
                 ]
             }
-        raise ValueError("unknown command. use: area <x> <y> | pos <object_id> | help")
+        raise ValueError("unknown command. use: area <x> <y> | pos <object_id> | walls <x1> <y1> <x2> <y2> | help")
 
     def send_json(self, payload: dict, *, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")

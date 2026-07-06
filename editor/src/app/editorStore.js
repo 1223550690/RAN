@@ -23,6 +23,7 @@ export class EditorStore {
     this.selectedId = null;
     this.selectedAreaId = null;
     this.selectedSpatial = null;
+    this.spatialGroupHover = null;
     this.listeners = new Set();
     this.undoStack = [];
     this.lastSavedAt = null;
@@ -58,6 +59,7 @@ export class EditorStore {
       selectedId: this.selectedId,
       selectedAreaId: this.selectedAreaId,
       selectedSpatial: this.selectedSpatial,
+      spatialGroupHover: this.spatialGroupHover,
       dirty: this.dirty,
       lastSavedAt: this.lastSavedAt,
       canUndo: this.undoStack.length > 0,
@@ -76,6 +78,7 @@ export class EditorStore {
     this.selectedId = null;
     this.selectedAreaId = null;
     this.selectedSpatial = null;
+    this.spatialGroupHover = null;
     this.undoStack = [];
     this.dirty = false;
     this.lastSavedAt = null;
@@ -122,10 +125,16 @@ export class EditorStore {
     this.emit({ renderProperties: false });
   }
 
+  setSpatialGroupHover(type) {
+    this.spatialGroupHover = type;
+    this.emit({ renderProperties: false, updateHighlights: false });
+  }
+
   clearSelection() {
     this.selectedId = null;
     this.selectedAreaId = null;
     this.selectedSpatial = null;
+    this.spatialGroupHover = null;
     this.hoveredId = null;
     this.emit({ renderProperties: false });
   }
@@ -329,9 +338,26 @@ export class EditorStore {
     this.markDirty({ renderProperties: true });
   }
 
-  updateWallPointObject(wall, field, index, value) {
+  updateWallIdObject(wall, value) {
+    const nextId = String(value || "").trim();
+    if (!nextId || nextId === wall.wall_id) return;
     this.recordChange();
-    wall[field][index] = Number(value);
+    const previousId = wall.wall_id;
+    wall.wall_id = nextId;
+    for (const portal of this.scene.portals || []) {
+      if (portal.wall_id === previousId) {
+        portal.wall_id = nextId;
+      }
+    }
+    if (this.selectedSpatial?.type === "wall" && this.selectedSpatial.id === previousId) {
+      this.selectedSpatial = { type: "wall", id: nextId };
+    }
+    this.markDirty({ renderProperties: true });
+  }
+
+  updateWallSegmentPointObject(wall, pointIndex, coordIndex, value) {
+    this.recordChange();
+    wall.segment[pointIndex][coordIndex] = Number(value);
     this.markDirty();
   }
 
@@ -618,9 +644,6 @@ function applySpatialMove(object, delta, original = object) {
     object.bottom.x1 = original.bottom.x1 + dx;
     object.bottom.x2 = original.bottom.x2 + dx;
     object.bottom.y = original.bottom.y + dy;
-  } else if (original.start && original.end) {
-    object.start = [original.start[0] + dx, original.start[1] + dy];
-    object.end = [original.end[0] + dx, original.end[1] + dy];
   } else if (original.segment) {
     object.segment = original.segment.map((point) => [point[0] + dx, point[1] + dy]);
   }
@@ -652,9 +675,6 @@ function applySpatialResize(object, originalBounds, anchor, worldPoint, original
     const p4 = mapPoint([original.bottom.x2, original.bottom.y]);
     object.top = { y: p1[1], x1: p1[0], x2: p2[0] };
     object.bottom = { y: p3[1], x1: p3[0], x2: p4[0] };
-  } else if (original.start && original.end) {
-    object.start = mapPoint(original.start);
-    object.end = mapPoint(original.end);
   } else if (original.segment) {
     object.segment = original.segment.map(mapPoint);
   }
