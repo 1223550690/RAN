@@ -27,6 +27,8 @@ class LivePreviewService:
         scene,
         agents: list | None = None,
         ran_requests: list[dict] | None = None,
+        ran_state: dict | None = None,
+        control_state: dict | None = None,
         console: list[str] | None = None,
     ) -> None:
         payload = {
@@ -35,6 +37,8 @@ class LivePreviewService:
             "scene": scene.to_dict(),
             "agents": [agent.to_dict() for agent in agents or []],
             "ran_requests": list(ran_requests or []),
+            "ran_state": dict(ran_state or {}),
+            "control_state": dict(control_state or {}),
             "console": list(console or [])[-80:],
         }
         temp_path = self.output_path.with_suffix(".json.tmp")

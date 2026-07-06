@@ -5,6 +5,7 @@ import functools
 import json
 import threading
 import webbrowser
+from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -12,6 +13,8 @@ from urllib.parse import parse_qs, urlparse
 from services.map_service import MapService
 from services.preview_service import LivePreviewService
 from services.scene_service import SceneService
+from ran import RanEngine
+from .control import SimulationControl
 from .clock import SimulationClock
 from .simulation_loop import SimulationLoop
 from .state import SimulationState
@@ -25,19 +28,30 @@ def main() -> None:
     scene_service = SceneService()
     scene = scene_service.load_scene(args.scene)
     preview_service = LivePreviewService(PROJECT_ROOT / "outputs" / "live_state.json")
+    control = SimulationControl(log_dir=PROJECT_ROOT / "log")
 
     if args.console:
         run_console(scene)
         return
 
+    if args.ran_mvp:
+        if args.ran_mvp_mode == "tick":
+            if args.preview:
+                start_preview_server(args.preview_port, scene, control)
+            run_ran_mvp_tick(scene, args, preview_service, control)
+            return
+        run_ran_mvp_aggregate(scene, args.ticks)
+        return
+
     if args.preview:
-        start_preview_server(args.preview_port, scene)
+        start_preview_server(args.preview_port, scene, control)
 
     state = SimulationState(scene=scene)
     loop = SimulationLoop(
         state,
         clock=SimulationClock(tick_ms=args.tick_ms),
         preview_service=preview_service,
+        control=control,
     )
     loop.run(args.ticks)
 
@@ -50,7 +64,53 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-p", "--preview", action="store_true", help="open the live preview page")
     parser.add_argument("--preview-port", type=int, default=8766, help="preview server port")
     parser.add_argument("--console", action="store_true", help="open an interactive map query console")
+    parser.add_argument("--ran-mvp", action="store_true", help="run the fixed RAN MVP upload scenario")
+    parser.add_argument(
+        "--ran-mvp-mode",
+        choices=["aggregate", "tick"],
+        default="aggregate",
+        help="RAN MVP mode: aggregate summary or per-tick simulation",
+    )
     return parser.parse_args()
+
+
+def run_ran_mvp_aggregate(scene, tick: int) -> None:
+    engine = RanEngine(scene)
+    result = engine.run_agent_upload_demo(tick=1, max_ticks=max(5000, tick))
+    summary = result["result"]
+    qos = summary["qos"]
+    requested = summary["requested_bytes"]
+    delivered = summary["delivered_bytes"]
+    remaining_ratio = max(0, requested - delivered) / requested if requested else 0.0
+    print(
+        "ran_mvp="
+        f"service_id={summary['service_id']} "
+        f"delivered={summary['delivered_bytes']} "
+        f"undelivered={summary['failed_bytes']} "
+        f"tick_throughput_mbps={qos['throughput_mbps']:.3f} "
+        f"latency_ms={qos['latency_ms']:.3f} "
+        f"remaining_ratio={remaining_ratio:.6f} "
+        f"loss_rate={qos['packet_loss_rate']:.6f}",
+        flush=True,
+    )
+
+
+def run_ran_mvp_tick(
+    scene,
+    args: argparse.Namespace,
+    preview_service: LivePreviewService,
+    control: SimulationControl,
+) -> None:
+    engine = RanEngine(scene)
+    state = SimulationState(scene=scene)
+    loop = SimulationLoop(
+        state,
+        clock=SimulationClock(tick_ms=args.tick_ms),
+        preview_service=preview_service,
+        ran_scenario=engine.build_upload_scenario(),
+        control=control,
+    )
+    loop.run(args.ticks)
 
 
 def run_console(scene) -> None:
@@ -102,8 +162,8 @@ def run_console(scene) -> None:
         print("unknown command. use: area <x> <y> | pos <object_id> | walls <x1> <y1> <x2> <y2> | help | quit", flush=True)
 
 
-def start_preview_server(port: int, scene) -> None:
-    handler = functools.partial(MapPreviewRequestHandler, scene=scene, directory=str(PROJECT_ROOT))
+def start_preview_server(port: int, scene, control: SimulationControl) -> None:
+    handler = functools.partial(MapPreviewRequestHandler, scene=scene, control=control, directory=str(PROJECT_ROOT))
     server = ThreadingHTTPServer(("127.0.0.1", port), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -113,8 +173,9 @@ def start_preview_server(port: int, scene) -> None:
 
 
 class MapPreviewRequestHandler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, scene, **kwargs):
+    def __init__(self, *args, scene, control: SimulationControl, **kwargs):
         self.scene = scene
+        self.control = control
         self.map_service = MapService()
         super().__init__(*args, **kwargs)
 
@@ -125,6 +186,13 @@ class MapPreviewRequestHandler(SimpleHTTPRequestHandler):
             return
         super().do_GET()
 
+    def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/simulation/control":
+            self.handle_control(parsed.query)
+            return
+        self.send_error(HTTPStatus.NOT_FOUND, "Unknown API endpoint")
+
     def handle_map_query(self, raw_query: str) -> None:
         query = parse_qs(raw_query)
         command = query.get("command", [""])[0].strip()
@@ -133,6 +201,23 @@ class MapPreviewRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(result)
         except ValueError as exc:
             self.send_json({"error": str(exc)}, status=400)
+
+    def handle_control(self, raw_query: str) -> None:
+        query = parse_qs(raw_query)
+        action = query.get("action", [""])[0].strip().lower()
+        if action == "toggle_pause":
+            self.send_json({"ok": True, "control": self.control.toggle_paused()})
+            return
+        if action == "pause":
+            self.send_json({"ok": True, "control": self.control.set_paused(True)})
+            return
+        if action == "resume":
+            self.send_json({"ok": True, "control": self.control.set_paused(False)})
+            return
+        if action == "export_logs":
+            self.send_json({"ok": True, "export": self.control.export_logs()})
+            return
+        self.send_json({"ok": False, "error": "unknown control action"}, status=400)
 
     def execute_map_command(self, command: str) -> dict:
         parts = command.split()

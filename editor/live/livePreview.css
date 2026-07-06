@@ -17,12 +17,14 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+  overflow: hidden;
 }
 
 .live-shell {
+  height: 100vh;
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto minmax(220px, 1fr);
 }
 
 .live-header {
@@ -75,6 +77,19 @@ body {
   text-align: center;
 }
 
+.toolbar-button {
+  min-height: 32px;
+  border: 1px solid #0b5cab;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .agent-pill {
   min-height: 32px;
   display: inline-flex;
@@ -97,14 +112,15 @@ body {
 .preview-surface {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 480px);
   gap: 12px;
-  padding: 12px;
+  padding: 12px 12px 8px;
 }
 
 #sceneCanvas {
   width: 100%;
-  height: calc(100vh - 96px);
+  height: min(58vh, calc(100vh - 320px));
+  min-height: 360px;
   display: block;
   border: 1px solid var(--stroke);
   border-radius: 8px;
@@ -112,15 +128,15 @@ body {
 }
 
 .console-panel {
-  height: calc(100vh - 96px);
+  height: min(58vh, calc(100vh - 320px));
+  min-height: 360px;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1.15fr);
-  gap: 12px;
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
 }
 
 .runtime-panel,
-.query-panel {
+.ran-panel {
   min-height: 0;
   display: grid;
   border: 1px solid var(--stroke);
@@ -129,12 +145,19 @@ body {
   overflow: hidden;
 }
 
-.runtime-panel {
+.runtime-panel,
+.ran-panel {
   grid-template-rows: auto 1fr;
 }
 
-.query-panel {
-  grid-template-rows: auto 1fr auto;
+.log-surface {
+  min-height: 0;
+  display: grid;
+  padding: 0 12px 12px;
+}
+
+.log-surface .runtime-panel {
+  height: 100%;
 }
 
 .console-header {
@@ -164,49 +187,64 @@ body {
   font-family: Consolas, "Cascadia Mono", monospace;
   font-size: 12px;
   line-height: 1.45;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .runtime-log {
   background: #151515;
 }
 
-.query-log {
-  background: #0f1720;
+.ran-snapshot {
+  display: block;
+  padding: 14px;
+  background: #101418;
+  color: #f4f7fb;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  overflow: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ran-snapshot-line {
+  display: grid;
+  gap: 6px;
+}
+
+.ran-snapshot-line + .ran-snapshot-line {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #2f3b45;
+}
+
+.ran-snapshot-item {
+  min-height: 28px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border: 1px solid #2f3b45;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: #192129;
+  color: #f4f7fb;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ran-snapshot-empty {
+  color: #aab4be;
+  font-size: 13px;
 }
 
 .console-line {
   margin-bottom: 5px;
   white-space: pre-wrap;
-}
-
-.command-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  padding: 10px;
-  border-top: 1px solid var(--stroke);
-  background: #fafafa;
-}
-
-.command-form input {
-  min-width: 0;
-  height: 34px;
-  border: 1px solid var(--stroke);
-  border-radius: 6px;
-  padding: 0 10px;
-  font: inherit;
-}
-
-.command-form button {
-  height: 34px;
-  border: 1px solid #0b5cab;
-  border-radius: 6px;
-  padding: 0 12px;
-  background: var(--accent);
-  color: #ffffff;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 @media (max-width: 1050px) {

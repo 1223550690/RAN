@@ -1,0 +1,30 @@
+{
+  "description": "MVP 业务到 QoS/切片的默认映射。当前代码内也有同等固定表，后续可改为读取本配置。",
+  "video_upload": {
+    "qfi": 9,
+    "five_qi": 9,
+    "priority": 5,
+    "packet_delay_budget_ms": 300,
+    "packet_error_rate": 0.000001,
+    "resource_type": "non_gbr",
+    "slice_id": "embb"
+  },
+  "game": {
+    "qfi": 80,
+    "five_qi": 80,
+    "priority": 2,
+    "packet_delay_budget_ms": 50,
+    "packet_error_rate": 0.001,
+    "resource_type": "non_gbr",
+    "slice_id": "urllc"
+  },
+  "message": {
+    "qfi": 9,
+    "five_qi": 9,
+    "priority": 7,
+    "packet_delay_budget_ms": 500,
+    "packet_error_rate": 0.000001,
+    "resource_type": "non_gbr",
+    "slice_id": "mmtc"
+  }
+}

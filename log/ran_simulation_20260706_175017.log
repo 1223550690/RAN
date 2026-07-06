@@ -1,0 +1,11 @@
+simulation started
+tick=1 | ran_mvp=running delivered=27508 remaining=104969231 throughput_mbps=20.00581818181818
+tick=2 | ran_mvp=running delivered=55016 remaining=104941050 throughput_mbps=36.67733333333334
+tick=3 | ran_mvp=running delivered=82524 remaining=104912869 throughput_mbps=50.784
+tick=4 | ran_mvp=running delivered=110032 remaining=104884688 throughput_mbps=62.87542857142857
+tick=5 | ran_mvp=running delivered=137540 remaining=104856507 throughput_mbps=73.35466666666667
+tick=6 | ran_mvp=running delivered=165048 remaining=104828326 throughput_mbps=82.524
+tick=7 | ran_mvp=running delivered=192556 remaining=104800145 throughput_mbps=90.61458823529411
+tick=8 | ran_mvp=running delivered=220064 remaining=104771964 throughput_mbps=97.80622222222222
+tick=9 | ran_mvp=running delivered=247572 remaining=104743783 throughput_mbps=104.24084210526316
+control=paused
