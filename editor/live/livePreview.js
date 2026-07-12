@@ -142,7 +142,7 @@ function formatRanStateLines(ranState) {
   const qosFlow = ranState.qos_flow || {};
   return [
     `ran ${ranState.status} tick=${ranState.tick} ue=${ue.ue_id || "-"} gnb=${gnb.gnb_id || "-"} pos=(${gnb.position?.x ?? "-"}, ${gnb.position?.y ?? "-"}) slice=${result.slice_id || "-"} qfi=${qosFlow.qfi ?? "-"} drb=${drb.drb_id || "-"} cqi=${channel.cqi ?? "-"} sinr=${fmt(channel.sinr_db)}dB prbs=${allocation.prbs ?? "-"} mcs=${allocation.mcs ?? "-"}`,
-    `ran tx=${transmission.successful_bytes ?? "-"} fail=${transmission.failed_bytes ?? "-"} total=${progress.delivered_bytes ?? result.delivered_bytes ?? "-"} / ${progress.requested_bytes ?? result.requested_bytes ?? "-"} remaining=${progress.remaining_queue_bytes ?? "-"} completion_ratio=${fmtPct(progress.completion_ratio)} remaining_ratio=${fmtPct(progress.remaining_ratio)} tick_throughput_mbps=${fmt(qos.throughput_mbps)} loss_rate=${fmtPct(qos.packet_loss_rate)} dropped=${progress.dropped_bytes ?? "-"}`,
+    `ran tx=${transmission.successful_bytes ?? "-"} fail=${transmission.failed_bytes ?? "-"} total=${progress.delivered_bytes ?? result.delivered_bytes ?? "-"} / ${progress.requested_bytes ?? result.requested_bytes ?? "-"} remaining_payload=${progress.remaining_payload_bytes ?? "-"} queue_bytes=${progress.remaining_queue_bytes ?? "-"} completion_ratio=${fmtPct(progress.completion_ratio)} remaining_ratio=${fmtPct(progress.remaining_ratio)} tick_throughput_mbps=${fmt(qos.throughput_mbps)} loss_rate=${fmtPct(qos.packet_loss_rate)} dropped=${progress.dropped_bytes ?? "-"}`,
   ];
 }
 

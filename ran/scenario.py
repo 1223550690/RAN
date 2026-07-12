@@ -119,6 +119,10 @@ class RanUploadScenario:
             delivered_bytes=min(self.traffic.total_bytes, self.cumulative_successful_bytes),
             qos=qos,
         )
+        delivered_payload_bytes = min(self.traffic.total_bytes, self.cumulative_successful_bytes)
+        dropped_bytes = self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes
+        remaining_payload_bytes = max(0, self.traffic.total_bytes - delivered_payload_bytes - dropped_bytes)
+        remaining_queue_bytes = self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes
         state = {
             "mode": "tick",
             "status": "completed" if self.completed else "running",
@@ -140,11 +144,12 @@ class RanUploadScenario:
             "slice_usage": summarize_slice_usage(scheduler_result.allocations),
             "progress": {
                 "requested_bytes": self.traffic.total_bytes,
-                "delivered_bytes": min(self.traffic.total_bytes, self.cumulative_successful_bytes),
-                "remaining_queue_bytes": self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes,
-                "completion_ratio": min(1.0, self.cumulative_successful_bytes / self.traffic.total_bytes),
-                "remaining_ratio": (self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes) / self.traffic.total_bytes,
-                "dropped_bytes": self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes,
+                "delivered_bytes": delivered_payload_bytes,
+                "remaining_payload_bytes": remaining_payload_bytes,
+                "remaining_queue_bytes": remaining_queue_bytes,
+                "completion_ratio": min(1.0, delivered_payload_bytes / self.traffic.total_bytes),
+                "remaining_ratio": remaining_payload_bytes / self.traffic.total_bytes,
+                "dropped_bytes": dropped_bytes,
             },
         }
         self.last_state = state
@@ -169,10 +174,18 @@ class RanUploadScenario:
             "rlc_queue_after": asdict(self.rlc_queue),
             "progress": {
                 "requested_bytes": self.traffic.total_bytes,
-                "delivered_bytes": self.cumulative_successful_bytes,
+                "delivered_bytes": min(self.traffic.total_bytes, self.cumulative_successful_bytes),
+                "remaining_payload_bytes": max(
+                    0,
+                    self.traffic.total_bytes
+                    - min(self.traffic.total_bytes, self.cumulative_successful_bytes)
+                    - self.cumulative_dropped_bytes
+                    - self.cumulative_n3_loss_bytes
+                    - self.cumulative_n6_loss_bytes,
+                ),
                 "remaining_queue_bytes": self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes,
                 "completion_ratio": 0.0,
-                "remaining_ratio": (self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes) / self.traffic.total_bytes,
+                "remaining_ratio": 1.0,
                 "dropped_bytes": self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes,
             },
         }

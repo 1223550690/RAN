@@ -4,13 +4,13 @@
 
 ## 总输入
 
-- `AgentIntent`: Agent 在地图上的业务意图。
-- `scene`: 当前地图拓扑，包含区域、墙体、道路、基站 element。
+- `AgentIntent`：Agent 在地图上的业务意图。
+- `scene`：当前地图拓扑，包含区域、墙体、道路和基站 element。
 
 ## 总输出
 
-- `EndToEndResult`: 端到端交付字节、失败字节、吞吐、时延、丢包率。
-- 每层调试对象：UERequest、QoSFlow、DRB、RLCQueue、ChannelState、SchedulerRequest、SchedulerResult、TransmissionResult、N3/N6 结果。
+- `EndToEndResult`：端到端交付字节、失败字节、吞吐、时延和丢包率。
+- 每层调试对象：`UERequest`、`QoSFlow`、`DRB`、`RLCQueue`、`ChannelState`、`SchedulerRequest`、`SchedulerResult`、`TransmissionResult`、`N3/N6` 结果。
 
 ## MVP 边界
 
