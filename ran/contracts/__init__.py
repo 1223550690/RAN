@@ -1,8 +1,4 @@
-"""RAN MVP 数据契约。
-
-这些 dataclass 是 Python 内部模块与 Java scheduler 边界共同使用的稳定接口。
-字段旁的中文注释说明输入输出含义；内部算法可以替换，但字段名应尽量保持稳定。
-"""
+"""Project implementation detail."""
 
 from .agent import AgentIntent
 from .bearer import Drb, RlcQueue

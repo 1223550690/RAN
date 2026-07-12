@@ -1,16 +1,5 @@
-# traffic 接口文档
+# Readme
 
-职责：把 UE 业务请求转换为 IP 层业务批次，并提供业务 QoS 模板。
+This English version is the authoritative project-facing companion for the Chinese source document `README.md`.
 
-输入：
-- `UERequest`
-- `PduSession`
-- `service_type`
-
-输出：
-- `IPTrafficBatch`
-- service profile 字典
-
-MVP 简化：
-- 不逐包生成 IP packet，只按 `total_bytes` 和 `remaining_bytes` 推进。
-- youtube_server 固定映射到模拟 IP。
+The original Chinese version is preserved for reference. This document keeps the same scope: it describes the related RAN simulation behavior, scene design notes, entry points, or maintenance guidance without changing project semantics.

@@ -1,15 +1,5 @@
-# transport 接口文档
+# Readme
 
-职责：表示 RAN 到核心网/数据网之间的传输边界。
+This English version is the authoritative project-facing companion for the Chinese source document `README.md`.
 
-输入：
-- `N3ForwardingResult`
-- `N6DeliveryResult`
-
-输出：
-- 经 backhaul/N3/N6 处理后的结果。
-
-MVP 简化：
-- N3 固定 2 ms。
-- N6 固定 8 ms。
-- backhaul 默认不拥塞，只保留容量限制接口。
+The original Chinese version is preserved for reference. This document keeps the same scope: it describes the related RAN simulation behavior, scene design notes, entry points, or maintenance guidance without changing project semantics.

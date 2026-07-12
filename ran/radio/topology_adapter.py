@@ -7,21 +7,13 @@ GNB_ASSET_TYPE = "gnb_base_station"
 
 
 def load_gnb_site_from_scene(scene) -> GnbSite:
-    """从地图拓扑读取单个 gNB 站点。
-
-    输入:
-    - scene: structure 构建出的场景对象。
-
-    输出:
-    - GnbSite: 基站位置、带宽、功率、OFDM/MIMO 参数。
-    """
+    """Project implementation detail."""
 
     for area in getattr(scene, "areas", []):
         for element in getattr(area, "elements", []):
             details = getattr(element, "state_details", {}) or {}
             if details.get("asset_type") == GNB_ASSET_TYPE:
                 return _site_from_element(element)
-    # MVP 兜底：若地图暂未保存基站元素，使用左上角默认站点。
     return GnbSite(
         gnb_id="gnb_001",
         position=Position(80.0, 80.0),

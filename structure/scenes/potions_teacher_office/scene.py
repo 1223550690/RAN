@@ -26,7 +26,7 @@ from .layout import (
 def build_potions_teacher_office_tree() -> Home:
     return build_scene_tree(
         scene_id='potions_teacher_office',
-        scene_name='魔药课教师办公室',
+        scene_name='Potions Teacher Office',
         area_definitions=AREA_DEFINITIONS,
         area_elements=AREA_ELEMENTS,
         blocking_element_ids=POTIONS_TEACHER_OFFICE_BLOCKING_ELEMENT_IDS,

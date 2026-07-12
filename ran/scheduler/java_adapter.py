@@ -8,44 +8,32 @@ from .python_baseline import PythonBaselineScheduler
 
 
 class JavaSchedulerAdapter:
-    """Java scheduler 适配器。
-
-    当前 MVP 暂时接到 PythonBaselineScheduler，保留完整 JSON 输入输出边界。
-    后续接 Java 时，只需要替换 `_send_to_java`。
-    """
+    """Project implementation detail."""
 
     def __init__(self, fallback: PythonBaselineScheduler | None = None) -> None:
         self.fallback = fallback or PythonBaselineScheduler()
 
     def allocate(self, request: SchedulerRequest) -> SchedulerResult:
-        """执行调度。
-
-        输入:
-        - SchedulerRequest: Python dataclass。
-
-        输出:
-        - SchedulerResult: Java 或 fallback 返回的分配结果。
-        """
+        """Project implementation detail."""
 
         payload = self.to_json(request)
-        # MVP 最小实现：暂不启动 Java 常驻服务；把 JSON 交给 Python fallback 模拟 Java 返回。
         raw_result = self._send_to_java(payload)
         return self.from_json(raw_result)
 
     def to_json(self, request: SchedulerRequest) -> str:
-        """把 SchedulerRequest 转成 Java 可读取 JSON。"""
+        """Project implementation detail."""
 
         return json.dumps(asdict(request), ensure_ascii=False)
 
     def from_json(self, raw: str) -> SchedulerResult:
-        """把 Java 返回 JSON 转回 SchedulerResult。"""
+        """Project implementation detail."""
 
         data = json.loads(raw)
         allocations = [MacAllocation(**item) for item in data.get("allocations", [])]
         return SchedulerResult(tick=int(data["tick"]), allocations=allocations, debug=dict(data.get("debug", {})))
 
     def _send_to_java(self, payload: str) -> str:
-        """预留 Java 进程/Socket/gRPC 调用点。"""
+        """Project implementation detail."""
 
         request_data = json.loads(payload)
         request = _request_from_dict(request_data)

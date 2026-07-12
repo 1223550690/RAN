@@ -5,18 +5,9 @@ from ran.traffic.service_profile import service_profile_for
 
 
 def build_qos_flow(request: UERequest, session: PduSession) -> QoSFlow:
-    """由 UERequest 和 PDU Session 生成 QoS Flow。
-
-    输入:
-    - request: UE 业务请求。
-    - session: PDU Session。
-
-    输出:
-    - QoSFlow。
-    """
+    """Project implementation detail."""
 
     profile = service_profile_for(request.service_type)
-    # MVP 最小实现：直接使用 service profile；后续可加入 QoS rule、端口、DNN、PCF 策略。
     return QoSFlow(
         pdu_session_id=session.pdu_session_id,
         qfi=int(profile["qfi"]),

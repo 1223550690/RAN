@@ -1,18 +1,5 @@
-# metrics 接口文档
+# Readme
 
-职责：计算业务级 QoS、切片资源使用和端到端记录。
+This English version is the authoritative project-facing companion for the Chinese source document `README.md`.
 
-输入：
-- `TransmissionResult`
-- `N3ForwardingResult`
-- `N6DeliveryResult`
-- `MacAllocation`
-
-输出：
-- `QosMetrics`
-- `EndToEndResult`
-- slice PRB 使用字典
-
-MVP 简化：
-- 吞吐按 delivered bytes / delay 粗略估算。
-- 拥塞用 PRB 占用和未交付字节粗略判断。
+The original Chinese version is preserved for reference. This document keeps the same scope: it describes the related RAN simulation behavior, scene design notes, entry points, or maintenance guidance without changing project semantics.

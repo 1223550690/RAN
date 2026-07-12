@@ -1,14 +1,5 @@
-# contracts 接口文档
+# Readme
 
-`ran/contracts/` 是 RAN MVP 的稳定数据契约层。
+This English version is the authoritative project-facing companion for the Chinese source document `README.md`.
 
-输入：
-- Agent/UE/traffic/protocol/radio/scheduler/transport 各阶段的 Python dataclass。
-
-输出：
-- 可在 Python 内部直接传递，也可在 `scheduler/java_adapter.py` 序列化成 JSON。
-
-约定：
-- 字段名尽量稳定。
-- 内部算法可以替换，但模块之间只通过这些结构传递核心数据。
-- Wi-Fi 仅通过 `selected_access` 和 `access_type` 预留，不在 MVP 中实现独立链路。
+The original Chinese version is preserved for reference. This document keeps the same scope: it describes the related RAN simulation behavior, scene design notes, entry points, or maintenance guidance without changing project semantics.

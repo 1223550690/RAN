@@ -19,15 +19,7 @@ from ran.ue import build_demo_ue_state, build_ue_request
 
 
 class RanUploadScenario:
-    """固定 100MB 视频上传场景的逐 tick 状态机。
-
-    输入:
-    - scene: 当前地图拓扑。
-    - scheduler: MAC scheduler，可替换为 Java adapter。
-
-    输出:
-    - step(tick) 每次返回当前 tick 的 RAN 状态快照。
-    """
+    """Project implementation detail."""
 
     def __init__(self, scene, scheduler=None) -> None:
         self.scene = scene
@@ -68,14 +60,7 @@ class RanUploadScenario:
         self.last_state: dict[str, object] | None = None
 
     def step(self, tick: int) -> dict[str, object]:
-        """推进一个 RAN tick。
-
-        输入:
-        - tick: 当前 simulation tick。
-
-        输出:
-        - ran_state: 当前 tick 的 RAN 快照，可写入 live preview。
-        """
+        """Project implementation detail."""
 
         if self.completed:
             return self.snapshot(tick=tick, status="completed")
@@ -166,7 +151,7 @@ class RanUploadScenario:
         return state
 
     def snapshot(self, *, tick: int, status: str | None = None) -> dict[str, object]:
-        """返回当前状态快照，不推进仿真。"""
+        """Project implementation detail."""
 
         if self.last_state is not None:
             state = dict(self.last_state)

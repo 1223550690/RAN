@@ -1,17 +1,5 @@
-# slicing 接口文档
+# Readme
 
-职责：把业务映射到网络切片，并输出调度器可使用的切片策略。
+This English version is the authoritative project-facing companion for the Chinese source document `README.md`.
 
-输入：
-- `service_type`
-- 未来可加入历史 QoS、拥塞状态、AI controller 输出
-
-输出：
-- `slice_id`
-- `SlicePolicy`
-
-MVP 简化：
-- `video_upload -> embb`
-- `game -> urllc`
-- `message -> mmtc`
-- AI slicing controller 仅保留函数入口，当前返回固定策略。
+The original Chinese version is preserved for reference. This document keeps the same scope: it describes the related RAN simulation behavior, scene design notes, entry points, or maintenance guidance without changing project semantics.

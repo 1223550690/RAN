@@ -1,21 +1,5 @@
-# gnb 接口文档
+# Readme
 
-职责：按 gNB RU/DU/CU-UP/CU-CP 拆分 RAN 内部边界。
+This English version is the authoritative project-facing companion for the Chinese source document `README.md`.
 
-输入：
-- `RlcQueue`
-- `ChannelState`
-- `MacAllocation`
-- `TransmissionResult`
-- `PduSession`
-
-输出：
-- `SchedulerRequest`
-- `TransmissionResult`
-- `N3ForwardingResult`
-
-MVP 简化：
-- DU 只构造 scheduler 输入。
-- RU 只作为无线接收边界。
-- CU-UP 只做 N3/GTP-U 结果封装。
-- CU-CP 只保留控制面接口。
+The original Chinese version is preserved for reference. This document keeps the same scope: it describes the related RAN simulation behavior, scene design notes, entry points, or maintenance guidance without changing project semantics.

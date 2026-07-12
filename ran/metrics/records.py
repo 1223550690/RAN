@@ -14,14 +14,7 @@ def build_end_to_end_result(
     delivered_bytes: int,
     qos: QosMetrics,
 ) -> EndToEndResult:
-    """构造端到端结果记录。
-
-    输入:
-    - 业务、接入、交付和 QoS 字段。
-
-    输出:
-    - EndToEndResult。
-    """
+    """Project implementation detail."""
 
     return EndToEndResult(
         service_id=service_id,

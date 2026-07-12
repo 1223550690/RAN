@@ -13,14 +13,7 @@ def build_scheduler_request(
     channel_states: list[ChannelState],
     slice_policies: list[SlicePolicy],
 ) -> SchedulerRequest:
-    """构造 gNB-DU MAC scheduler 输入。
-
-    输入:
-    - RLC queue、QoS、DRB、信道、切片策略。
-
-    输出:
-    - SchedulerRequest。
-    """
+    """Project implementation detail."""
 
     return SchedulerRequest(
         tick=tick,

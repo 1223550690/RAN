@@ -5,20 +5,10 @@ from ran.radio.ofdm import estimate_transport_bytes
 
 
 class PythonBaselineScheduler:
-    """Python fallback scheduler。
-
-    当前用于替代 Java scheduler，确保 MVP 可以正常模拟。
-    """
+    """Project implementation detail."""
 
     def allocate(self, request: SchedulerRequest) -> SchedulerResult:
-        """根据 RLC queue、CQI 和 slice policy 分配 PRB。
-
-        输入:
-        - SchedulerRequest。
-
-        输出:
-        - SchedulerResult。
-        """
+        """Project implementation detail."""
 
         active = [queue for queue in request.rlc_queues if queue.queued_bytes + queue.retransmission_bytes > 0]
         if not active:
@@ -33,7 +23,6 @@ class PythonBaselineScheduler:
             policy = policy_by_slice.get(queue.slice_id)
             cqi = channel.cqi if channel else 1
             priority = policy.priority if policy else 5
-            # MVP 最小实现：权重由队列大小、CQI 和切片优先级粗略组成；后续替换为正式算法。
             weight = max(1.0, (queue.queued_bytes + queue.retransmission_bytes) / 1_000_000) * max(1, cqi) / max(1, priority)
             weights[(queue.ue_id, queue.drb_id)] = weight
             weight_sum += weight

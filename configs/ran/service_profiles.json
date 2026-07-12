@@ -1,5 +1,5 @@
 {
-  "description": "MVP 业务到 QoS/切片的默认映射。当前代码内也有同等固定表，后续可改为读取本配置。",
+  "description": "Default MVP mapping from service type to QoS and slice. The current code also contains an equivalent fixed table and can later be changed to read this configuration.",
   "video_upload": {
     "qfi": 9,
     "five_qi": 9,

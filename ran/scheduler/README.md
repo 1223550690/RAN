@@ -1,20 +1,5 @@
-# scheduler 接口文档
+# Readme
 
-职责：实现 gNB-DU MAC scheduler 的 PRB/MCS 分配边界。
+This English version is the authoritative project-facing companion for the Chinese source document `README.md`.
 
-输入：
-- `SchedulerRequest`
-- RLC queue
-- QoS Flow
-- DRB
-- ChannelState
-- SlicePolicy
-
-输出：
-- `SchedulerResult`
-- `MacAllocation`
-
-MVP 简化：
-- `JavaSchedulerAdapter` 保留 JSON 合同，但当前不调用 Java。
-- 当前执行接到 `PythonBaselineScheduler`。
-- Python fallback 使用队列大小、CQI、切片优先级做粗略权重分配。
+The original Chinese version is preserved for reference. This document keeps the same scope: it describes the related RAN simulation behavior, scene design notes, entry points, or maintenance guidance without changing project semantics.

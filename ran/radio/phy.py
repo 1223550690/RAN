@@ -4,17 +4,8 @@ from ran.contracts import ChannelState, MacAllocation, TransmissionResult
 
 
 def transmit(*, tick: int, allocation: MacAllocation, channel: ChannelState) -> TransmissionResult:
-    """执行 PHY 传输抽象。
+    """Project implementation detail."""
 
-    输入:
-    - allocation: MAC scheduler 返回的 PRB/MCS/bytes。
-    - channel: 当前信道 SINR/CQI/PER。
-
-    输出:
-    - TransmissionResult: 成功、失败、重传和时延。
-    """
-
-    # MVP 最小实现：用期望错误率直接折算失败字节，不做随机信道或 HARQ 过程。
     error_rate = max(allocation.expected_error_rate, channel.estimated_packet_error_rate)
     failed = int(allocation.scheduled_bytes * error_rate)
     successful = max(0, allocation.scheduled_bytes - failed)

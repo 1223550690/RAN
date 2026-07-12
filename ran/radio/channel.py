@@ -7,17 +7,7 @@ from services.map_service import MapService
 
 
 def estimate_channel(*, tick: int, scene, ue_request: UERequest, gnb: GnbSite) -> ChannelState:
-    """估算 UE 到 gNB 的信道状态。
-
-    输入:
-    - tick: 当前仿真 tick。
-    - scene: 地图拓扑。
-    - ue_request: UE 位置和方向。
-    - gnb: 基站位置与射频参数。
-
-    输出:
-    - ChannelState: scheduler 和 PHY 使用的 SINR/CQI/PER。
-    """
+    """Project implementation detail."""
 
     map_service = MapService()
     ue_pos = ue_request.position
@@ -31,7 +21,6 @@ def estimate_channel(*, tick: int, scene, ue_request: UERequest, gnb: GnbSite) -
     walls = walls_result.get("walls", [])
     wall_loss = sum(float(wall.get("penetration_loss_db") or 0.0) for wall in walls)
 
-    # MVP 最小实现：用简化 log-distance path loss + 墙损耗，不做 3D 射线追踪。
     d = max(distance, 1.0)
     path_loss = 32.4 + 20.0 * math.log10(gnb.carrier_freq_mhz) + 20.0 * math.log10(d / 1000.0) + wall_loss
     antenna_gain = min(12.0, 10.0 * math.log10(max(1, gnb.antenna_elements)) * 0.5)

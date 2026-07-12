@@ -6,16 +6,7 @@ from threading import Lock
 
 
 class SimulationControl:
-    """仿真运行控制器。
-
-    输入:
-    - simulation loop 写入的日志行。
-    - preview 页面发来的 pause/resume/export 指令。
-
-    输出:
-    - paused 状态。
-    - 导出的日志文件路径。
-    """
+    """Project implementation detail."""
 
     def __init__(self, *, log_dir: str | Path = "log") -> None:
         self.log_dir = Path(log_dir)
@@ -24,14 +15,7 @@ class SimulationControl:
         self._lock = Lock()
 
     def set_paused(self, paused: bool) -> dict:
-        """设置暂停状态。
-
-        输入:
-        - paused: True 暂停，False 继续。
-
-        输出:
-        - 当前控制状态。
-        """
+        """Project implementation detail."""
 
         with self._lock:
             self.paused = bool(paused)
@@ -40,7 +24,7 @@ class SimulationControl:
             return self.snapshot_unlocked()
 
     def toggle_paused(self) -> dict:
-        """切换暂停/继续状态。"""
+        """Project implementation detail."""
 
         with self._lock:
             self.paused = not self.paused
@@ -49,7 +33,7 @@ class SimulationControl:
             return self.snapshot_unlocked()
 
     def append_log(self, line: str) -> None:
-        """记录一行运行日志。"""
+        """Project implementation detail."""
 
         with self._lock:
             self._logs.append(str(line))
@@ -57,12 +41,7 @@ class SimulationControl:
                 del self._logs[:-20000]
 
     def export_logs(self) -> dict:
-        """导出当前为止的所有日志信息。
-
-        输出:
-        - path: 导出的日志文件路径。
-        - line_count: 导出行数。
-        """
+        """Project implementation detail."""
 
         with self._lock:
             self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -78,7 +57,7 @@ class SimulationControl:
             }
 
     def snapshot(self) -> dict:
-        """返回当前控制状态。"""
+        """Project implementation detail."""
 
         with self._lock:
             return self.snapshot_unlocked()

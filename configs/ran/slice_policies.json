@@ -1,5 +1,5 @@
 {
-  "description": "MVP 固定切片策略。后续 AI/RIC-like controller 可以动态生成这些字段。",
+  "description": "Fixed MVP slice policies. A later AI/RIC-like controller can generate these fields dynamically.",
   "policies": [
     {
       "slice_id": "urllc",

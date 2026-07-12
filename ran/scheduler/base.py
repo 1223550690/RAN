@@ -6,15 +6,8 @@ from ran.contracts import SchedulerRequest, SchedulerResult
 
 
 class Scheduler(Protocol):
-    """MAC Scheduler 接口。
-
-    输入:
-    - SchedulerRequest。
-
-    输出:
-    - SchedulerResult。
-    """
+    """Project implementation detail."""
 
     def allocate(self, request: SchedulerRequest) -> SchedulerResult:
-        """执行一次 PRB/MCS 分配。"""
+        """Project implementation detail."""
         ...

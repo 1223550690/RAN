@@ -1,5 +1,5 @@
 {
-  "description": "RAN MVP 默认配置。字段与 ran/contracts 中的数据契约保持一致。",
+  "description": "Default RAN MVP configuration. Fields stay aligned with the data contracts in ran/contracts.",
   "simulation": {
     "default_scene": "bristol_topology",
     "default_tick": 1,
@@ -19,6 +19,6 @@
   "wifi_reserved_fields": {
     "selected_access": ["5g", "wifi", "auto"],
     "access_type": ["3gpp", "non_3gpp"],
-    "note": "MVP 只预留字段，不实现独立 Wi-Fi 链路。"
+    "note": "MVP only reserves these fields and does not implement an independent Wi-Fi link."
   }
 }
