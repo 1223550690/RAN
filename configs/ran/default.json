@@ -1,0 +1,24 @@
+{
+  "description": "Default RAN MVP configuration. Fields stay aligned with the data contracts in ran/contracts.",
+  "simulation": {
+    "default_scene": "bristol_topology",
+    "default_tick": 1,
+    "tick_duration_ms": 1
+  },
+  "gnb": {
+    "gnb_id": "gnb_001",
+    "source": "editor/data/scenes/bristol_topology.json element state_details",
+    "single_gnb_only": true
+  },
+  "java_scheduler": {
+    "enabled": false,
+    "adapter": "ran.scheduler.java_adapter.JavaSchedulerAdapter",
+    "fallback": "ran.scheduler.python_baseline.PythonBaselineScheduler",
+    "wire_format": "json"
+  },
+  "wifi_reserved_fields": {
+    "selected_access": ["5g", "wifi", "auto"],
+    "access_type": ["3gpp", "non_3gpp"],
+    "note": "MVP only reserves these fields and does not implement an independent Wi-Fi link."
+  }
+}

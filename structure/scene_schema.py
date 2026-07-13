@@ -165,8 +165,7 @@ class WallSegment:
         return {
             "wall_id": self.wall_id,
             "name": self.name,
-            "start": list(self.start),
-            "end": list(self.end),
+            "segment": [list(self.start), list(self.end)],
             "wall_type": self.wall_type,
             "material": self.material,
             "thickness_m": self.thickness_m,

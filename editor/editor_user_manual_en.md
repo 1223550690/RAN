@@ -171,8 +171,7 @@ Junctions are rectangular road intersections. They are used to connect road segm
 
 Walls have:
 
-- `start`
-- `end`
+- `segment`
 - `material`
 - `penetration_loss_db`
 - `blocks_movement`

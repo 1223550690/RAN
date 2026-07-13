@@ -10,11 +10,13 @@ export class ScenePreview {
     this.selectedId = null;
     this.selectedAreaId = null;
     this.selectedSpatial = null;
+    this.spatialGroupHover = null;
     this.agents = [];
     this.signalMap = null;
     this.qosResults = null;
     this.highlightMode = "none";
     this.buildingOverlayVisible = false;
+    this.buildingWallOverlayVisible = false;
     this.activeTool = "select";
     this.drag = null;
     this.pan = null;
@@ -51,6 +53,11 @@ export class ScenePreview {
     this.render();
   }
 
+  setSpatialGroupHover(type) {
+    this.spatialGroupHover = type;
+    this.render();
+  }
+
   setAgents(agentStates = []) {
     this.agents = agentStates;
     this.render();
@@ -73,6 +80,11 @@ export class ScenePreview {
 
   setBuildingOverlayVisible(visible) {
     this.buildingOverlayVisible = Boolean(visible);
+    this.render();
+  }
+
+  setBuildingWallOverlayVisible(visible) {
+    this.buildingWallOverlayVisible = Boolean(visible);
     this.render();
   }
 
@@ -115,6 +127,7 @@ export class ScenePreview {
       this.drawGrid(rect.width, rect.height);
       this.drawAreas();
       this.drawBuildingAreaOverlays();
+      this.drawBuildingWallOverlays();
       this.drawRoads();
       this.drawWalls();
       this.drawPortals();
@@ -521,6 +534,29 @@ export class ScenePreview {
     }
   }
 
+  drawBuildingWallOverlays() {
+    if (!this.buildingWallOverlayVisible || this.scene.metadata?.editor_child_scene) return;
+    for (const parentArea of this.scene.areas || []) {
+      const localBounds = areaLocalBounds(parentArea);
+      for (const wall of parentArea.walls || []) {
+        if (!wall.segment) continue;
+        const start = localPointToGlobal(wall.segment[0], parentArea, localBounds);
+        const end = localPointToGlobal(wall.segment[1], parentArea, localBounds);
+        const [x1, y1] = this.transform.toScreen(start);
+        const [x2, y2] = this.transform.toScreen(end);
+        this.ctx.save();
+        this.ctx.strokeStyle = wall.wall_type === "exterior" ? "rgb(28 28 28 / 78%)" : "rgb(35 35 35 / 62%)";
+        this.ctx.lineWidth = wall.wall_type === "exterior" ? 2.2 : 1.6;
+        this.ctx.lineCap = "square";
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1, y1);
+        this.ctx.lineTo(x2, y2);
+        this.ctx.stroke();
+        this.ctx.restore();
+      }
+    }
+  }
+
   buildingOverlayAt(world) {
     if (!this.buildingOverlayVisible) return null;
     for (let parentIndex = (this.scene.areas || []).length - 1; parentIndex >= 0; parentIndex -= 1) {
@@ -552,9 +588,20 @@ export class ScenePreview {
       const [start, end] = portal.segment;
       const [x1, y1] = this.transform.toScreen(start);
       const [x2, y2] = this.transform.toScreen(end);
+      const isSelected = this.selectedSpatial?.type === "portal" && this.selectedSpatial.id === portal.id;
+      const isGroupHovered = this.spatialGroupHover === "portal";
       this.ctx.save();
-      this.ctx.strokeStyle = portal.kind === "door" ? "#8f3f1b" : "#0f6cbd";
-      this.ctx.lineWidth = 5;
+      if (isSelected || isGroupHovered) {
+        this.ctx.strokeStyle = "#ffd84d";
+        this.ctx.lineWidth = isSelected ? 11 : 9;
+        this.ctx.lineCap = "round";
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1, y1);
+        this.ctx.lineTo(x2, y2);
+        this.ctx.stroke();
+      }
+      this.ctx.strokeStyle = isSelected || isGroupHovered ? "#986f00" : (portal.kind === "door" ? "#8f3f1b" : "#0f6cbd");
+      this.ctx.lineWidth = isSelected ? 6 : 5;
       this.ctx.lineCap = "round";
       this.ctx.beginPath();
       this.ctx.moveTo(x1, y1);
@@ -596,12 +643,23 @@ export class ScenePreview {
 
   drawWalls() {
     for (const wall of this.scene.walls || []) {
-      if (!wall.start || !wall.end) continue;
-      const [x1, y1] = this.transform.toScreen(wall.start);
-      const [x2, y2] = this.transform.toScreen(wall.end);
+      if (!wall.segment) continue;
+      const [x1, y1] = this.transform.toScreen(wall.segment[0]);
+      const [x2, y2] = this.transform.toScreen(wall.segment[1]);
+      const isSelected = this.selectedSpatial?.type === "wall" && this.selectedSpatial.id === wall.wall_id;
+      const isGroupHovered = this.spatialGroupHover === "wall";
       this.ctx.save();
-      this.ctx.strokeStyle = wall.wall_type === "exterior" ? "#222222" : "#575757";
-      this.ctx.lineWidth = wall.wall_type === "exterior" ? 4 : 2.5;
+      if (isSelected || isGroupHovered) {
+        this.ctx.strokeStyle = "#ffd84d";
+        this.ctx.lineWidth = isSelected ? (wall.wall_type === "exterior" ? 9 : 7) : (wall.wall_type === "exterior" ? 7 : 5.5);
+        this.ctx.lineCap = "square";
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1, y1);
+        this.ctx.lineTo(x2, y2);
+        this.ctx.stroke();
+      }
+      this.ctx.strokeStyle = isSelected || isGroupHovered ? "#986f00" : (wall.wall_type === "exterior" ? "#222222" : "#575757");
+      this.ctx.lineWidth = isSelected ? (wall.wall_type === "exterior" ? 5 : 3.5) : (wall.wall_type === "exterior" ? 4 : 2.5);
       this.ctx.lineCap = "square";
       this.ctx.beginPath();
       this.ctx.moveTo(x1, y1);
@@ -729,15 +787,19 @@ function overlayTitle(hit) {
 }
 
 function childAreaGlobalBounds(parentArea, childArea) {
-  const localBounds = parentArea.rendering?.map_bounds || [
+  const localBounds = areaLocalBounds(parentArea);
+  const start = localPointToGlobal([childArea.bounds[0], childArea.bounds[1]], parentArea, localBounds);
+  const end = localPointToGlobal([childArea.bounds[2], childArea.bounds[3]], parentArea, localBounds);
+  return [start[0], start[1], end[0], end[1]];
+}
+
+function areaLocalBounds(parentArea) {
+  return parentArea.rendering?.map_bounds || [
     0,
     0,
     parentArea.bounds[2] - parentArea.bounds[0],
     parentArea.bounds[3] - parentArea.bounds[1],
   ];
-  const start = localPointToGlobal([childArea.bounds[0], childArea.bounds[1]], parentArea, localBounds);
-  const end = localPointToGlobal([childArea.bounds[2], childArea.bounds[3]], parentArea, localBounds);
-  return [start[0], start[1], end[0], end[1]];
 }
 
 function localPointToGlobal(point, parentArea, localBounds) {

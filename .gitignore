@@ -13,4 +13,5 @@ build/
 .agents/
 outputs/live_state.json
 outputs/live_state.json.tmp
+pixel_preview_sandbox/
 .DS_Store

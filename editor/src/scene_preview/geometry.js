@@ -10,11 +10,12 @@ export function getSceneBounds(scene) {
     bounds.push(intersection.bounds);
   }
   for (const wall of scene.walls || []) {
+    if (!wall.segment) continue;
     bounds.push([
-      Math.min(wall.start[0], wall.end[0]),
-      Math.min(wall.start[1], wall.end[1]),
-      Math.max(wall.start[0], wall.end[0]),
-      Math.max(wall.start[1], wall.end[1]),
+      Math.min(wall.segment[0][0], wall.segment[1][0]),
+      Math.min(wall.segment[0][1], wall.segment[1][1]),
+      Math.max(wall.segment[0][0], wall.segment[1][0]),
+      Math.max(wall.segment[0][1], wall.segment[1][1]),
     ]);
   }
   const minX = Math.min(...bounds.map((item) => item[0]));
@@ -94,7 +95,7 @@ export function hitTestSpatialObject(scene, worldPoint) {
   }
   for (let index = (scene.walls || []).length - 1; index >= 0; index -= 1) {
     const wall = scene.walls[index];
-    if (wall.start && wall.end && pointNearSegment(worldPoint, wall.start, wall.end, 6)) {
+    if (wall.segment && pointNearSegment(worldPoint, wall.segment[0], wall.segment[1], 6)) {
       return { type: "wall", object: wall, objectId: wall.wall_id };
     }
   }
@@ -124,10 +125,10 @@ export function spatialObjectBounds(hit) {
   if (hit.type === "road_segment") return roadBounds(hit.object);
   if (hit.type === "wall") {
     return [
-      Math.min(hit.object.start[0], hit.object.end[0]),
-      Math.min(hit.object.start[1], hit.object.end[1]),
-      Math.max(hit.object.start[0], hit.object.end[0]),
-      Math.max(hit.object.start[1], hit.object.end[1]),
+      Math.min(hit.object.segment[0][0], hit.object.segment[1][0]),
+      Math.min(hit.object.segment[0][1], hit.object.segment[1][1]),
+      Math.max(hit.object.segment[0][0], hit.object.segment[1][0]),
+      Math.max(hit.object.segment[0][1], hit.object.segment[1][1]),
     ];
   }
   if (hit.type === "portal") {
