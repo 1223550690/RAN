@@ -5,7 +5,13 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+.codex/
 venv/
 dist/
+local/
 build/
+.agents/
+outputs/live_state.json
+outputs/live_state.json.tmp
+pixel_preview_sandbox/
 .DS_Store

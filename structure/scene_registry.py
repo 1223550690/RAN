@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from .scene_schema import Home
+from .scenes.bristol_topology import build_bristol_topology_tree
 from .scenes.home import build_home_tree
 from .scenes.office import build_office_tree
 from .scenes.potions_teacher_office import build_potions_teacher_office_tree
@@ -12,9 +13,10 @@ SceneBuilder = Callable[[], Home]
 
 
 SCENE_BUILDERS: dict[str, SceneBuilder] = {
-    "home": build_home_tree,
-    "office": build_office_tree,
-    "potions_teacher_office": build_potions_teacher_office_tree,
+    'bristol_topology': build_bristol_topology_tree,
+    'home': build_home_tree,
+    'office': build_office_tree,
+    'potions_teacher_office': build_potions_teacher_office_tree,
 }
 
 

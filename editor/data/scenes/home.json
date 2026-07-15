@@ -1,0 +1,2172 @@
+{
+  "node_id": "home",
+  "name": "2d_home",
+  "default_agent_start": [
+    3.1,
+    5.1
+  ],
+  "portals": [
+    {
+      "id": "front_door_portal",
+      "name": "Front Door Portal",
+      "kind": "door",
+      "areas": [
+        "entryway",
+        "outside"
+      ],
+      "segment": [
+        [
+          0.2,
+          7.45
+        ],
+        [
+          0.2,
+          8.45
+        ]
+      ]
+    },
+    {
+      "id": "entry_living_opening",
+      "name": "Entry Living Opening",
+      "kind": "opening",
+      "areas": [
+        "entryway",
+        "living_room"
+      ],
+      "segment": [
+        [
+          2.25,
+          5.1
+        ],
+        [
+          2.25,
+          8.1
+        ]
+      ]
+    },
+    {
+      "id": "kitchen_dining_opening",
+      "name": "Kitchen Dining Opening",
+      "kind": "opening",
+      "areas": [
+        "kitchen",
+        "dining_room"
+      ],
+      "segment": [
+        [
+          4.1,
+          1.6
+        ],
+        [
+          4.1,
+          3.1
+        ]
+      ]
+    },
+    {
+      "id": "dining_living_opening",
+      "name": "Dining Living Opening",
+      "kind": "opening",
+      "areas": [
+        "dining_room",
+        "living_room"
+      ],
+      "segment": [
+        [
+          4.1,
+          3.75
+        ],
+        [
+          6.4,
+          3.75
+        ]
+      ]
+    },
+    {
+      "id": "bedroom_door_portal",
+      "name": "Bedroom Door Portal",
+      "kind": "door",
+      "areas": [
+        "living_room",
+        "bedroom"
+      ],
+      "segment": [
+        [
+          6.78,
+          3.68
+        ],
+        [
+          6.78,
+          4.28
+        ]
+      ]
+    },
+    {
+      "id": "bathroom_door_portal",
+      "name": "Bathroom Door Portal",
+      "kind": "door",
+      "areas": [
+        "living_room",
+        "bathroom"
+      ],
+      "segment": [
+        [
+          7.05,
+          5.0
+        ],
+        [
+          7.05,
+          5.95
+        ]
+      ]
+    },
+    {
+      "id": "bathroom_utility_opening",
+      "name": "Bathroom Utility Opening",
+      "kind": "opening",
+      "areas": [
+        "bathroom",
+        "utility_balcony"
+      ],
+      "segment": [
+        [
+          7.45,
+          7.25
+        ],
+        [
+          8.75,
+          7.25
+        ]
+      ]
+    },
+    {
+      "id": "living_main_balcony_glass_door",
+      "name": "Living Main Balcony Glass Door",
+      "kind": "glass_door",
+      "areas": [
+        "living_room",
+        "main_balcony"
+      ],
+      "segment": [
+        [
+          3.4,
+          8.55
+        ],
+        [
+          5.4,
+          8.55
+        ]
+      ]
+    }
+  ],
+  "rendering": {
+    "area_colors": {
+      "kitchen": "#f1d2a8",
+      "dining_room": "#e6d994",
+      "bedroom": "#bdd7b4",
+      "entryway": "#d8c8bd",
+      "living_room": "#e6c89b",
+      "bathroom": "#afd6e6",
+      "main_balcony": "#bcdab7",
+      "utility_balcony": "#b7d8bf"
+    }
+  },
+  "areas": [
+    {
+      "node_id": "kitchen",
+      "name": "Kitchen",
+      "bounds": [
+        0.2,
+        0.35,
+        4.1,
+        3.6
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "fridge_01",
+          "name": "Fridge 01",
+          "center": [
+            0.75,
+            1.45
+          ],
+          "size": [
+            0.8,
+            1.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "window_kitchen_01",
+          "name": "Window Kitchen 01",
+          "center": [
+            1.85,
+            0.45
+          ],
+          "size": [
+            1.35,
+            0.2
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "sink_01",
+          "name": "Sink 01",
+          "center": [
+            1.75,
+            1.45
+          ],
+          "size": [
+            1.15,
+            0.7
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "cabinet_kitchen_01",
+          "name": "Cabinet Kitchen 01",
+          "center": [
+            1.7,
+            2.05
+          ],
+          "size": [
+            1.35,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "microwave_01",
+          "name": "Microwave 01",
+          "center": [
+            3.0,
+            0.85
+          ],
+          "size": [
+            0.6,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "rice_cooker_01",
+          "name": "Rice Cooker 01",
+          "center": [
+            3.65,
+            0.85
+          ],
+          "size": [
+            0.45,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "stove_01",
+          "name": "Stove 01",
+          "center": [
+            3.05,
+            1.55
+          ],
+          "size": [
+            0.95,
+            0.6
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "pot_red_01",
+          "name": "Pot Red 01",
+          "center": [
+            2.75,
+            1.55
+          ],
+          "size": [
+            0.4,
+            0.4
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "pan_01",
+          "name": "Pan 01",
+          "center": [
+            3.35,
+            1.6
+          ],
+          "size": [
+            0.45,
+            0.35
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "counter_01",
+          "name": "Counter 01",
+          "center": [
+            3.0,
+            2.35
+          ],
+          "size": [
+            1.2,
+            0.8
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "cutting_board_01",
+          "name": "Cutting Board 01",
+          "center": [
+            2.65,
+            2.25
+          ],
+          "size": [
+            0.45,
+            0.35
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "dish_rack_01",
+          "name": "Dish Rack 01",
+          "center": [
+            3.85,
+            2.25
+          ],
+          "size": [
+            0.4,
+            0.6
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "trash_bin_kitchen_01",
+          "name": "Trash Bin Kitchen 01",
+          "center": [
+            3.85,
+            3.0
+          ],
+          "size": [
+            0.45,
+            0.65
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "rug_kitchen_01",
+          "name": "Rug Kitchen 01",
+          "center": [
+            1.9,
+            2.8
+          ],
+          "size": [
+            0.9,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "dining_room",
+      "name": "Dining Room",
+      "bounds": [
+        4.1,
+        0.35,
+        6.5,
+        3.75
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "dining_table_01",
+          "name": "Dining Table 01",
+          "center": [
+            5.1,
+            2.45
+          ],
+          "size": [
+            1.55,
+            1.3
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "dining_chair_01",
+          "name": "Dining Chair 01",
+          "center": [
+            4.65,
+            1.75
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "dining_chair_02",
+          "name": "Dining Chair 02",
+          "center": [
+            5.55,
+            1.75
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "dining_chair_03",
+          "name": "Dining Chair 03",
+          "center": [
+            4.65,
+            3.15
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "dining_chair_04",
+          "name": "Dining Chair 04",
+          "center": [
+            5.55,
+            3.15
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "vase_dining_01",
+          "name": "Vase Dining 01",
+          "center": [
+            5.1,
+            2.45
+          ],
+          "size": [
+            0.3,
+            0.45
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "clock_wall_01",
+          "name": "Clock Wall 01",
+          "center": [
+            5.25,
+            0.85
+          ],
+          "size": [
+            0.45,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "wall_art_dining_01",
+          "name": "Wall Art Dining 01",
+          "center": [
+            6.0,
+            1.2
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "plant_dining_01",
+          "name": "Plant Dining 01",
+          "center": [
+            6.15,
+            2.05
+          ],
+          "size": [
+            0.45,
+            0.7
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "bedroom",
+      "name": "Bedroom",
+      "bounds": [
+        6.55,
+        0.25,
+        9.15,
+        4.35
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "bed_01",
+          "name": "Bed 01",
+          "center": [
+            8.25,
+            1.7
+          ],
+          "size": [
+            1.45,
+            2.2
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "pillow_01",
+          "name": "Pillow 01",
+          "center": [
+            8.25,
+            1.05
+          ],
+          "size": [
+            1.0,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "bedside_table_01",
+          "name": "Bedside Table 01",
+          "center": [
+            6.95,
+            1.5
+          ],
+          "size": [
+            0.6,
+            0.6
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "lamp_bedside_01",
+          "name": "Lamp Bedside 01",
+          "center": [
+            6.75,
+            1.2
+          ],
+          "size": [
+            0.35,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "window_bedroom_01",
+          "name": "Window Bedroom 01",
+          "center": [
+            7.35,
+            0.4
+          ],
+          "size": [
+            1.2,
+            0.2
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "curtain_bedroom_01",
+          "name": "Curtain Bedroom 01",
+          "center": [
+            7.35,
+            0.6
+          ],
+          "size": [
+            1.4,
+            0.6
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "wall_art_bed_01",
+          "name": "Wall Art Bed 01",
+          "center": [
+            8.55,
+            0.55
+          ],
+          "size": [
+            0.55,
+            0.4
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "rug_round_01",
+          "name": "Rug Round 01",
+          "center": [
+            7.35,
+            2.8
+          ],
+          "size": [
+            1.0,
+            1.0
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "slippers_bedroom_01",
+          "name": "Slippers Bedroom 01",
+          "center": [
+            7.05,
+            3.2
+          ],
+          "size": [
+            0.45,
+            0.35
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "wardrobe_01",
+          "name": "Wardrobe 01",
+          "center": [
+            8.85,
+            3.05
+          ],
+          "size": [
+            0.55,
+            1.75
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "clothes_wardrobe_01",
+          "name": "Clothes Wardrobe 01",
+          "center": [
+            8.65,
+            3.15
+          ],
+          "size": [
+            0.35,
+            1.0
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "desk_bedroom_01",
+          "name": "Desk Bedroom 01",
+          "center": [
+            7.65,
+            4.0
+          ],
+          "size": [
+            0.9,
+            0.6
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "chair_bedroom_01",
+          "name": "Chair Bedroom 01",
+          "center": [
+            6.95,
+            3.85
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mirror_01",
+          "name": "Mirror 01",
+          "center": [
+            7.45,
+            3.85
+          ],
+          "size": [
+            0.35,
+            1.0
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "entryway",
+      "name": "Entryway",
+      "bounds": [
+        0.2,
+        3.95,
+        2.25,
+        9.75
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "door_front_01",
+          "name": "Door Front 01",
+          "center": [
+            1.0,
+            7.95
+          ],
+          "size": [
+            0.9,
+            1.0
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "doormat_01",
+          "name": "Doormat 01",
+          "center": [
+            1.0,
+            9.05
+          ],
+          "size": [
+            1.1,
+            0.5
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "shoe_cabinet_01",
+          "name": "Shoe Cabinet 01",
+          "center": [
+            0.5,
+            5.8
+          ],
+          "size": [
+            0.5,
+            1.0
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "coat_rack_01",
+          "name": "Coat Rack 01",
+          "center": [
+            1.6,
+            4.8
+          ],
+          "size": [
+            0.7,
+            0.3
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "coat_01",
+          "name": "Coat 01",
+          "center": [
+            1.45,
+            5.0
+          ],
+          "size": [
+            0.4,
+            0.8
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "bag_hanging_01",
+          "name": "Bag Hanging 01",
+          "center": [
+            1.85,
+            5.0
+          ],
+          "size": [
+            0.4,
+            0.6
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "umbrella_stand_01",
+          "name": "Umbrella Stand 01",
+          "center": [
+            0.45,
+            7.0
+          ],
+          "size": [
+            0.4,
+            0.6
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "slippers_entry_01",
+          "name": "Slippers Entry 01",
+          "center": [
+            1.45,
+            5.8
+          ],
+          "size": [
+            0.4,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "shoes_entry_01",
+          "name": "Shoes Entry 01",
+          "center": [
+            1.3,
+            6.5
+          ],
+          "size": [
+            0.5,
+            0.4
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "slippers_entry_02",
+          "name": "Slippers Entry 02",
+          "center": [
+            0.95,
+            7.45
+          ],
+          "size": [
+            0.5,
+            0.35
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "parcel_box_01",
+          "name": "Parcel Box 01",
+          "center": [
+            1.65,
+            7.2
+          ],
+          "size": [
+            0.6,
+            0.6
+          ],
+          "movable": true,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "backpack_01",
+          "name": "Backpack 01",
+          "center": [
+            1.95,
+            7.5
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": true,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "entrance_step_01",
+          "name": "Entrance Step 01",
+          "center": [
+            1.05,
+            9.53
+          ],
+          "size": [
+            1.6,
+            0.4
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "living_room",
+      "name": "Living Room",
+      "bounds": [
+        2.25,
+        3.6,
+        7.05,
+        8.55
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "armchair_01",
+          "name": "Armchair 01",
+          "center": [
+            5.25,
+            5.85
+          ],
+          "size": [
+            0.9,
+            1.0
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "cushion_01",
+          "name": "Cushion 01",
+          "center": [
+            5.15,
+            5.75
+          ],
+          "size": [
+            0.25,
+            0.25
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "cushion_02",
+          "name": "Cushion 02",
+          "center": [
+            5.4,
+            5.75
+          ],
+          "size": [
+            0.25,
+            0.25
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "coffee_table_01",
+          "name": "Coffee Table 01",
+          "center": [
+            4.2,
+            6.75
+          ],
+          "size": [
+            1.0,
+            1.25
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "rug_living_01",
+          "name": "Rug Living 01",
+          "center": [
+            4.3,
+            6.9
+          ],
+          "size": [
+            3.4,
+            2.7
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "tv_01",
+          "name": "Tv 01",
+          "center": [
+            2.65,
+            6.65
+          ],
+          "size": [
+            0.25,
+            1.35
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "tv_stand_01",
+          "name": "Tv Stand 01",
+          "center": [
+            2.55,
+            6.85
+          ],
+          "size": [
+            0.35,
+            1.2
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "floor_lamp_01",
+          "name": "Floor Lamp 01",
+          "center": [
+            2.8,
+            5.3
+          ],
+          "size": [
+            0.4,
+            0.9
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "plant_living_01",
+          "name": "Plant Living 01",
+          "center": [
+            5.95,
+            5.55
+          ],
+          "size": [
+            0.55,
+            0.8
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "plant_living_02",
+          "name": "Plant Living 02",
+          "center": [
+            2.85,
+            8.25
+          ],
+          "size": [
+            0.5,
+            0.6
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "bookshelf_01",
+          "name": "Bookshelf 01",
+          "center": [
+            6.55,
+            6.25
+          ],
+          "size": [
+            0.6,
+            1.8
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "toy_box_01",
+          "name": "Toy Box 01",
+          "center": [
+            6.55,
+            7.4
+          ],
+          "size": [
+            0.75,
+            0.75
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "toy_ball_01",
+          "name": "Toy Ball 01",
+          "center": [
+            6.55,
+            7.25
+          ],
+          "size": [
+            0.35,
+            0.35
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "pouf_01",
+          "name": "Pouf 01",
+          "center": [
+            5.45,
+            7.25
+          ],
+          "size": [
+            0.5,
+            0.5
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "bathroom",
+      "name": "Bathroom",
+      "bounds": [
+        7.05,
+        4.35,
+        9.15,
+        7.25
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "toilet_01",
+          "name": "Toilet 01",
+          "center": [
+            7.5,
+            5.6
+          ],
+          "size": [
+            0.55,
+            0.8
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "sink_bath_01",
+          "name": "Sink Bath 01",
+          "center": [
+            7.45,
+            5.1
+          ],
+          "size": [
+            0.65,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mirror_bath_01",
+          "name": "Mirror Bath 01",
+          "center": [
+            7.45,
+            4.65
+          ],
+          "size": [
+            0.55,
+            0.6
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "shower_01",
+          "name": "Shower 01",
+          "center": [
+            8.55,
+            5.35
+          ],
+          "size": [
+            0.75,
+            1.5
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "shower_head_01",
+          "name": "Shower Head 01",
+          "center": [
+            8.85,
+            4.95
+          ],
+          "size": [
+            0.25,
+            0.6
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "bath_mat_01",
+          "name": "Bath Mat 01",
+          "center": [
+            7.75,
+            6.7
+          ],
+          "size": [
+            0.9,
+            0.5
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "washing_machine_01",
+          "name": "Washing Machine 01",
+          "center": [
+            8.6,
+            6.75
+          ],
+          "size": [
+            0.7,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "laundry_basket_01",
+          "name": "Laundry Basket 01",
+          "center": [
+            8.85,
+            7.0
+          ],
+          "size": [
+            0.45,
+            0.45
+          ],
+          "movable": true,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "main_balcony",
+      "name": "Main Balcony",
+      "bounds": [
+        2.35,
+        8.55,
+        7.05,
+        9.75
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "glass_door_balcony_01",
+          "name": "Glass Door Balcony 01",
+          "center": [
+            4.4,
+            8.72
+          ],
+          "size": [
+            2.0,
+            0.24
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "railing_main_balcony_01",
+          "name": "Railing Main Balcony 01",
+          "center": [
+            4.7,
+            9.68
+          ],
+          "size": [
+            4.55,
+            0.14
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "flower_pot_01",
+          "name": "Flower Pot 01",
+          "center": [
+            3.6,
+            9.45
+          ],
+          "size": [
+            0.45,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "flower_pot_02",
+          "name": "Flower Pot 02",
+          "center": [
+            4.25,
+            9.45
+          ],
+          "size": [
+            0.45,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "flower_pot_03",
+          "name": "Flower Pot 03",
+          "center": [
+            4.85,
+            9.45
+          ],
+          "size": [
+            0.45,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "plant_balcony_01",
+          "name": "Plant Balcony 01",
+          "center": [
+            6.15,
+            9.45
+          ],
+          "size": [
+            0.45,
+            0.55
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "utility_balcony",
+      "name": "Utility Balcony",
+      "bounds": [
+        7.05,
+        7.25,
+        9.15,
+        9.75
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "railing_utility_balcony_01",
+          "name": "Railing Utility Balcony 01",
+          "center": [
+            8.1,
+            9.68
+          ],
+          "size": [
+            1.9,
+            0.14
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "drying_rack_01",
+          "name": "Drying Rack 01",
+          "center": [
+            7.75,
+            8.35
+          ],
+          "size": [
+            1.3,
+            0.9
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "flower_box_01",
+          "name": "Flower Box 01",
+          "center": [
+            7.75,
+            9.45
+          ],
+          "size": [
+            1.3,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mop_01",
+          "name": "Mop 01",
+          "center": [
+            8.85,
+            8.7
+          ],
+          "size": [
+            0.25,
+            1.1
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "bucket_01",
+          "name": "Bucket 01",
+          "center": [
+            8.75,
+            8.25
+          ],
+          "size": [
+            0.45,
+            0.45
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "broom_01",
+          "name": "Broom 01",
+          "center": [
+            8.55,
+            9.0
+          ],
+          "size": [
+            0.2,
+            1.0
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "storage_box_01",
+          "name": "Storage Box 01",
+          "center": [
+            8.7,
+            9.45
+          ],
+          "size": [
+            0.75,
+            0.45
+          ],
+          "movable": true,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "plant_corner_01",
+          "name": "Plant Corner 01",
+          "center": [
+            7.25,
+            8.0
+          ],
+          "size": [
+            0.35,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    }
+  ]
+}

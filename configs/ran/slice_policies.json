@@ -1,0 +1,26 @@
+{
+  "description": "Fixed MVP slice policies. A later AI/RIC-like controller can generate these fields dynamically.",
+  "policies": [
+    {
+      "slice_id": "urllc",
+      "priority": 1,
+      "min_prb_ratio": 0.2,
+      "max_prb_ratio": 0.6,
+      "delay_budget_ms": 50
+    },
+    {
+      "slice_id": "embb",
+      "priority": 3,
+      "min_prb_ratio": 0.4,
+      "max_prb_ratio": 0.9,
+      "delay_budget_ms": 300
+    },
+    {
+      "slice_id": "mmtc",
+      "priority": 6,
+      "min_prb_ratio": 0.05,
+      "max_prb_ratio": 0.3,
+      "delay_budget_ms": 500
+    }
+  ]
+}

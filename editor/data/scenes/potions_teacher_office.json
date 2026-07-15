@@ -1,0 +1,2718 @@
+{
+  "node_id": "potions_teacher_office",
+  "name": "Potions Teacher Office",
+  "default_agent_start": [
+    1.2,
+    2.72
+  ],
+  "portals": [
+    {
+      "id": "office_door_corridor_portal",
+      "name": "Office Door Corridor Portal",
+      "kind": "door",
+      "areas": [
+        "entrance_area",
+        "outside"
+      ],
+      "segment": [
+        [
+          0.2,
+          1.0
+        ],
+        [
+          0.2,
+          2.2
+        ]
+      ]
+    },
+    {
+      "id": "entrance_work_opening",
+      "name": "Entrance Work Opening",
+      "kind": "opening",
+      "areas": [
+        "entrance_area",
+        "teacher_work_area"
+      ],
+      "segment": [
+        [
+          2.95,
+          1.18
+        ],
+        [
+          2.95,
+          2.72
+        ]
+      ]
+    },
+    {
+      "id": "work_lore_opening",
+      "name": "Work Lore Opening",
+      "kind": "opening",
+      "areas": [
+        "teacher_work_area",
+        "lore_display_area"
+      ],
+      "segment": [
+        [
+          6.35,
+          1.1
+        ],
+        [
+          6.35,
+          2.7
+        ]
+      ]
+    },
+    {
+      "id": "entrance_consult_opening",
+      "name": "Entrance Consult Opening",
+      "kind": "opening",
+      "areas": [
+        "entrance_area",
+        "student_consult_area"
+      ],
+      "segment": [
+        [
+          0.95,
+          3.25
+        ],
+        [
+          2.7,
+          3.25
+        ]
+      ]
+    },
+    {
+      "id": "consult_work_opening",
+      "name": "Consult Work Opening",
+      "kind": "opening",
+      "areas": [
+        "student_consult_area",
+        "teacher_work_area"
+      ],
+      "segment": [
+        [
+          3.55,
+          3.45
+        ],
+        [
+          3.55,
+          4.2
+        ]
+      ]
+    },
+    {
+      "id": "work_brewing_opening",
+      "name": "Work Brewing Opening",
+      "kind": "opening",
+      "areas": [
+        "teacher_work_area",
+        "potion_brewing_area"
+      ],
+      "segment": [
+        [
+          6.1,
+          3.42
+        ],
+        [
+          6.1,
+          4.25
+        ]
+      ]
+    },
+    {
+      "id": "consult_fireplace_opening",
+      "name": "Consult Fireplace Opening",
+      "kind": "opening",
+      "areas": [
+        "student_consult_area",
+        "fireplace_area"
+      ],
+      "segment": [
+        [
+          0.95,
+          6.35
+        ],
+        [
+          2.7,
+          6.35
+        ]
+      ]
+    },
+    {
+      "id": "fireplace_cleanup_opening",
+      "name": "Fireplace Cleanup Opening",
+      "kind": "opening",
+      "areas": [
+        "fireplace_area",
+        "cleanup_area"
+      ],
+      "segment": [
+        [
+          3.35,
+          7.0
+        ],
+        [
+          3.35,
+          8.85
+        ]
+      ]
+    },
+    {
+      "id": "cleanup_ingredient_opening",
+      "name": "Cleanup Ingredient Opening",
+      "kind": "opening",
+      "areas": [
+        "cleanup_area",
+        "ingredient_storage_area"
+      ],
+      "segment": [
+        [
+          6.1,
+          7.22
+        ],
+        [
+          6.1,
+          9.15
+        ]
+      ]
+    },
+    {
+      "id": "brewing_ingredient_opening",
+      "name": "Brewing Ingredient Opening",
+      "kind": "opening",
+      "areas": [
+        "potion_brewing_area",
+        "ingredient_storage_area"
+      ],
+      "segment": [
+        [
+          7.1,
+          6.85
+        ],
+        [
+          8.95,
+          6.85
+        ]
+      ]
+    }
+  ],
+  "rendering": {
+    "area_colors": {
+      "entrance_area": "#6f5b47",
+      "teacher_work_area": "#8a5f32",
+      "lore_display_area": "#4d5f60",
+      "student_consult_area": "#4f694f",
+      "potion_brewing_area": "#5a6f55",
+      "fireplace_area": "#6f3f2a",
+      "cleanup_area": "#7d8278",
+      "ingredient_storage_area": "#7a6538"
+    }
+  },
+  "areas": [
+    {
+      "node_id": "entrance_area",
+      "name": "Entrance Area",
+      "bounds": [
+        0.2,
+        0.35,
+        2.95,
+        3.25
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "heavy_wooden_door",
+          "name": "Heavy Wooden Door",
+          "center": [
+            0.38,
+            1.55
+          ],
+          "size": [
+            0.34,
+            1.45
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "door_state": "closed"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "door_state": "closed"
+          }
+        },
+        {
+          "node_id": "door_hinge_bar",
+          "name": "Door Hinge Bar",
+          "center": [
+            0.55,
+            1.55
+          ],
+          "size": [
+            0.16,
+            0.88
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "door_handle_lock",
+          "name": "Door Handle Lock",
+          "center": [
+            0.62,
+            1.7
+          ],
+          "size": [
+            0.14,
+            0.26
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "lock_state": "unlocked"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "lock_state": "unlocked"
+          }
+        },
+        {
+          "node_id": "brass_nameplate",
+          "name": "Brass Nameplate",
+          "center": [
+            0.54,
+            0.78
+          ],
+          "size": [
+            0.2,
+            0.22
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "wall_lantern_entry",
+          "name": "Wall Lantern Entry",
+          "center": [
+            1.18,
+            0.68
+          ],
+          "size": [
+            0.22,
+            0.34
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "lantern_state": "off"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "lantern_state": "off"
+          }
+        },
+        {
+          "node_id": "robe_rack",
+          "name": "Robe Rack",
+          "center": [
+            2.08,
+            1.42
+          ],
+          "size": [
+            0.58,
+            0.82
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "robe_state": "on_rack"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "robe_state": "on_rack"
+          }
+        },
+        {
+          "node_id": "dark_teacher_robe",
+          "name": "Dark Teacher Robe",
+          "center": [
+            2.1,
+            1.58
+          ],
+          "size": [
+            0.42,
+            0.82
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "pointed_hat",
+          "name": "Pointed Hat",
+          "center": [
+            2.36,
+            0.92
+          ],
+          "size": [
+            0.26,
+            0.22
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "boots_pair",
+          "name": "Boots Pair",
+          "center": [
+            2.12,
+            2.38
+          ],
+          "size": [
+            0.44,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "umbrella_stand",
+          "name": "Umbrella Stand",
+          "center": [
+            1.7,
+            1.72
+          ],
+          "size": [
+            0.34,
+            0.42
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "walking_stick",
+          "name": "Walking Stick",
+          "center": [
+            1.78,
+            1.58
+          ],
+          "size": [
+            0.12,
+            0.62
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "entrance_rug",
+          "name": "Entrance Rug",
+          "center": [
+            1.22,
+            2.48
+          ],
+          "size": [
+            1.2,
+            0.68
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "left_plant_stand",
+          "name": "Left Plant Stand",
+          "center": [
+            0.66,
+            0.88
+          ],
+          "size": [
+            0.42,
+            0.62
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "small_drawer_entry",
+          "name": "Small Drawer Entry",
+          "center": [
+            2.62,
+            2.15
+          ],
+          "size": [
+            0.42,
+            0.64
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "visitor_note_board",
+          "name": "Visitor Note Board",
+          "center": [
+            2.55,
+            0.88
+          ],
+          "size": [
+            0.48,
+            0.58
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "visitor_note_state": "unread"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "visitor_note_state": "unread"
+          }
+        }
+      ]
+    },
+    {
+      "node_id": "teacher_work_area",
+      "name": "Teacher Work Area",
+      "bounds": [
+        2.95,
+        0.35,
+        6.35,
+        4.25
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "large_wooden_desk",
+          "name": "Large Wooden Desk",
+          "center": [
+            4.62,
+            3.08
+          ],
+          "size": [
+            2.35,
+            0.96
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "lesson_plan_state": "draft",
+            "homework_state": "ungraded"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "lesson_plan_state": "draft",
+            "homework_state": "ungraded"
+          }
+        },
+        {
+          "node_id": "high_back_chair",
+          "name": "High Back Chair",
+          "center": [
+            4.55,
+            2.15
+          ],
+          "size": [
+            0.72,
+            0.76
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "chair_state": "empty"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "chair_state": "empty"
+          }
+        },
+        {
+          "node_id": "desk_lantern",
+          "name": "Desk Lantern",
+          "center": [
+            3.68,
+            2.85
+          ],
+          "size": [
+            0.24,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "lantern_state": "off"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "lantern_state": "off"
+          }
+        },
+        {
+          "node_id": "quill_pen",
+          "name": "Quill Pen",
+          "center": [
+            3.92,
+            2.7
+          ],
+          "size": [
+            0.18,
+            0.42
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "ink_bottle",
+          "name": "Ink Bottle",
+          "center": [
+            3.82,
+            3.02
+          ],
+          "size": [
+            0.16,
+            0.16
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "open_lesson_plan",
+          "name": "Open Lesson Plan",
+          "center": [
+            4.66,
+            2.82
+          ],
+          "size": [
+            0.62,
+            0.44
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "parchment_stack",
+          "name": "Parchment Stack",
+          "center": [
+            4.42,
+            3.22
+          ],
+          "size": [
+            0.46,
+            0.32
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "rolled_scroll",
+          "name": "Rolled Scroll",
+          "center": [
+            5.18,
+            2.88
+          ],
+          "size": [
+            0.38,
+            0.16
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "sealed_letter",
+          "name": "Sealed Letter",
+          "center": [
+            5.52,
+            3.36
+          ],
+          "size": [
+            0.36,
+            0.22
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "letter_state": "sealed"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "letter_state": "sealed"
+          }
+        },
+        {
+          "node_id": "magic_books_stack",
+          "name": "Magic Books Stack",
+          "center": [
+            5.68,
+            2.52
+          ],
+          "size": [
+            0.46,
+            0.42
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "student_homework_stack",
+          "name": "Student Homework Stack",
+          "center": [
+            5.74,
+            3.08
+          ],
+          "size": [
+            0.42,
+            0.34
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "wax_seal",
+          "name": "Wax Seal",
+          "center": [
+            5.88,
+            3.38
+          ],
+          "size": [
+            0.18,
+            0.18
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "desk_drawer_left",
+          "name": "Desk Drawer Left",
+          "center": [
+            3.76,
+            3.55
+          ],
+          "size": [
+            0.52,
+            0.38
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "drawer_state": "closed"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "drawer_state": "closed"
+          }
+        },
+        {
+          "node_id": "desk_drawer_right",
+          "name": "Desk Drawer Right",
+          "center": [
+            5.82,
+            3.55
+          ],
+          "size": [
+            0.52,
+            0.38
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "drawer_state": "closed"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "drawer_state": "closed"
+          }
+        },
+        {
+          "node_id": "small_hourglass",
+          "name": "Small Hourglass",
+          "center": [
+            3.52,
+            3.08
+          ],
+          "size": [
+            0.16,
+            0.24
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "lore_display_area",
+      "name": "Lore Display Area",
+      "bounds": [
+        6.35,
+        0.35,
+        9.4,
+        3.2
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "gothic_window",
+          "name": "Gothic Window",
+          "center": [
+            6.98,
+            0.72
+          ],
+          "size": [
+            1.05,
+            0.3
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "window_state": "closed"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "window_state": "closed"
+          }
+        },
+        {
+          "node_id": "window_sill_plants",
+          "name": "Window Plants 01",
+          "center": [
+            6.98,
+            1.14
+          ],
+          "size": [
+            0.72,
+            0.3
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "plant_state": "healthy"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "plant_state": "healthy"
+          }
+        },
+        {
+          "node_id": "potion_vials_window",
+          "name": "Potion Vials Window",
+          "center": [
+            7.36,
+            1.12
+          ],
+          "size": [
+            0.38,
+            0.24
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "potion_diagram_frame",
+          "name": "Potion Diagram Frame",
+          "center": [
+            8.52,
+            0.92
+          ],
+          "size": [
+            0.62,
+            0.72
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "alchemy_symbol_chart",
+          "name": "Alchemy Symbol Chart",
+          "center": [
+            8.42,
+            1.78
+          ],
+          "size": [
+            0.72,
+            0.74
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "curved_display_shelf",
+          "name": "Curved Display Shelf",
+          "center": [
+            8.04,
+            2.42
+          ],
+          "size": [
+            1.72,
+            0.7
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "brass_astrolabe",
+          "name": "Brass Astrolabe",
+          "center": [
+            7.56,
+            2.28
+          ],
+          "size": [
+            0.45,
+            0.45
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "hanging_scale",
+          "name": "Hanging Scale",
+          "center": [
+            8.54,
+            2.78
+          ],
+          "size": [
+            0.5,
+            0.35
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "herb_bundle_hanging",
+          "name": "Herb Bundle Hanging",
+          "center": [
+            8.95,
+            2.45
+          ],
+          "size": [
+            0.24,
+            0.52
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "display_potion_bottles",
+          "name": "Display Potion Bottles",
+          "center": [
+            8.05,
+            2.56
+          ],
+          "size": [
+            0.75,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "magical_potted_plant",
+          "name": "Magical Potted Plant",
+          "center": [
+            8.92,
+            1.14
+          ],
+          "size": [
+            0.44,
+            0.52
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "plant_state": "healthy"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "plant_state": "healthy"
+          }
+        },
+        {
+          "node_id": "candle_stand_wall",
+          "name": "Candle Stand Wall",
+          "center": [
+            6.48,
+            1.5
+          ],
+          "size": [
+            0.18,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "student_consult_area",
+      "name": "Student Consult Area",
+      "bounds": [
+        0.2,
+        3.25,
+        3.55,
+        6.35
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "round_consult_table",
+          "name": "Round Consult Table",
+          "center": [
+            1.58,
+            4.72
+          ],
+          "size": [
+            1.1,
+            1.1
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "consultation_state": "not_started"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "consultation_state": "not_started"
+          }
+        },
+        {
+          "node_id": "guest_chair_a",
+          "name": "Guest Chair a",
+          "center": [
+            1.04,
+            4.05
+          ],
+          "size": [
+            0.48,
+            0.58
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "guest_chair_b",
+          "name": "Guest Chair B",
+          "center": [
+            2.18,
+            4.18
+          ],
+          "size": [
+            0.48,
+            0.58
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "consultation_candle",
+          "name": "Consultation Candle",
+          "center": [
+            1.58,
+            4.52
+          ],
+          "size": [
+            0.18,
+            0.24
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "reference_book",
+          "name": "Reference Book",
+          "center": [
+            1.8,
+            4.9
+          ],
+          "size": [
+            0.36,
+            0.28
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "tea_cup",
+          "name": "Tea Cup",
+          "center": [
+            1.38,
+            4.52
+          ],
+          "size": [
+            0.16,
+            0.16
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "tea_state": "empty"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "tea_state": "empty"
+          }
+        },
+        {
+          "node_id": "small_teapot",
+          "name": "Small Teapot",
+          "center": [
+            1.86,
+            4.54
+          ],
+          "size": [
+            0.24,
+            0.2
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "green_round_rug",
+          "name": "Green Round Rug",
+          "center": [
+            1.65,
+            4.84
+          ],
+          "size": [
+            2.15,
+            1.95
+          ],
+          "movable": false,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "left_wall_shelf",
+          "name": "Left Wall Shelf",
+          "center": [
+            0.38,
+            4.9
+          ],
+          "size": [
+            0.28,
+            1.2
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "side_potion_flask",
+          "name": "Side Potion Flask",
+          "center": [
+            0.55,
+            4.25
+          ],
+          "size": [
+            0.26,
+            0.35
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "potion_brewing_area",
+      "name": "Potion Brewing Area",
+      "bounds": [
+        6.1,
+        3.2,
+        9.4,
+        6.85
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "iron_cauldron",
+          "name": "Iron Cauldron",
+          "center": [
+            7.2,
+            4.62
+          ],
+          "size": [
+            0.8,
+            0.8
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "cauldron_state": "empty",
+            "potion_color": "unknown",
+            "potion_stability": "stable",
+            "steam_state": "none"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "cauldron_state": "empty",
+            "potion_color": "unknown",
+            "potion_stability": "stable",
+            "steam_state": "none"
+          }
+        },
+        {
+          "node_id": "cauldron_stand",
+          "name": "Cauldron Stand",
+          "center": [
+            7.2,
+            4.88
+          ],
+          "size": [
+            0.94,
+            0.94
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "heating_flame",
+          "name": "Heating Flame",
+          "center": [
+            7.2,
+            5.1
+          ],
+          "size": [
+            0.48,
+            0.34
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "flame_state": "off"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "flame_state": "off"
+          }
+        },
+        {
+          "node_id": "stirring_rod",
+          "name": "Stirring Rod",
+          "center": [
+            7.42,
+            4.45
+          ],
+          "size": [
+            0.12,
+            0.62
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "curved_brewing_workbench",
+          "name": "Curved Brewing Workbench",
+          "center": [
+            7.72,
+            5.72
+          ],
+          "size": [
+            2.38,
+            0.8
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "workbench_potion_bottles",
+          "name": "Workbench Potion Bottles",
+          "center": [
+            6.75,
+            5.62
+          ],
+          "size": [
+            0.62,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "glass_flask",
+          "name": "Glass Flask",
+          "center": [
+            8.28,
+            4.4
+          ],
+          "size": [
+            0.26,
+            0.34
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "round_bottom_flask",
+          "name": "Round Bottom Flask",
+          "center": [
+            8.28,
+            5.38
+          ],
+          "size": [
+            0.34,
+            0.34
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "test_tube_rack",
+          "name": "Test Tube Rack",
+          "center": [
+            8.58,
+            5.28
+          ],
+          "size": [
+            0.62,
+            0.3
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "brass_scale",
+          "name": "Brass Scale",
+          "center": [
+            8.82,
+            5.9
+          ],
+          "size": [
+            0.55,
+            0.36
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mortar_and_pestle",
+          "name": "Mortar and Pestle",
+          "center": [
+            7.92,
+            5.82
+          ],
+          "size": [
+            0.4,
+            0.36
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "herb_cutting_board",
+          "name": "Herb Cutting Board",
+          "center": [
+            6.72,
+            5.84
+          ],
+          "size": [
+            0.55,
+            0.38
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "small_knife",
+          "name": "Small Knife",
+          "center": [
+            6.62,
+            5.58
+          ],
+          "size": [
+            0.32,
+            0.08
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "measuring_spoon",
+          "name": "Measuring Spoon",
+          "center": [
+            6.95,
+            5.56
+          ],
+          "size": [
+            0.28,
+            0.1
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "recipe_scroll_brewing",
+          "name": "Recipe Scroll Brewing",
+          "center": [
+            8.86,
+            5.48
+          ],
+          "size": [
+            0.34,
+            0.18
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "fireplace_area",
+      "name": "Fireplace Area",
+      "bounds": [
+        0.2,
+        6.35,
+        3.35,
+        9.75
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "stone_fireplace",
+          "name": "Stone Fireplace",
+          "center": [
+            0.94,
+            7.54
+          ],
+          "size": [
+            1.05,
+            1.12
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "fireplace_state": "low",
+            "room_warmth": "comfortable"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "fireplace_state": "low",
+            "room_warmth": "comfortable"
+          }
+        },
+        {
+          "node_id": "active_fire",
+          "name": "Active Fire",
+          "center": [
+            0.95,
+            7.7
+          ],
+          "size": [
+            0.45,
+            0.42
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mantel_shelf",
+          "name": "Mantel Shelf",
+          "center": [
+            0.95,
+            6.86
+          ],
+          "size": [
+            0.96,
+            0.22
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mantel_photo",
+          "name": "Mantel Photo",
+          "center": [
+            0.74,
+            6.68
+          ],
+          "size": [
+            0.24,
+            0.24
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "firewood_stack",
+          "name": "Firewood Stack",
+          "center": [
+            1.58,
+            8.62
+          ],
+          "size": [
+            0.55,
+            0.36
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "firewood_amount": "enough"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "firewood_amount": "enough"
+          }
+        },
+        {
+          "node_id": "fireplace_poker",
+          "name": "Fireplace Poker",
+          "center": [
+            1.72,
+            7.58
+          ],
+          "size": [
+            0.12,
+            0.62
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "ash_bucket",
+          "name": "Ash Bucket",
+          "center": [
+            2.4,
+            8.72
+          ],
+          "size": [
+            0.38,
+            0.42
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "ash_state": "some_ash"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "ash_state": "some_ash"
+          }
+        },
+        {
+          "node_id": "drying_herb_hook",
+          "name": "Drying Herb Hook",
+          "center": [
+            1.55,
+            6.8
+          ],
+          "size": [
+            0.24,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "lower_wooden_door",
+          "name": "Lower Wooden Door",
+          "center": [
+            1.3,
+            9.08
+          ],
+          "size": [
+            0.86,
+            0.28
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "door_state": "closed"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "door_state": "closed"
+          }
+        },
+        {
+          "node_id": "stone_steps",
+          "name": "Stone Steps",
+          "center": [
+            2.35,
+            9.22
+          ],
+          "size": [
+            0.78,
+            0.36
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "broom_bundle",
+          "name": "Broom Bundle",
+          "center": [
+            1.86,
+            7.18
+          ],
+          "size": [
+            0.22,
+            0.72
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "cleanup_area",
+      "name": "Cleanup Area",
+      "bounds": [
+        3.35,
+        6.35,
+        6.1,
+        9.75
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "stone_sink",
+          "name": "Stone Sink",
+          "center": [
+            4.18,
+            7.32
+          ],
+          "size": [
+            0.95,
+            0.78
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "sink_state": "clean",
+            "tap_state": "off"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "sink_state": "clean",
+            "tap_state": "off"
+          }
+        },
+        {
+          "node_id": "copper_tap",
+          "name": "Copper Tap",
+          "center": [
+            4.18,
+            6.9
+          ],
+          "size": [
+            0.22,
+            0.22
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "drying_rack",
+          "name": "Drying Rack",
+          "center": [
+            5.12,
+            7.14
+          ],
+          "size": [
+            0.64,
+            0.42
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "glassware_set_dirty",
+          "name": "Glassware Set Dirty",
+          "center": [
+            4.88,
+            6.78
+          ],
+          "size": [
+            0.46,
+            0.3
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "glassware_state": "dirty"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "glassware_state": "dirty"
+          }
+        },
+        {
+          "node_id": "glassware_set_clean",
+          "name": "Glassware Set Clean",
+          "center": [
+            5.42,
+            6.88
+          ],
+          "size": [
+            0.42,
+            0.28
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "glassware_state": "clean"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "glassware_state": "clean"
+          }
+        },
+        {
+          "node_id": "cleaning_cloth",
+          "name": "Cleaning Cloth",
+          "center": [
+            5.26,
+            7.58
+          ],
+          "size": [
+            0.28,
+            0.18
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "cleaning_brush",
+          "name": "Cleaning Brush",
+          "center": [
+            4.86,
+            7.78
+          ],
+          "size": [
+            0.12,
+            0.42
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "soap_bottle",
+          "name": "Soap Bottle",
+          "center": [
+            4.52,
+            6.92
+          ],
+          "size": [
+            0.16,
+            0.22
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "waste_liquid_bucket",
+          "name": "Waste Liquid Bucket",
+          "center": [
+            4.7,
+            8.62
+          ],
+          "size": [
+            0.45,
+            0.45
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "waste_bucket_state": "half_full"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "waste_bucket_state": "half_full"
+          }
+        },
+        {
+          "node_id": "bottle_recycling_crate",
+          "name": "Bottle Recycling Crate",
+          "center": [
+            5.45,
+            8.78
+          ],
+          "size": [
+            0.56,
+            0.4
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        }
+      ]
+    },
+    {
+      "node_id": "ingredient_storage_area",
+      "name": "Ingredient Storage Area",
+      "bounds": [
+        6.1,
+        6.85,
+        9.4,
+        9.75
+      ],
+      "metadata": {},
+      "elements": [
+        {
+          "node_id": "apothecary_drawer_cabinet",
+          "name": "Apothecary Drawer Cabinet",
+          "center": [
+            7.02,
+            8.02
+          ],
+          "size": [
+            1.1,
+            1.42
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "inventory_state": "normal"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "inventory_state": "normal"
+          }
+        },
+        {
+          "node_id": "glass_jar_shelf",
+          "name": "Glass Jar Shelf",
+          "center": [
+            8.52,
+            7.82
+          ],
+          "size": [
+            1.08,
+            1.3
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "rare_ingredient_cabinet",
+          "name": "Rare Ingredient Cabinet",
+          "center": [
+            8.48,
+            9.08
+          ],
+          "size": [
+            0.98,
+            0.78
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "rare_cabinet_state": "locked",
+            "dangerous_item_access": "denied"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "rare_cabinet_state": "locked",
+            "dangerous_item_access": "denied"
+          }
+        },
+        {
+          "node_id": "herb_bundle_dried",
+          "name": "Herb Bundle Dried",
+          "center": [
+            6.44,
+            7.12
+          ],
+          "size": [
+            0.22,
+            0.44
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "root_sample_jar",
+          "name": "Root Sample Jar",
+          "center": [
+            6.55,
+            8.82
+          ],
+          "size": [
+            0.25,
+            0.34
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "powder_bone_jar",
+          "name": "Powder Bone Jar",
+          "center": [
+            6.9,
+            8.86
+          ],
+          "size": [
+            0.25,
+            0.34
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "crystal_shard_bottle",
+          "name": "Crystal Shard Bottle",
+          "center": [
+            7.25,
+            8.88
+          ],
+          "size": [
+            0.24,
+            0.34
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "insect_specimen_bottle",
+          "name": "Insect Specimen Bottle",
+          "center": [
+            8.26,
+            7.28
+          ],
+          "size": [
+            0.24,
+            0.34
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "mushroom_box",
+          "name": "Mushroom Box",
+          "center": [
+            7.72,
+            9.3
+          ],
+          "size": [
+            0.42,
+            0.34
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "label_tag",
+          "name": "Label Tag",
+          "center": [
+            7.52,
+            7.35
+          ],
+          "size": [
+            0.18,
+            0.12
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "label_state": "clear"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "label_state": "clear"
+          }
+        },
+        {
+          "node_id": "cabinet_key",
+          "name": "Cabinet Key",
+          "center": [
+            6.45,
+            8.28
+          ],
+          "size": [
+            0.14,
+            0.08
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "inventory_scroll",
+          "name": "Inventory Scroll",
+          "center": [
+            6.75,
+            8.35
+          ],
+          "size": [
+            0.32,
+            0.18
+          ],
+          "movable": true,
+          "blocks_movement": false,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "lower_bottle_crate",
+          "name": "Lower Bottle Crate",
+          "center": [
+            7.78,
+            9.55
+          ],
+          "size": [
+            0.72,
+            0.3
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "bottom_alchemy_table",
+          "name": "Bottom Alchemy Table",
+          "center": [
+            6.55,
+            9.38
+          ],
+          "size": [
+            0.65,
+            0.36
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {},
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {}
+        },
+        {
+          "node_id": "large_corner_plant",
+          "name": "Large Corner Plant",
+          "center": [
+            8.92,
+            9.18
+          ],
+          "size": [
+            0.55,
+            0.62
+          ],
+          "movable": false,
+          "blocks_movement": true,
+          "physical_status": "regular",
+          "evolution_status": "stable",
+          "interaction_status": "idle",
+          "state_details": {
+            "plant_state": "healthy"
+          },
+          "default_physical_status": "regular",
+          "default_evolution_status": "stable",
+          "default_interaction_status": "idle",
+          "default_state_details": {
+            "plant_state": "healthy"
+          }
+        }
+      ]
+    }
+  ]
+}

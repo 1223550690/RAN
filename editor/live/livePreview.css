@@ -1,0 +1,259 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --stroke: #d8d8d8;
+  --text: #1f1f1f;
+  --muted: #616161;
+  --accent: #0f6cbd;
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.live-shell {
+  height: 100vh;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto auto minmax(220px, 1fr);
+}
+
+.live-header {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--stroke);
+  background: rgb(255 255 255 / 88%);
+  backdrop-filter: blur(18px);
+}
+
+.live-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.live-header p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.agent-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.coordinate-readout {
+  min-width: 96px;
+  border: 1px solid var(--stroke);
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 12px;
+  text-align: center;
+}
+
+.toolbar-button {
+  min-height: 32px;
+  border: 1px solid #0b5cab;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agent-pill {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--stroke);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.preview-surface {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 480px);
+  gap: 12px;
+  padding: 12px 12px 8px;
+}
+
+#sceneCanvas {
+  width: 100%;
+  height: min(58vh, calc(100vh - 320px));
+  min-height: 360px;
+  display: block;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: #f8f8f8;
+}
+
+.console-panel {
+  height: min(58vh, calc(100vh - 320px));
+  min-height: 360px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.runtime-panel,
+.ran-panel {
+  min-height: 0;
+  display: grid;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.runtime-panel,
+.ran-panel {
+  grid-template-rows: auto 1fr;
+}
+
+.log-surface {
+  min-height: 0;
+  display: grid;
+  padding: 0 12px 12px;
+}
+
+.log-surface .runtime-panel {
+  height: 100%;
+}
+
+.console-header {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--stroke);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#llmStatus {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: right;
+}
+
+.console-log {
+  overflow: auto;
+  padding: 10px 12px;
+  background: #111111;
+  color: #f5f5f5;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.runtime-log {
+  background: #151515;
+}
+
+.ran-snapshot {
+  display: block;
+  padding: 14px;
+  background: #101418;
+  color: #f4f7fb;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  overflow: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ran-snapshot-line {
+  display: grid;
+  gap: 6px;
+}
+
+.ran-snapshot-line + .ran-snapshot-line {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #2f3b45;
+}
+
+.ran-snapshot-item {
+  min-height: 28px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border: 1px solid #2f3b45;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: #192129;
+  color: #f4f7fb;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ran-snapshot-empty {
+  color: #aab4be;
+  font-size: 13px;
+}
+
+.console-line {
+  margin-bottom: 5px;
+  white-space: pre-wrap;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+@media (max-width: 1050px) {
+  .preview-surface {
+    grid-template-columns: 1fr;
+  }
+
+  #sceneCanvas,
+  .console-panel {
+    height: 48vh;
+  }
+}
