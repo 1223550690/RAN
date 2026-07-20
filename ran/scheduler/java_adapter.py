@@ -54,4 +54,5 @@ def _request_from_dict(data: dict) -> SchedulerRequest:
         channel_states=[ChannelState(**item) for item in data.get("channel_states", [])],
         slice_policies=[SlicePolicy(**item) for item in data.get("slice_policies", [])],
         harq_feedback=list(data.get("harq_feedback", [])),
+        phr=float(data["phr"]),
     )

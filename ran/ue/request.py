@@ -24,4 +24,5 @@ def build_ue_request(intent: AgentIntent, *, ue_id: str, selected_access: str = 
             "reliability": "normal",
             "throughput_preference": "high",
         },
+        
     )

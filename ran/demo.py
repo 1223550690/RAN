@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+sys.path.insert(1, '/home/tr22068/Documents/RAN/')
 
 from services.scene_service import SceneService
-from .engine import RanEngine
+from engine import RanEngine
 
 
 def main() -> None:
@@ -24,7 +26,7 @@ def main() -> None:
 
     scenario = engine.build_upload_scenario()
     for offset in range(max(1, args.max_ticks)):
-        state = scenario.step(args.tick + offset)
+        state = scenario.step(args.tick + offset, None)
         print(json.dumps(state, ensure_ascii=False))
         if state.get("status") == "completed":
             break
