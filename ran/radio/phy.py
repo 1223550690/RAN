@@ -4,7 +4,7 @@ from ran.contracts import ChannelState, MacAllocation, TransmissionResult, UESta
 import math
 
 
-def transmit(*, tick: int, allocation: MacAllocation, channel: ChannelState) -> TransmissionResult:
+def transmit(*, tick: int, allocation: MacAllocation, channel: ChannelState, ue_state: UEState, gnb:GnbSite) -> TransmissionResult:
     """Project implementation detail."""
 
     error_rate = max(allocation.expected_error_rate, channel.estimated_packet_error_rate)

@@ -59,7 +59,7 @@ class RanUploadScenario:
         self.cumulative_n6_loss_bytes = 0
         self.last_state: dict[str, object] | None = None
 
-    def step(self, tick: int) -> dict[str, object]:
+    def step(self, tick: int, state) -> dict[str, object]:
         """Project implementation detail."""
 
         if self.completed:
