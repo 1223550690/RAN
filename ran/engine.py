@@ -33,7 +33,7 @@ class RanEngine:
         scenario = RanUploadScenario(self.scene, scheduler=self.scheduler)
         state: dict[str, object] | None = None
         for offset in range(max(1, max_ticks)):
-            state = scenario.step(tick + offset)
+            state = scenario.step(tick + offset, state)
             if state.get("status") == "completed":
                 break
         if state is None:
@@ -43,5 +43,5 @@ class RanEngine:
 
     def build_upload_scenario(self) -> RanUploadScenario:
         """创建可逐 tick 推进的上传场景。"""
-
+    
         return RanUploadScenario(self.scene, scheduler=self.scheduler)

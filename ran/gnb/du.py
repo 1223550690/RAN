@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ran.contracts import ChannelState, Drb, QoSFlow, RlcQueue, SchedulerRequest, SlicePolicy
+from ran.contracts import ChannelState, Drb, QoSFlow, RlcQueue, SchedulerRequest, SlicePolicy, TransmissionResult
 
 
 def build_scheduler_request(
@@ -12,6 +12,7 @@ def build_scheduler_request(
     drbs: list[Drb],
     channel_states: list[ChannelState],
     slice_policies: list[SlicePolicy],
+    power_report: float
 ) -> SchedulerRequest:
     """构造 gNB-DU MAC scheduler 输入。
 
@@ -31,4 +32,5 @@ def build_scheduler_request(
         drbs=drbs,
         channel_states=channel_states,
         slice_policies=slice_policies,
+        phr=power_report if power_report else 0.0
     )

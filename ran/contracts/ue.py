@@ -21,14 +21,19 @@ class UEState:
     输出字段:
     - rm_state/cm_state/rrc_state: 简化控制面状态。
     - ue_ip: PDU session 建立后分配的 UE IP。
+    - cmax_transmit: Value indicating the configured maximum transmission power of the UE, to be used for the Power Headroom Report.
     """
+    
 
     ue_id: str  # ue_id: UE/手机标识。
     agent_id: str  # agent_id: 绑定的 Agent 标识。
     position: Position  # position: UE 当前地图坐标。
+    cmax_transmit: int#Default configured maximum transmission power in Decibels.
+    ue_pusch: int #Default values for simulation
     rm_state: str = "DEREGISTERED"  # rm_state: 5GC 注册状态。
     cm_state: str = "IDLE"  # cm_state: 核心网连接管理状态。
     rrc_state: str = "IDLE"  # rrc_state: UE 与 gNB 的无线控制状态。
+    
     ue_ip: str | None = None  # ue_ip: UE 在 PDU Session 中获得的 IP。
     allowed_slices: list[str] = field(default_factory=list)  # allowed_slices: 允许使用的切片。
 

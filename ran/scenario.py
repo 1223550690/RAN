@@ -67,7 +67,7 @@ class RanUploadScenario:
         self.cumulative_n6_loss_bytes = 0
         self.last_state: dict[str, object] | None = None
 
-    def step(self, tick: int) -> dict[str, object]:
+    def step(self, tick: int, state) -> dict[str, object]:
         """推进一个 RAN tick。
 
         输入:
@@ -89,7 +89,9 @@ class RanUploadScenario:
             drbs=[self.drb],
             channel_states=[channel],
             slice_policies=self.slice_policies,
+            power_report=state["transmission"]["power_report"] if tick!= 1 else None,
         )
+        print(state["transmission"]["power_report"]) if tick !=1 else None
         scheduler_result = self.scheduler.allocate(scheduler_request)
         if not scheduler_result.allocations:
             self.completed = True
@@ -100,7 +102,7 @@ class RanUploadScenario:
             self.completed = True
             return self.snapshot(tick=tick, status="zero_allocation")
 
-        transmission = transmit(tick=tick, allocation=allocation, channel=channel)
+        transmission = transmit(tick=tick, allocation=allocation, channel=channel, ue_state=self.ue_state, gnb=self.gnb)
         self.rlc_queue = apply_transmission_to_rlc(self.rlc_queue, transmission)
         ru_result = receive_radio(transmission)
         n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, self.session)))

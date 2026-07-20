@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from ran.contracts import ChannelState, MacAllocation, TransmissionResult
+from ran.contracts import ChannelState, MacAllocation, TransmissionResult, UEState, GnbSite
+import math
 
 
-def transmit(*, tick: int, allocation: MacAllocation, channel: ChannelState) -> TransmissionResult:
+def transmit(*, tick: int, allocation: MacAllocation, channel: ChannelState, ue_state: UEState, gnb: GnbSite) -> TransmissionResult:
     """执行 PHY 传输抽象。
 
     输入:
@@ -20,6 +21,7 @@ def transmit(*, tick: int, allocation: MacAllocation, channel: ChannelState) -> 
     successful = max(0, allocation.scheduled_bytes - failed)
     harq_retx = failed if error_rate <= 0.15 else int(failed * 0.5)
     rlc_retx = failed - harq_retx
+    power_report = ue_state.cmax_transmit - (10*math.log(allocation.prbs,10) + gnb.nominal_pusch + channel.total_path_loss_db)
     return TransmissionResult(
         tick=tick,
         ue_id=allocation.ue_id,
@@ -40,4 +42,5 @@ def transmit(*, tick: int, allocation: MacAllocation, channel: ChannelState) -> 
         rlc_retx_bytes=rlc_retx,
         dropped_bytes=0,
         transmission_delay_ms=1.0,
+        power_report=power_report
     )
