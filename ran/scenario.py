@@ -76,7 +76,6 @@ class RanUploadScenario:
             slice_policies=self.slice_policies,
             power_report=state["transmission"]["power_report"] if tick!= 1 else None,
         )
-        print(state["transmission"]["power_report"]) if tick !=1 else None
         scheduler_result = self.scheduler.allocate(scheduler_request)
         if not scheduler_result.allocations:
             self.completed = True

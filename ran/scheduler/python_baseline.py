@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ran.contracts import MacAllocation, SchedulerRequest, SchedulerResult
+from ran.contracts import MacAllocation, SchedulerRequest, SchedulerResult, RlcQueue
 from ran.radio.ofdm import estimate_transport_bytes
 
 
@@ -17,12 +17,19 @@ class PythonBaselineScheduler:
         policy_by_slice = {policy.slice_id: policy for policy in request.slice_policies}
         weight_sum = 0.0
         weights: dict[tuple[str, int], float] = {}
+        active = sortByBSR(active)
+        i = 0
         for queue in active:
-            #channel_by_ue, policy_by_slice, weights, weight_sum, queue = mvbScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue)
-            
-            channel_by_ue, policy_by_slice, weights, weight_sum, queue  = roundRobinScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue)
+            #Initial trial allocations
+            weights[queue.ue_id, queue.drb_id] = len(active) -i
+            weight_sum += len(active) -i
+            i+= 1
+            #channel_by_ue, policy_by_slice, weights, weight_sum, queue= mvbScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue)
+            #channel_by_ue, policy_by_slice, weights, weight_sum, queue = roundRobinScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue)
+            #channel_by_ue, policy_by_slice, weights, weight_sum, queue  = grantBasedScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue)
         allocations: list[MacAllocation] = []
         for queue in active:
+            
             channel = channel_by_ue.get(queue.ue_id)
             ratio = weights[(queue.ue_id, queue.drb_id)] / weight_sum if weight_sum else 0.0
             prbs = max(1, int(request.total_prbs * ratio))
@@ -47,6 +54,8 @@ class PythonBaselineScheduler:
                 )
             )
         return SchedulerResult(tick=request.tick, allocations=allocations, debug={"implementation": "python_baseline"})
+    #UPLINK ALGORITHMS
+    #Time management to be implemented later
 
 # MVP Minimal Implementation: Weights are roughly determined by queue size, CQI, and slice priority.
 def mvbScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue):
@@ -72,3 +81,18 @@ def roundRobinScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, qu
 def maxThroughputScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue):
     
     return channel_by_ue, policy_by_slice, weights, weight_sum, queue 
+def grantBasedScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue):
+
+    
+    
+    return channel_by_ue, policy_by_slice, weights, weight_sum, queue
+def sortByBSR(queues:list[RlcQueue]):
+    while(True):
+        check = queues
+        for i in range(0, len(queues)-1):
+            if (queues[i].queued_bytes + queues[i].retransmission_bytes < queues[i+1].queued_bytes + queues[i+1].retransmission_bytes):
+                temp = queues[i]
+                queues[i] = queues[i+1]
+                queues[i+1] = temp
+        if (check == queues):
+            return queues

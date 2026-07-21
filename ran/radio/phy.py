@@ -12,7 +12,7 @@ def transmit(*, tick: int, allocation: MacAllocation, channel: ChannelState, ue_
     successful = max(0, allocation.scheduled_bytes - failed)
     harq_retx = failed if error_rate <= 0.15 else int(failed * 0.5)
     rlc_retx = failed - harq_retx
-    power_report = ue_state.cmax_transmit - (10*math.log(allocation.prbs,10) + gnb.nominal_pusch + channel.total_path_loss_db)
+    power_report = ue_state.cmax_transmit - (10*math.log(allocation.prbs,10) + gnb.nominal_pusch + 0.8*channel.total_path_loss_db)
     return TransmissionResult(
         tick=tick,
         ue_id=allocation.ue_id,
