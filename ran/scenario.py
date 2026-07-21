@@ -21,33 +21,33 @@ from ran.ue import build_demo_ue_state, build_ue_request
 class RanUploadScenario:
     """Project implementation detail."""
 
+    
     def __init__(self, scene, scheduler=None) -> None:
         self.scene = scene
         self.scheduler = scheduler or JavaSchedulerAdapter()
-        self.intent = AgentIntent(
+        self.intents = [AgentIntent(
             agent_id="student_a",
             agent_pos=Position(520.0, 430.0),
             action="upload",
             target="youtube_server",
             content_type="video",
             size_bytes=100 * 1024 * 1024,
-        )
+        ),AgentIntent(
+            agent_id="student_b",
+            agent_pos=Position(340.0, 300.0),
+            action="upload",
+            target="youtube_server",
+            content_type="video",
+            size_bytes=50 * 1024 * 1024,
+            )]
         self.gnb = load_gnb_site_from_scene(scene)
+        
+        self.ue_states, self.ue_requests, self.ue_access_values, self.slice_ids, self.sessions, self.traffic_values, self.qos_flows, self.drbs, self.pdcp_batches, self.rlc_queues = buildStates(self.intents, self.gnb)
         self.ue_state = build_demo_ue_state(
             agent_id=self.intent.agent_id,
             ue_id="student_a_phone",
             position=self.intent.agent_pos,
         )
-        self.ue_state = register_ue(self.ue_state)
-        self.ue_request = build_ue_request(self.intent, ue_id=self.ue_state.ue_id, selected_access="5g")
-        self.access = select_access(self.ue_request, self.gnb)
-        self.slice_id = classify_slice(self.ue_request.service_type)
-        self.session = establish_pdu_session(self.ue_state, self.ue_request, slice_id=self.slice_id)
-        self.traffic = build_ip_traffic(self.ue_request, self.session)
-        self.qos_flow = build_qos_flow(self.ue_request, self.session)
-        self.drb = map_qos_flow_to_drb(self.qos_flow, self.ue_request)
-        self.pdcp_batch = build_pdcp_batch(self.traffic, self.drb)
-        self.rlc_queue = build_rlc_queue(self.pdcp_batch, self.drb)
         self.slice_policies = update_slice_policies()
         self.completed = False
         self.ticks_executed = 0
@@ -58,6 +58,9 @@ class RanUploadScenario:
         self.cumulative_n3_loss_bytes = 0
         self.cumulative_n6_loss_bytes = 0
         self.last_state: dict[str, object] | None = None
+        
+
+        
 
     def step(self, tick: int, state) -> dict[str, object]:
         """Project implementation detail."""
@@ -65,6 +68,7 @@ class RanUploadScenario:
         if self.completed:
             return self.snapshot(tick=tick, status="completed")
 
+        
         channel = estimate_channel(tick=tick, scene=self.scene, ue_request=self.ue_request, gnb=self.gnb)
         scheduler_request = build_scheduler_request(
             tick=tick,
@@ -190,3 +194,25 @@ class RanUploadScenario:
                 "dropped_bytes": self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes,
             },
         }
+
+def buildStates(intents:list[AgentIntent], gnb):
+    ue_states, ue_requests, ue_access_values, slice_ids, sessions, traffic_values, qos_flows, drbs, pdcp_batches, rlc_queues = []
+    i = 0
+    for intent in intents:
+        
+        ue_states.append(register_ue(build_demo_ue_state(
+            agent_id=intent.agent_id,
+            ue_id="student_a_phone",
+            position=intent.agent_pos,
+        )))
+        ue_requests.append(build_ue_request(intent, ue_id=ue_states[i].ue_id, selected_access="5g"))
+        ue_access_values.append(select_access(ue_requests[i], gnb))
+        slice_ids.append(classify_slice(ue_requests[i].service_type))
+        sessions.append(establish_pdu_session(ue_states[i], ue_requests[i], slice_id=slice_ids[i]))
+        traffic_values.append(build_ip_traffic(ue_requests[i], sessions[i]))
+        qos_flows.append(build_qos_flow(ue_requests[i], sessions[i]))
+        drbs.append(map_qos_flow_to_drb(qos_flows[i], ue_requests[i]))
+        pdcp_batches.append(build_pdcp_batch(traffic_values[i], drbs[i]))
+        rlc_queues.append(build_rlc_queue(pdcp_batches[i], drbs[i]))
+        i += 1
+    return ue_states, ue_requests, ue_access_values, slice_ids, sessions, traffic_values, qos_flows, drbs, pdcp_batches, rlc_queues
