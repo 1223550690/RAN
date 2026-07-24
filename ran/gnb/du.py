@@ -12,7 +12,7 @@ def build_scheduler_request(
     drbs: list[Drb],
     channel_states: list[ChannelState],
     slice_policies: list[SlicePolicy],
-    power_report: float
+    power_report: list[float]
 ) -> SchedulerRequest:
     """Project implementation detail."""
 
@@ -25,5 +25,5 @@ def build_scheduler_request(
         drbs=drbs,
         channel_states=channel_states,
         slice_policies=slice_policies,
-        phr=power_report if power_report else 0.0
+        phr=power_report
     )

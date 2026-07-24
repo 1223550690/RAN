@@ -27,7 +27,7 @@ class SchedulerRequest:
     drbs: list[Drb]  # drbs: DRB 列表。
     channel_states: list[ChannelState]  # channel_states: 信道状态。
     slice_policies: list[SlicePolicy]  # slice_policies: 切片策略。
-    phr: float
+    phr: list[float]
     harq_feedback: list[dict[str, object]] = field(default_factory=list)  # harq_feedback: HARQ 反馈占位。
     
 

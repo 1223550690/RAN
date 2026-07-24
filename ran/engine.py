@@ -11,19 +11,19 @@ class RanEngine:
         self.scene = scene
         self.scheduler = scheduler or JavaSchedulerAdapter()
 
-    def run_agent_upload_demo(self, *, tick: int = 1, max_ticks: int = 5000) -> dict[str, object]:
+    def run_agent_upload_demo(self, *, tick: int = 1, max_ticks: int = 5000) -> list[dict[str, object]]:
         """Project implementation detail."""
 
         scenario = RanUploadScenario(self.scene, scheduler=self.scheduler)
-        state: dict[str, object] | None = None
+        states: list[dict[str, object]] | None = None
         for offset in range(max(1, max_ticks)):
-            state = scenario.step(tick + offset, state)
-            if state.get("status") == "completed":
+            states = scenario.step(tick + offset)
+            if states[0].get("status") == "completed":
                 break
-        if state is None:
+        if states[0] is None:
             raise RuntimeError("RAN MVP aggregate mode did not execute")
-        state["mode"] = "aggregate"
-        return state
+        states[0]["mode"] = "aggregate"
+        return states
 
     def build_upload_scenario(self) -> RanUploadScenario:
         """Project implementation detail."""

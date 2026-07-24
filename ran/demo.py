@@ -20,14 +20,16 @@ def main() -> None:
     scene = SceneService().load_scene(args.scene)
     engine = RanEngine(scene)
     if args.mode == "aggregate":
-        result = engine.run_agent_upload_demo(tick=args.tick, max_ticks=args.max_ticks)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        results = engine.run_agent_upload_demo(tick=args.tick, max_ticks=args.max_ticks)
+        for result in results:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 
     scenario = engine.build_upload_scenario()
     for offset in range(max(1, args.max_ticks)):
-        state = scenario.step(args.tick + offset, None)
-        print(json.dumps(state, ensure_ascii=False))
+        states = scenario.step(args.tick + offset)
+        for state in states:
+            print(json.dumps(state, ensure_ascii=False))
         if state.get("status") == "completed":
             break
 

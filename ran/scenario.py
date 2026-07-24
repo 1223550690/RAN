@@ -41,13 +41,10 @@ class RanUploadScenario:
             size_bytes=50 * 1024 * 1024,
             )]
         self.gnb = load_gnb_site_from_scene(scene)
-        
-        self.ue_states, self.ue_requests, self.ue_access_values, self.slice_ids, self.sessions, self.traffic_values, self.qos_flows, self.drbs, self.pdcp_batches, self.rlc_queues = buildStates(self.intents, self.gnb)
-        self.ue_state = build_demo_ue_state(
-            agent_id=self.intent.agent_id,
-            ue_id="student_a_phone",
-            position=self.intent.agent_pos,
-        )
+        ue_ids = ["student_a_phone", "student_b_phone"]
+        users = buildStates(self.intents, ue_ids, self.gnb)
+        print(users)
+        print("\n")
         self.slice_policies = update_slice_policies()
         self.completed = False
         self.ticks_executed = 0
@@ -57,108 +54,124 @@ class RanUploadScenario:
         self.cumulative_dropped_bytes = 0
         self.cumulative_n3_loss_bytes = 0
         self.cumulative_n6_loss_bytes = 0
-        self.last_state: dict[str, object] | None = None
+        self.last_states: list[dict[str, object]] | None = None
+        self.users: list[dict[str, object]] = users
+        print(self.users)
+        print("\n")
+        self.last_states = [None] * len(self.intents)
+        
         
 
-        
-
-    def step(self, tick: int, state) -> dict[str, object]:
+    def step(self, tick: int) -> list[dict[str, object]]:
         """Project implementation detail."""
-
+        
         if self.completed:
             return self.snapshot(tick=tick, status="completed")
-
-        
-        channel = estimate_channel(tick=tick, scene=self.scene, ue_request=self.ue_request, gnb=self.gnb)
+        i = 0
+        for user in self.users:
+            rlc_queues, qos_flows, drbs, channel_states, power_reports = [],[],[],[],[]
+            rlc_queues.append(user["rlc_queue"])
+            qos_flows.append(user["qos_flow"])
+            drbs.append(user["drb"])
+            channel_states.append(estimate_channel(tick=tick, scene=self.scene, ue_request=user["ue_request"], gnb=self.gnb))
+            power_reports.append(self.last_states[i])["transmission"]["power_report"] if tick !=1 else None
+            i+= 1
+            
+            
+            
         scheduler_request = build_scheduler_request(
-            tick=tick,
-            total_prbs=self.gnb.total_prbs,
-            rlc_queues=[self.rlc_queue],
-            qos_flows=[self.qos_flow],
-            drbs=[self.drb],
-            channel_states=[channel],
-            slice_policies=self.slice_policies,
-            power_report=state["transmission"]["power_report"] if tick!= 1 else None,
-        )
+                        tick=tick,  
+                        total_prbs=self.gnb.total_prbs,
+                        rlc_queues=rlc_queues,
+                        qos_flows=qos_flows,
+                        drbs=drbs,
+                        channel_states=channel_states,
+                        slice_policies=self.slice_policies,
+                        power_report=power_reports,
+                    )
+        print(scheduler_request)
+        print("\n")
         scheduler_result = self.scheduler.allocate(scheduler_request)
+        print(scheduler_result)
+        print("\n")
         if not scheduler_result.allocations:
-            self.completed = True
-            return self.snapshot(tick=tick, status="no_allocation")
-
-        allocation = scheduler_result.allocations[0]
-        if allocation.scheduled_bytes <= 0:
-            self.completed = True
-            return self.snapshot(tick=tick, status="zero_allocation")
-
-        transmission = transmit(tick=tick, allocation=allocation, channel=channel, ue_state=self.ue_state, gnb=self.gnb)
-        self.rlc_queue = apply_transmission_to_rlc(self.rlc_queue, transmission)
-        ru_result = receive_radio(transmission)
-        n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, self.session)))
-        n6 = forward_n6(forward_via_upf(n3, self.session, target=self.ue_request.target))
-        delivered = deliver_to_data_network(n6)
-
+                        self.completed = True
+                        return self.snapshot(tick=tick, status="no_allocation")
+        for i in range (0, len(self.users)):
+            if (self.users[i]["status"] != "complete"):
+                allocation = scheduler_result.allocations[i]
+                if allocation.scheduled_bytes <= 0:
+                    self.completed = True
+                    self.users[i]["status"]= "complete"
+                if (self.users[i]["status"] != "complete"):
+                    transmission = transmit(tick=tick, allocation=allocation, channel=channel_states[i], ue_state=self.users[i]["ue_state"], gnb=self.gnb)
+                    self.users[i]["rlc_queue"] = apply_transmission_to_rlc(self.users[i]["rlc_queue"], transmission)
+                    ru_result = receive_radio(transmission)
+                    n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, self.users[i]["session"])))
+                    n6 = forward_n6(forward_via_upf(n3, self.users[i]["session"], target=self.users[i]["ue_request"].target))
+                    delivered = deliver_to_data_network(n6)
+                    if self.users[i]["rlc_queue"].queued_bytes <= 0 and self.users[i]["rlc_queue"].retransmission_bytes <= 0:
+                                self.users[i]["status"] = "complete"
+                    qos = calculate_qos(
+                                    requested_bytes=self.users[i]["traffic"].total_bytes,
+                                    transmission=transmission,
+                                    n3=n3,
+                                    n6=delivered,
+                                    delay_budget_ms=self.users[i]["qos_flow"].packet_delay_budget_ms,
+                                )
+                    self.cumulative_attempted_bytes += transmission.attempted_bytes
+                    self.cumulative_successful_bytes += delivered.delivered_bytes
+                    self.cumulative_failed_bytes += transmission.failed_bytes + n3.n3_loss_bytes + delivered.n6_loss_bytes
+                    self.cumulative_dropped_bytes += transmission.dropped_bytes
+                    self.cumulative_n3_loss_bytes += n3.n3_loss_bytes
+                    self.cumulative_n6_loss_bytes += delivered.n6_loss_bytes
+                    result = build_end_to_end_result(
+                                    service_id=self.users[i]["traffic"].service_id,
+                                    ue_id=self.users[i]["ue_request"].ue_id,
+                                    target=self.users[i]["ue_request"].target,
+                                    slice_id=self.users[i]["slice_id"],
+                                    access_type=self.users[i]["ue_access_value"].access_type,
+                                    requested_bytes=self.users[i]["traffic"].total_bytes,
+                                    delivered_bytes=min(self.users[i]["traffic"].total_bytes, self.cumulative_successful_bytes),
+                                    qos=qos,
+                                )
+    
+            delivered_payload_bytes = min(self.users[i]["traffic"].total_bytes, self.cumulative_successful_bytes)
+            dropped_bytes = self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes
+            remaining_payload_bytes = max(0, self.users[i]["traffic"].total_bytes - delivered_payload_bytes - dropped_bytes)
+            remaining_queue_bytes = self.users[i]["rlc_queue"].queued_bytes + self.users[i]["rlc_queue"].retransmission_bytes
+            state = {
+                "mode": "tick",
+                "status": "completed" if self.completed else "running",
+                "tick": tick,
+                "ticks_executed": self.ticks_executed,
+                "result": asdict(result),
+                "gnb": asdict(self.gnb),
+                "ue_request": asdict(self.users[i]["ue_request"]),
+                "access": asdict(self.users[i]["ue_access_value"]),
+                "qos_flow": asdict(self.users[i]["qos_flow"]),
+                "drb": asdict(self.users[i]["drb"]),
+                "rlc_queue_after": asdict(self.users[i]["rlc_queue"]),
+                "channel": asdict(channel_states[i]),
+                "scheduler_request": asdict(scheduler_request),
+                "scheduler_result": asdict(scheduler_result),
+                "transmission": asdict(transmission),
+                "n3": asdict(n3),
+                "n6": asdict(delivered),
+                "slice_usage": summarize_slice_usage(scheduler_result.allocations),
+                "progress": {
+                    "requested_bytes": self.users[i]["traffic"].total_bytes,
+                    "delivered_bytes": delivered_payload_bytes,
+                    "remaining_payload_bytes": remaining_payload_bytes,
+                    "remaining_queue_bytes": remaining_queue_bytes,
+                    "completion_ratio": min(1.0, delivered_payload_bytes / self.users[i]["traffic"].total_bytes),
+                    "remaining_ratio": remaining_payload_bytes / self.users[i]["traffic"].total_bytes,
+                    "dropped_bytes": dropped_bytes,
+                },
+            }
+            self.last_states[i] = state
         self.ticks_executed += 1
-        self.cumulative_attempted_bytes += transmission.attempted_bytes
-        self.cumulative_successful_bytes += delivered.delivered_bytes
-        self.cumulative_failed_bytes += transmission.failed_bytes + n3.n3_loss_bytes + delivered.n6_loss_bytes
-        self.cumulative_dropped_bytes += transmission.dropped_bytes
-        self.cumulative_n3_loss_bytes += n3.n3_loss_bytes
-        self.cumulative_n6_loss_bytes += delivered.n6_loss_bytes
-        if self.rlc_queue.queued_bytes <= 0 and self.rlc_queue.retransmission_bytes <= 0:
-            self.completed = True
-
-        qos = calculate_qos(
-            requested_bytes=self.traffic.total_bytes,
-            transmission=transmission,
-            n3=n3,
-            n6=delivered,
-            delay_budget_ms=self.qos_flow.packet_delay_budget_ms,
-        )
-        result = build_end_to_end_result(
-            service_id=self.traffic.service_id,
-            ue_id=self.ue_request.ue_id,
-            target=self.ue_request.target,
-            slice_id=self.slice_id,
-            access_type=self.access.access_type,
-            requested_bytes=self.traffic.total_bytes,
-            delivered_bytes=min(self.traffic.total_bytes, self.cumulative_successful_bytes),
-            qos=qos,
-        )
-        delivered_payload_bytes = min(self.traffic.total_bytes, self.cumulative_successful_bytes)
-        dropped_bytes = self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes
-        remaining_payload_bytes = max(0, self.traffic.total_bytes - delivered_payload_bytes - dropped_bytes)
-        remaining_queue_bytes = self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes
-        state = {
-            "mode": "tick",
-            "status": "completed" if self.completed else "running",
-            "tick": tick,
-            "ticks_executed": self.ticks_executed,
-            "result": asdict(result),
-            "gnb": asdict(self.gnb),
-            "ue_request": asdict(self.ue_request),
-            "access": asdict(self.access),
-            "qos_flow": asdict(self.qos_flow),
-            "drb": asdict(self.drb),
-            "rlc_queue_after": asdict(self.rlc_queue),
-            "channel": asdict(channel),
-            "scheduler_request": asdict(scheduler_request),
-            "scheduler_result": asdict(scheduler_result),
-            "transmission": asdict(transmission),
-            "n3": asdict(n3),
-            "n6": asdict(delivered),
-            "slice_usage": summarize_slice_usage(scheduler_result.allocations),
-            "progress": {
-                "requested_bytes": self.traffic.total_bytes,
-                "delivered_bytes": delivered_payload_bytes,
-                "remaining_payload_bytes": remaining_payload_bytes,
-                "remaining_queue_bytes": remaining_queue_bytes,
-                "completion_ratio": min(1.0, delivered_payload_bytes / self.traffic.total_bytes),
-                "remaining_ratio": remaining_payload_bytes / self.traffic.total_bytes,
-                "dropped_bytes": dropped_bytes,
-            },
-        }
-        self.last_state = state
-        return state
+        return self.last_states
 
     def snapshot(self, *, tick: int, status: str | None = None) -> dict[str, object]:
         """Project implementation detail."""
@@ -195,24 +208,37 @@ class RanUploadScenario:
             },
         }
 
-def buildStates(intents:list[AgentIntent], gnb):
-    ue_states, ue_requests, ue_access_values, slice_ids, sessions, traffic_values, qos_flows, drbs, pdcp_batches, rlc_queues = []
+def buildStates(intents:list[AgentIntent], ue_ids:list[str], gnb) -> list[dict[str, object]]:
+    
     i = 0
+    users = []
     for intent in intents:
         
-        ue_states.append(register_ue(build_demo_ue_state(
+        ue_state = register_ue(build_demo_ue_state(
             agent_id=intent.agent_id,
-            ue_id="student_a_phone",
+            ue_id=ue_ids[i] if ue_ids[i] else "placeholder",
             position=intent.agent_pos,
-        )))
-        ue_requests.append(build_ue_request(intent, ue_id=ue_states[i].ue_id, selected_access="5g"))
-        ue_access_values.append(select_access(ue_requests[i], gnb))
-        slice_ids.append(classify_slice(ue_requests[i].service_type))
-        sessions.append(establish_pdu_session(ue_states[i], ue_requests[i], slice_id=slice_ids[i]))
-        traffic_values.append(build_ip_traffic(ue_requests[i], sessions[i]))
-        qos_flows.append(build_qos_flow(ue_requests[i], sessions[i]))
-        drbs.append(map_qos_flow_to_drb(qos_flows[i], ue_requests[i]))
-        pdcp_batches.append(build_pdcp_batch(traffic_values[i], drbs[i]))
-        rlc_queues.append(build_rlc_queue(pdcp_batches[i], drbs[i]))
+        ))
+        ue_request = build_ue_request(intent, ue_id=ue_state.ue_id, selected_access="5g")
+        ue_access = select_access(ue_request, gnb)
+        slice_id = classify_slice(ue_request.service_type)
+        session = establish_pdu_session(ue_state, ue_request, slice_id=slice_id)
+        traffic = build_ip_traffic(ue_request, session)
+        qos_flow = build_qos_flow(ue_request, session)
+        drb = map_qos_flow_to_drb(qos_flow, ue_request)
+        pdcp_batch = build_pdcp_batch(traffic, drb)
+        rlc_queue = build_rlc_queue(pdcp_batch, drb)
         i += 1
-    return ue_states, ue_requests, ue_access_values, slice_ids, sessions, traffic_values, qos_flows, drbs, pdcp_batches, rlc_queues
+        users.append({"ue_state": ue_state,
+                      "ue_request": ue_request,
+                      "ue_access_value": ue_access,
+                      "slice_id": slice_id,
+                      "session": session,
+                      "traffic": traffic,
+                      "qos_flow": qos_flow,
+                      "drb": drb,
+                      "pdcp_batch": pdcp_batch,
+                      "rlc_queue": rlc_queue,
+                      "status": None
+                      })
+    return users
