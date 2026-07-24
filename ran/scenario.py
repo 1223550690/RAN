@@ -43,8 +43,6 @@ class RanUploadScenario:
         self.gnb = load_gnb_site_from_scene(scene)
         ue_ids = ["student_a_phone", "student_b_phone"]
         users = buildStates(self.intents, ue_ids, self.gnb)
-        print(users)
-        print("\n")
         self.slice_policies = update_slice_policies()
         self.completed = False
         self.ticks_executed = 0
@@ -56,8 +54,6 @@ class RanUploadScenario:
         self.cumulative_n6_loss_bytes = 0
         self.last_states: list[dict[str, object]] | None = None
         self.users: list[dict[str, object]] = users
-        print(self.users)
-        print("\n")
         self.last_states = [None] * len(self.intents)
         
         
@@ -68,16 +64,14 @@ class RanUploadScenario:
         if self.completed:
             return self.snapshot(tick=tick, status="completed")
         i = 0
+        rlc_queues, qos_flows, drbs, channel_states, power_reports = [],[],[],[],[]
         for user in self.users:
-            rlc_queues, qos_flows, drbs, channel_states, power_reports = [],[],[],[],[]
             rlc_queues.append(user["rlc_queue"])
             qos_flows.append(user["qos_flow"])
             drbs.append(user["drb"])
             channel_states.append(estimate_channel(tick=tick, scene=self.scene, ue_request=user["ue_request"], gnb=self.gnb))
-            power_reports.append(self.last_states[i])["transmission"]["power_report"] if tick !=1 else None
+            power_reports.append(self.last_states[0]["transmission"]["power_report"]) if tick !=1 else None
             i+= 1
-            
-            
             
         scheduler_request = build_scheduler_request(
                         tick=tick,  
@@ -89,11 +83,7 @@ class RanUploadScenario:
                         slice_policies=self.slice_policies,
                         power_report=power_reports,
                     )
-        print(scheduler_request)
-        print("\n")
         scheduler_result = self.scheduler.allocate(scheduler_request)
-        print(scheduler_result)
-        print("\n")
         if not scheduler_result.allocations:
                         self.completed = True
                         return self.snapshot(tick=tick, status="no_allocation")
