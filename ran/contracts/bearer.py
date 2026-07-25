@@ -32,3 +32,5 @@ class RlcQueue:
     queued_bytes: int
     retransmission_bytes: int
     head_of_line_delay_ms: float
+    delivered_bytes: int = 0
+    dropped_bytes: int = 0
