@@ -60,18 +60,18 @@ class RanUploadScenario:
 
     def step(self, tick: int) -> list[dict[str, object]]:
         """Project implementation detail."""
-        
-        if self.completed:
-            return self.snapshot(tick=tick, status="completed")
+        # if self.completed:
+        #     return self.snapshot(tick=tick, status="completed")
         i = 0
         rlc_queues, qos_flows, drbs, channel_states, power_reports = [],[],[],[],[]
         for user in self.users:
-            rlc_queues.append(user["rlc_queue"])
-            qos_flows.append(user["qos_flow"])
-            drbs.append(user["drb"])
-            channel_states.append(estimate_channel(tick=tick, scene=self.scene, ue_request=user["ue_request"], gnb=self.gnb))
-            power_reports.append(self.last_states[0]["transmission"]["power_report"]) if tick !=1 else None
-            i+= 1
+            if user["status"] != "complete":
+                rlc_queues.append(user["rlc_queue"])
+                qos_flows.append(user["qos_flow"])
+                drbs.append(user["drb"])
+                channel_states.append(estimate_channel(tick=tick, scene=self.scene, ue_request=user["ue_request"], gnb=self.gnb))
+                power_reports.append(self.last_states[i]["transmission"]["power_report"]) if tick !=1 else None
+                i+= 1
             
         scheduler_request = build_scheduler_request(
                         tick=tick,  
@@ -90,78 +90,87 @@ class RanUploadScenario:
         for i in range (0, len(self.users)):
             if (self.users[i]["status"] != "complete"):
                 allocation = scheduler_result.allocations[i]
-                if allocation.scheduled_bytes <= 0:
-                    self.completed = True
-                    self.users[i]["status"]= "complete"
-                if (self.users[i]["status"] != "complete"):
-                    transmission = transmit(tick=tick, allocation=allocation, channel=channel_states[i], ue_state=self.users[i]["ue_state"], gnb=self.gnb)
-                    self.users[i]["rlc_queue"] = apply_transmission_to_rlc(self.users[i]["rlc_queue"], transmission)
-                    ru_result = receive_radio(transmission)
-                    n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, self.users[i]["session"])))
-                    n6 = forward_n6(forward_via_upf(n3, self.users[i]["session"], target=self.users[i]["ue_request"].target))
-                    delivered = deliver_to_data_network(n6)
-                    if self.users[i]["rlc_queue"].queued_bytes <= 0 and self.users[i]["rlc_queue"].retransmission_bytes <= 0:
-                                self.users[i]["status"] = "complete"
-                    qos = calculate_qos(
-                                    requested_bytes=self.users[i]["traffic"].total_bytes,
-                                    transmission=transmission,
-                                    n3=n3,
-                                    n6=delivered,
-                                    delay_budget_ms=self.users[i]["qos_flow"].packet_delay_budget_ms,
-                                )
-                    self.cumulative_attempted_bytes += transmission.attempted_bytes
-                    self.cumulative_successful_bytes += delivered.delivered_bytes
-                    self.cumulative_failed_bytes += transmission.failed_bytes + n3.n3_loss_bytes + delivered.n6_loss_bytes
-                    self.cumulative_dropped_bytes += transmission.dropped_bytes
-                    self.cumulative_n3_loss_bytes += n3.n3_loss_bytes
-                    self.cumulative_n6_loss_bytes += delivered.n6_loss_bytes
-                    result = build_end_to_end_result(
-                                    service_id=self.users[i]["traffic"].service_id,
-                                    ue_id=self.users[i]["ue_request"].ue_id,
-                                    target=self.users[i]["ue_request"].target,
-                                    slice_id=self.users[i]["slice_id"],
-                                    access_type=self.users[i]["ue_access_value"].access_type,
-                                    requested_bytes=self.users[i]["traffic"].total_bytes,
-                                    delivered_bytes=min(self.users[i]["traffic"].total_bytes, self.cumulative_successful_bytes),
-                                    qos=qos,
-                                )
+                transmission = transmit(tick=tick, allocation=allocation, channel=channel_states[i], ue_state=self.users[i]["ue_state"], gnb=self.gnb)
+                self.users[i]["rlc_queue"] = apply_transmission_to_rlc(self.users[i]["rlc_queue"], transmission)
+                ru_result = receive_radio(transmission)
+                n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, self.users[i]["session"])))
+                n6 = forward_n6(forward_via_upf(n3, self.users[i]["session"], target=self.users[i]["ue_request"].target))
+                delivered = deliver_to_data_network(n6)
+                if self.users[i]["rlc_queue"].queued_bytes <= 0 and self.users[i]["rlc_queue"].retransmission_bytes <= 0:
+                            self.users[i]["status"] = "complete"
+                qos = calculate_qos(
+                                requested_bytes=self.users[i]["traffic"].total_bytes,
+                                transmission=transmission,
+                                n3=n3,
+                                n6=delivered,
+                                delay_budget_ms=self.users[i]["qos_flow"].packet_delay_budget_ms,
+                            )
+                self.cumulative_attempted_bytes += transmission.attempted_bytes
+                self.cumulative_successful_bytes += delivered.delivered_bytes
+                self.cumulative_failed_bytes += transmission.failed_bytes + n3.n3_loss_bytes + delivered.n6_loss_bytes
+                self.cumulative_dropped_bytes += transmission.dropped_bytes
+                self.cumulative_n3_loss_bytes += n3.n3_loss_bytes
+                self.cumulative_n6_loss_bytes += delivered.n6_loss_bytes
+                result = build_end_to_end_result(
+                                service_id=self.users[i]["traffic"].service_id,
+                                ue_id=self.users[i]["ue_request"].ue_id,
+                                target=self.users[i]["ue_request"].target,
+                                slice_id=self.users[i]["slice_id"],
+                                access_type=self.users[i]["ue_access_value"].access_type,
+                                requested_bytes=self.users[i]["traffic"].total_bytes,
+                                delivered_bytes=min(self.users[i]["traffic"].total_bytes, self.cumulative_successful_bytes),
+                                qos=qos,
+                            )
     
-            delivered_payload_bytes = min(self.users[i]["traffic"].total_bytes, self.cumulative_successful_bytes)
-            dropped_bytes = self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes
-            remaining_payload_bytes = max(0, self.users[i]["traffic"].total_bytes - delivered_payload_bytes - dropped_bytes)
-            remaining_queue_bytes = self.users[i]["rlc_queue"].queued_bytes + self.users[i]["rlc_queue"].retransmission_bytes
-            state = {
-                "mode": "tick",
-                "status": "completed" if self.completed else "running",
-                "tick": tick,
-                "ticks_executed": self.ticks_executed,
-                "result": asdict(result),
-                "gnb": asdict(self.gnb),
-                "ue_request": asdict(self.users[i]["ue_request"]),
-                "access": asdict(self.users[i]["ue_access_value"]),
-                "qos_flow": asdict(self.users[i]["qos_flow"]),
-                "drb": asdict(self.users[i]["drb"]),
-                "rlc_queue_after": asdict(self.users[i]["rlc_queue"]),
-                "channel": asdict(channel_states[i]),
-                "scheduler_request": asdict(scheduler_request),
-                "scheduler_result": asdict(scheduler_result),
-                "transmission": asdict(transmission),
-                "n3": asdict(n3),
-                "n6": asdict(delivered),
-                "slice_usage": summarize_slice_usage(scheduler_result.allocations),
-                "progress": {
-                    "requested_bytes": self.users[i]["traffic"].total_bytes,
-                    "delivered_bytes": delivered_payload_bytes,
-                    "remaining_payload_bytes": remaining_payload_bytes,
-                    "remaining_queue_bytes": remaining_queue_bytes,
-                    "completion_ratio": min(1.0, delivered_payload_bytes / self.users[i]["traffic"].total_bytes),
-                    "remaining_ratio": remaining_payload_bytes / self.users[i]["traffic"].total_bytes,
-                    "dropped_bytes": dropped_bytes,
-                },
-            }
-            self.last_states[i] = state
+                delivered_payload_bytes = min(self.users[i]["traffic"].total_bytes, self.cumulative_successful_bytes)
+                dropped_bytes = self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes
+                remaining_payload_bytes = max(0, self.users[i]["traffic"].total_bytes - delivered_payload_bytes - dropped_bytes)
+                remaining_queue_bytes = self.users[i]["rlc_queue"].queued_bytes + self.users[i]["rlc_queue"].retransmission_bytes
+                if remaining_payload_bytes == 0:
+                    self.users[i]["status"] = "complete"
+                agentState = {
+                    "tick": tick,
+                    "result": asdict(result),
+                    "status": self.users[i]["status"],
+                    "ue_request": asdict(self.users[i]["ue_request"]),
+                    "access": asdict(self.users[i]["ue_access_value"]),
+                    "qos_flow": asdict(self.users[i]["qos_flow"]),
+                    "drb": asdict(self.users[i]["drb"]),
+                    "rlc_queue_after": asdict(self.users[i]["rlc_queue"]),
+                    "channel": asdict(channel_states[i]),
+                    "transmission": asdict(transmission),
+                    "n3": asdict(n3),
+                    "n6": asdict(delivered),
+                    "progress": {
+                        "requested_bytes": self.users[i]["traffic"].total_bytes,
+                        "delivered_bytes": delivered_payload_bytes,
+                        "remaining_payload_bytes": remaining_payload_bytes,
+                        "remaining_queue_bytes": remaining_queue_bytes,
+                        "completion_ratio": min(1.0, delivered_payload_bytes / self.users[i]["traffic"].total_bytes),
+                        "remaining_ratio": remaining_payload_bytes / self.users[i]["traffic"].total_bytes,
+                        "dropped_bytes": dropped_bytes,
+                    },
+                }
+                self.last_states[i] = agentState
+        self.completed = True
+        for user in self.users:
+            if user["status"] != "complete":
+                self.completed = False
+                break
         self.ticks_executed += 1
-        return self.last_states
+        overallState = {
+            "mode": "tick",
+            "status": "complete" if self.completed else "running",
+            "tick": tick,
+            "ticks_executed": self.ticks_executed,
+            "gnb": asdict(self.gnb),
+            "scheduler_request": asdict(scheduler_request),
+            "scheduler_result": asdict(scheduler_result),
+            "slice_usage": summarize_slice_usage(scheduler_result.allocations),
+            "agentStates": self.last_states,
+        }
+        self.last_state = overallState
+        return overallState
 
     def snapshot(self, *, tick: int, status: str | None = None) -> dict[str, object]:
         """Project implementation detail."""
@@ -229,6 +238,6 @@ def buildStates(intents:list[AgentIntent], ue_ids:list[str], gnb) -> list[dict[s
                       "drb": drb,
                       "pdcp_batch": pdcp_batch,
                       "rlc_queue": rlc_queue,
-                      "status": None
+                      "status": "running"
                       })
     return users
