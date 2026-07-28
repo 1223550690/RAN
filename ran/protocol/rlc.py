@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ran.contracts import Drb, MacAllocation, RlcQueue, TransmissionResult
+from ran.contracts import (
+    Direction,
+    Drb,
+    MacAllocation,
+    RlcQueue,
+    TransmissionResult,
+)
+
 from .pdcp import PdcpBatch
 
 @dataclass(slots=True)
@@ -62,7 +69,7 @@ class RlcEntity:
     drb_id: int
     qfi: int
     slice_id: str
-    direction: str
+    direction: Direction
     mode: str  # rlc_mode: TM/UM/AM。
     queued_bytes: int = 0
     sdu_queue: list[RlcSdu] = field(default_factory=list)

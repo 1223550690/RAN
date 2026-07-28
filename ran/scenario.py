@@ -16,6 +16,7 @@ from ran.slicing.controller import update_slice_policies
 from ran.traffic import build_ip_traffic
 from ran.transport import apply_backhaul, build_n3_result, forward_n6
 from ran.ue import build_demo_ue_state, build_ue_request
+from typing import Any
 
 
 class RanUploadScenario:
@@ -68,9 +69,9 @@ class RanUploadScenario:
         self.cumulative_dropped_bytes = 0
         self.cumulative_n3_loss_bytes = 0
         self.cumulative_n6_loss_bytes = 0
-        self.last_state: dict[str, object] | None = None
+        self.last_state: dict[str, Any] | None = None
 
-    def step(self, tick: int) -> dict[str, object]:
+    def step(self, tick: int) -> dict[str, Any]:
         """Project implementation detail."""
 
         if self.completed:
@@ -202,7 +203,7 @@ class RanUploadScenario:
         self.last_state = state
         return state
 
-    def snapshot(self, *, tick: int, status: str | None = None) -> dict[str, object]:
+    def snapshot(self, *, tick: int, status: str | None = None) -> dict[str, Any]:
         """Project implementation detail."""
 
         if self.last_state is not None:

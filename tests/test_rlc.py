@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from ran.contracts import Drb, RlcQueue
@@ -21,11 +23,19 @@ from tests.conftest import make_alloc, make_result
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_entity(mode: str = "AM", **kwargs) -> RlcEntity:
-    defaults = dict(
-        ue_id="u", drb_id=3, qfi=9, slice_id="embb",
-        direction="UL", mode=mode,
-    )
+def _make_entity(
+    mode: str = "AM",
+    **kwargs: Any,
+) -> RlcEntity:
+    defaults: dict[str, Any] = {
+        "ue_id": "u",
+        "drb_id": 3,
+        "qfi": 9,
+        "slice_id": "embb",
+        "direction": "UL",
+        "mode": mode,
+    }
+
     defaults.update(kwargs)
     return RlcEntity(**defaults)
 
