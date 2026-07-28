@@ -150,10 +150,19 @@ debug 脚本默认覆盖四个案例：
 handoff 前使用过的验证命令：
 
 ```powershell
-python -m unittest tests.radio.test_geometry_coordinate_calibration tests.radio.test_coordinate_calibration
+python -m unittest tests.radio.test_propagation_geometry tests.radio.test_geometry_coordinate_calibration tests.radio.test_coordinate_calibration
 python -m experiments.debug_propagation_geometry
 python -m experiments.debug_propagation_geometry --with-calibration --gnb-height-m 10
 ```
+
+传播几何测试覆盖：
+
+1. 六种 link classification 及其 indoor/outdoor 距离拆分。
+2. 相同墙体 ID 去重，以及同一交点上显式墙体优先于 area boundary。
+3. 外墙/内墙顺序，以及遮挡建筑与目标建筑材料穿透的分离。
+4. Portal 开闭、精确 `wall_id` 匹配、交点匹配、无关 portal，以及
+`open` 与 `locked` 的既定语义。
+5. 四个 Bristol 代表链路，以及 Gym 链路被 Student Union 遮挡的回归检查。
 
 ## 后续集成建议
 
@@ -170,7 +179,8 @@ python -m experiments.debug_propagation_geometry --with-calibration --gnb-height
 
 - 坐标标定仍由独立模块实现；geometry 只消费适配后的只读 view。
 - 没有 calibration view 时，meter 距离字段为 `None`。
-- 已有兼容性 unittest 覆盖无标定、旧 scalar、非等比例 X/Y、高度、墙体交点和 O2I 距离拆分。
+- 自动化测试已覆盖六类链路、墙体去重与上下文过滤、Portal 行为、
+Bristol smoke cases 和坐标标定兼容性。
 - 没有 portal material loss。
 - 门的 `locked` 状态不会影响无线传播。
 - 如果未来 scene 把 portal 直接挂在 child area 上，child-area portal 坐标假设需要重新 review。

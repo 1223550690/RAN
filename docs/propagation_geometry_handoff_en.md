@@ -206,10 +206,23 @@ The default debug script currently covers four cases:
 Validation commands used before handoff:
 
 ```powershell
-python -m unittest tests.radio.test_geometry_coordinate_calibration tests.radio.test_coordinate_calibration
+python -m unittest tests.radio.test_propagation_geometry tests.radio.test_geometry_coordinate_calibration tests.radio.test_coordinate_calibration
 python -m experiments.debug_propagation_geometry
 python -m experiments.debug_propagation_geometry --with-calibration --gnb-height-m 10
 ```
+
+The propagation geometry suite verifies:
+
+1. All six link classifications and their indoor/outdoor distance splits.
+2. Same-ID wall de-duplication and explicit-wall priority over an area boundary
+at the same crossing.
+3. Exterior/interior wall ordering and separation of blocking buildings from
+target-building material crossings.
+4. Open and closed portals, exact `wall_id` matching, geometric intersection
+matching, unrelated portals, and the documented `open` versus `locked`
+semantics.
+5. Four representative Bristol links plus the Student Union blocker on the
+Gym link.
 
 The coordinate compatibility test performs these checks step by step:
 
@@ -239,8 +252,8 @@ confirm the coordinate calibration.
 - Calibration remains implemented in its separate module; geometry only
 consumes an adapted read-only view.
 - Meter distances are `None` without a supplied calibration view.
-- Compatibility tests cover no-calibration, legacy scalar, anisotropic x/y,
-height adaptation, crossing distance, and O2I distance split.
+- Automated tests cover the six link classes, wall de-duplication and context
+filtering, portal behavior, Bristol smoke cases, and coordinate compatibility.
 - Portal material loss is not modeled.
 - Door locked state does not affect RF propagation.
 - Child-area portal coordinate assumptions may need review if future scenes attach portals directly to child areas.
