@@ -9,7 +9,7 @@
 - 新增调试入口：`experiments/debug_propagation_geometry.py`
 - 不修改 `ran/radio/channel.py`
 - 不修改 `ChannelState` 或其他共享 contract
-- 不实现坐标标定
+- 坐标标定在独立模块中实现，不嵌入本模块
 - 不修改 scheduler、protocol、path loss、CKM、beamforming、metrics 或 editor schema
 
 这个模块的目标是：基于 2D 地图，给未来信道模型或 path-loss 模型提供几何证据。
@@ -19,9 +19,9 @@
 
 当前信道组边界：
 
-- Yuhan 负责坐标标定。
-- Zhiqian 负责传播几何分析。
-- 本模块以后可以读取 Yuhan 提供的只读坐标标定结果，但不能自己推断或维护 map unit 到 meter 的比例。
+- Zhiqian 负责坐标标定和传播几何分析。
+- 坐标标定保持为独立模块，使用独立配置和测试。
+- 本模块可以读取只读坐标标定结果，但不能在内部推断或维护 map unit 到 meter 的比例。
 - 其他组不要把这个模块理解成 scheduler、QoS、RLC/PDCP 或最终 path-loss 实现。
 
 ## 主要接口

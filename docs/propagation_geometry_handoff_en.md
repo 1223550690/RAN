@@ -9,7 +9,7 @@ The implementation is intentionally additive and debug-first:
 - Debug entry point: `experiments/debug_propagation_geometry.py`
 - No changes to `ran/radio/channel.py`
 - No changes to `ChannelState` or other shared contracts
-- No coordinate calibration implementation
+- Coordinate calibration is implemented separately and is not embedded in this module
 - No scheduler, protocol, path loss, CKM, beamforming, metrics, or editor-schema changes
 
 The goal is to provide map-level geometric evidence for a future channel/path-loss model.
@@ -19,9 +19,9 @@ It does not replace the current MVP channel estimator.
 
 Current channel-team boundary:
 
-- Yuhan owns coordinate calibration.
-- Zhiqian owns propagation geometry analysis.
-- This module may consume a read-only calibration view in the future, but it must not infer or maintain the map-to-meter scale itself.
+- Zhiqian owns coordinate calibration and propagation geometry analysis.
+- Calibration remains a separate module with its own configuration and tests.
+- This geometry module may consume a read-only calibration view, but it must not infer or maintain map-to-meter scales itself.
 - Other groups should not treat this module as a scheduler, QoS, RLC/PDCP, or final path-loss implementation.
 
 ## Main API

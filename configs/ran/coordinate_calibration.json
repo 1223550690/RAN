@@ -1,0 +1,20 @@
+{
+  "schema_version": "1",
+  "scenes": {
+    "bristol_topology": {
+      "calibration_id": "bristol_topology_extent_v0",
+      "status": "provisional",
+      "source": "team_approximation",
+      "map_bounds": [0.0, 0.0, 2000.0, 2000.0],
+      "physical_extent_m": {
+        "width": 300.0,
+        "height": 400.0
+      },
+      "origin_map": [0.0, 0.0],
+      "y_axis_direction": "down",
+      "gnb_height_m": null,
+      "default_ue_height_m": 1.5,
+      "anchors": []
+    }
+  }
+}
