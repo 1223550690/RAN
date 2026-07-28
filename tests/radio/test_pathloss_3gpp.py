@@ -5,6 +5,8 @@ import math
 import unittest
 
 from ran.radio.pathloss_3gpp import (
+    FORMULA_INH_LOS,
+    FORMULA_INH_NLOS,
     FORMULA_UMI_LOS_PL1,
     FORMULA_UMI_LOS_PL2,
     FORMULA_UMI_NLOS,
@@ -56,6 +58,21 @@ def _umi_request_at(
         los_state=los_state,
         distance_2d_m=distance_2d_m,
         distance_3d_m=math.hypot(distance_2d_m, 8.5),
+    )
+
+
+def _inh_request_at(
+    distance_3d_m: float,
+    *,
+    los_state: str = LOS,
+) -> PathLossRequest:
+    height_difference_m = 2.0
+    return _inh_request(
+        los_state=los_state,
+        distance_2d_m=math.sqrt(
+            distance_3d_m**2 - height_difference_m**2
+        ),
+        distance_3d_m=distance_3d_m,
     )
 
 
@@ -254,6 +271,70 @@ class PathLossUmiTests(unittest.TestCase):
         self.assertTrue(
             any(
                 warning.startswith("umi_distance_outside_applicability")
+                for warning in result.warnings
+            )
+        )
+
+
+class PathLossInhTests(unittest.TestCase):
+    def test_los_reference_point_and_metadata(self) -> None:
+        result = estimate_path_loss_3gpp(_inh_request_at(10.0))
+
+        self.assertAlmostEqual(result.mean_path_loss_db, 60.5813608870)
+        self.assertEqual(
+            result.mean_path_loss_db,
+            result.los_reference_path_loss_db,
+        )
+        self.assertIsNone(result.nlos_candidate_path_loss_db)
+        self.assertIsNone(result.breakpoint_distance_m)
+        self.assertEqual(result.formula_id, FORMULA_INH_LOS)
+        self.assertEqual(result.shadow_fading_std_db, 3.0)
+
+    def test_nlos_reference_point_uses_candidate(self) -> None:
+        result = estimate_path_loss_3gpp(
+            _inh_request_at(10.0, los_state=NLOS)
+        )
+
+        self.assertAlmostEqual(result.mean_path_loss_db, 69.1472943043)
+        self.assertAlmostEqual(result.los_reference_path_loss_db, 60.5813608870)
+        self.assertAlmostEqual(
+            result.nlos_candidate_path_loss_db,
+            69.1472943043,
+        )
+        self.assertEqual(result.formula_id, FORMULA_INH_NLOS)
+        self.assertEqual(result.shadow_fading_std_db, 8.03)
+
+    def test_short_range_nlos_is_never_below_los(self) -> None:
+        result = estimate_path_loss_3gpp(
+            _inh_request_at(2.0, los_state=NLOS)
+        )
+
+        self.assertAlmostEqual(result.mean_path_loss_db, 48.4891798120)
+        self.assertLess(
+            result.nlos_candidate_path_loss_db,
+            result.los_reference_path_loss_db,
+        )
+        self.assertEqual(
+            result.mean_path_loss_db,
+            result.los_reference_path_loss_db,
+        )
+
+    def test_inh_distance_outside_range_requires_explicit_extrapolation(
+        self,
+    ) -> None:
+        request = _inh_request_at(200.0)
+
+        with self.assertRaises(PathLossApplicabilityError):
+            estimate_path_loss_3gpp(request)
+
+        result = estimate_path_loss_3gpp(
+            request,
+            allow_extrapolation=True,
+        )
+        self.assertTrue(result.is_extrapolated)
+        self.assertTrue(
+            any(
+                warning.startswith("inh_distance_outside_applicability")
                 for warning in result.warnings
             )
         )

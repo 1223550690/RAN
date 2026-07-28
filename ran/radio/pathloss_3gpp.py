@@ -15,6 +15,8 @@ NLOS = "nlos"
 FORMULA_UMI_LOS_PL1 = "3gpp_38_901_v19_4_0_umi_los_pl1"
 FORMULA_UMI_LOS_PL2 = "3gpp_38_901_v19_4_0_umi_los_pl2"
 FORMULA_UMI_NLOS = "3gpp_38_901_v19_4_0_umi_nlos"
+FORMULA_INH_LOS = "3gpp_38_901_v19_4_0_inh_los"
+FORMULA_INH_NLOS = "3gpp_38_901_v19_4_0_inh_nlos"
 
 SPEED_OF_LIGHT_M_PER_S = 3.0e8
 MIN_FREQUENCY_GHZ = 0.5
@@ -84,7 +86,7 @@ def estimate_path_loss_3gpp(
     )
     if request.scenario == SCENARIO_UMI_STREET_CANYON:
         return _estimate_umi_street_canyon(request, validated)
-    raise NotImplementedError("InH Office path loss is implemented in Stage 1C.")
+    return _estimate_inh_office(request, validated)
 
 
 def _validate_request(
@@ -305,3 +307,46 @@ def _umi_los_path_loss_db(
         )
     )
     return path_loss_db, FORMULA_UMI_LOS_PL2
+
+
+def _estimate_inh_office(
+    request: PathLossRequest,
+    validated: _ValidatedRequest,
+) -> PathLossResult:
+    los_path_loss_db = (
+        32.4
+        + 17.3 * math.log10(request.distance_3d_m)
+        + 20.0 * math.log10(validated.frequency_ghz)
+    )
+
+    if request.los_state == LOS:
+        return PathLossResult(
+            scenario=request.scenario,
+            los_state=request.los_state,
+            mean_path_loss_db=los_path_loss_db,
+            shadow_fading_std_db=3.0,
+            formula_id=FORMULA_INH_LOS,
+            breakpoint_distance_m=None,
+            los_reference_path_loss_db=los_path_loss_db,
+            nlos_candidate_path_loss_db=None,
+            is_extrapolated=validated.is_extrapolated,
+            warnings=validated.warnings,
+        )
+
+    nlos_candidate_db = (
+        38.3 * math.log10(request.distance_3d_m)
+        + 17.3
+        + 24.9 * math.log10(validated.frequency_ghz)
+    )
+    return PathLossResult(
+        scenario=request.scenario,
+        los_state=request.los_state,
+        mean_path_loss_db=max(los_path_loss_db, nlos_candidate_db),
+        shadow_fading_std_db=8.03,
+        formula_id=FORMULA_INH_NLOS,
+        breakpoint_distance_m=None,
+        los_reference_path_loss_db=los_path_loss_db,
+        nlos_candidate_path_loss_db=nlos_candidate_db,
+        is_extrapolated=validated.is_extrapolated,
+        warnings=validated.warnings,
+    )
