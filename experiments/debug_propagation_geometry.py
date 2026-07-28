@@ -4,7 +4,12 @@ import argparse
 import json
 
 from ran.contracts import Position
-from ran.radio.geometry import analyze_propagation_geometry, geometry_to_report
+from ran.radio.coordinate_calibration import load_coordinate_calibration
+from ran.radio.geometry import (
+    analyze_propagation_geometry,
+    coordinate_view_from_calibration,
+    geometry_to_report,
+)
 from ran.radio.topology_adapter import load_gnb_site_from_scene
 from structure.scene_registry import build_scene
 
@@ -23,10 +28,27 @@ def main() -> None:
     parser.add_argument("--x", type=float)
     parser.add_argument("--y", type=float)
     parser.add_argument("--pretty", action="store_true")
+    parser.add_argument(
+        "--with-calibration",
+        action="store_true",
+        help="Explicitly use the configured provisional/confirmed coordinate calibration.",
+    )
+    parser.add_argument("--gnb-height-m", type=float)
+    parser.add_argument("--ue-height-m", type=float)
     args = parser.parse_args()
 
     scene = build_scene(args.scene)
     gnb = load_gnb_site_from_scene(scene)
+    coordinate_view = None
+    if args.with_calibration:
+        calibration = load_coordinate_calibration(args.scene)
+        if calibration is None:
+            parser.error(f"No coordinate calibration is configured for scene {args.scene!r}.")
+        coordinate_view = coordinate_view_from_calibration(
+            calibration,
+            gnb_height_m=args.gnb_height_m,
+            ue_height_m=args.ue_height_m,
+        )
 
     if args.x is not None and args.y is not None:
         cases = [("custom", Position(args.x, args.y))]
@@ -39,6 +61,7 @@ def main() -> None:
             scene=scene,
             receiver_position=position,
             gnb=gnb,
+            coordinate_view=coordinate_view,
         )
         report = geometry_to_report(geometry)
         report["case_id"] = case_id

@@ -2,7 +2,7 @@
 
 ## 总结
 
-这份文档说明 Zhiqian 负责的 RAN MVP 传播几何分析模块。
+这份文档说明 RAN MVP 传播几何分析模块。
 本次实现是“新增模块 + debug first”的小步提交：
 
 - 新增模块：`ran/radio/geometry.py`
@@ -19,7 +19,7 @@
 
 当前信道组边界：
 
-- Zhiqian 负责坐标标定和传播几何分析。
+- 坐标标定和传播几何分析。
 - 坐标标定保持为独立模块，使用独立配置和测试。
 - 本模块可以读取只读坐标标定结果，但不能在内部推断或维护 map unit 到 meter 的比例。
 - 其他组不要把这个模块理解成 scheduler、QoS、RLC/PDCP 或最终 path-loss 实现。
@@ -69,12 +69,14 @@ report = geometry_to_report(geometry)
 8. 从 scene 和 area 中收集和无线传播相关的 portal。
 9. 如果直线穿过 open portal，并且 portal 匹配某段墙，则把该墙标记为无效穿墙，`ignored_reason="open_portal"`。
 10. 分类链路类型：
-    - `outdoor_los`
-    - `outdoor_nlos`
-    - `outdoor_to_indoor`
-    - `indoor_to_outdoor`
-    - `indoor_same_building`
-    - `indoor_different_building`
+
+- `outdoor_los`
+- `outdoor_nlos`
+- `outdoor_to_indoor`
+- `indoor_to_outdoor`
+- `indoor_same_building`
+- `indoor_different_building`
+
 11. 区分目标建筑和非目标遮挡建筑。
 12. 计算 `los_state`。
 13. 拆分 outdoor 和 indoor 的 map unit 距离。
@@ -138,18 +140,19 @@ python -m experiments.debug_propagation_geometry --x 520 --y 280 --pretty
 
 debug 脚本默认覆盖四个案例：
 
-| Case | 预期 link type | 预期 LOS state | 说明 |
-| --- | --- | --- | --- |
-| `outdoor_green` | `outdoor_los` | `los` | 不穿墙 |
-| `student_union_center` | `outdoor_to_indoor` | `nlos` | 进入 Student Union 并穿过室内墙 |
-| `gym_center` | `outdoor_to_indoor` | `nlos` | 目标 Gym 外墙，同时被 Student Union 遮挡 |
-| `outdoor_east_of_student_union` | `outdoor_nlos` | `nlos` | outdoor UE 被 Student Union 遮挡 |
+| Case                            | 预期 link type        | 预期 LOS state | 说明                             |
+| ------------------------------- | ------------------- | ------------ | ------------------------------ |
+| `outdoor_green`                 | `outdoor_los`       | `los`        | 不穿墙                            |
+| `student_union_center`          | `outdoor_to_indoor` | `nlos`       | 进入 Student Union 并穿过室内墙        |
+| `gym_center`                    | `outdoor_to_indoor` | `nlos`       | 目标 Gym 外墙，同时被 Student Union 遮挡 |
+| `outdoor_east_of_student_union` | `outdoor_nlos`      | `nlos`       | outdoor UE 被 Student Union 遮挡  |
 
 handoff 前使用过的验证命令：
 
 ```powershell
-python -m py_compile ran\radio\geometry.py experiments\debug_propagation_geometry.py
+python -m unittest tests.radio.test_geometry_coordinate_calibration tests.radio.test_coordinate_calibration
 python -m experiments.debug_propagation_geometry
+python -m experiments.debug_propagation_geometry --with-calibration --gnb-height-m 10
 ```
 
 ## 后续集成建议
@@ -161,17 +164,84 @@ python -m experiments.debug_propagation_geometry
 2. 不要直接修改 `ChannelState`，除非团队明确同意。
 3. 如果需要新增共享字段，优先使用有默认值的 optional 字段。
 4. 把 geometry output 当成 path-loss 分类证据，而不是完整 channel model。
-5. 使用 meter 距离或 3D 高度前，先和 Yuhan 的坐标标定接口对齐。
+5. provisional meter 距离只用于 debug，真实锚点确认后才能作为物理模型输入。
 
 ## 已知限制
 
-- 本模块不实现坐标标定。
+- 坐标标定仍由独立模块实现；geometry 只消费适配后的只读 view。
 - 没有 calibration view 时，meter 距离字段为 `None`。
-- 当前还没有正式 pytest，debug 脚本是 smoke test。
+- 已有兼容性 unittest 覆盖无标定、旧 scalar、非等比例 X/Y、高度、墙体交点和 O2I 距离拆分。
 - 没有 portal material loss。
 - 门的 `locked` 状态不会影响无线传播。
 - 如果未来 scene 把 portal 直接挂在 child area 上，child-area portal 坐标假设需要重新 review。
 - 本模块不实现 3GPP path loss、shadow fading、fast fading、MIMO、OFDM、scheduler feedback 或 CQI 变化。
+
+## 坐标标定兼容接口
+
+`CoordinateCalibrationView` 保留原来的三个字段及其顺序：
+
+```python
+meters_per_map_unit
+gnb_height_m
+ue_height_m
+```
+
+并在末尾追加两个可选字段：
+
+```python
+meters_per_map_unit_x
+meters_per_map_unit_y
+```
+
+换算优先级如下：
+
+1. X/Y 比例都存在时，先分别转换 `dx` 和 `dy`，再计算非等比例物理距离。
+2. 否则回退到原有 `meters_per_map_unit` 单比例路径。
+3. 两种标定都没有时，所有 meter 字段继续为 `None`。
+
+从独立标定模块接入时，使用：
+
+```python
+from ran.radio.coordinate_calibration import load_coordinate_calibration
+from ran.radio.geometry import coordinate_view_from_calibration
+
+calibration = load_coordinate_calibration("bristol_topology")
+coordinate_view = coordinate_view_from_calibration(
+    calibration,
+    gnb_height_m=10.0,
+)
+```
+
+几何模块不拟合、不推断也不保存比例，只消费这个只读 view。墙体和 portal
+交点使用起点到实际交点的 X/Y 向量计算物理距离。indoor/outdoor 是同一条
+gNB 到 UE 直线的子距离，因此按物理总距离的比例拆分，两者之和应等于
+`distance_2d_m`（浮点误差除外）。
+
+## 坐标兼容测试步骤
+
+在 repo 根目录运行：
+
+```powershell
+python -m unittest tests.radio.test_geometry_coordinate_calibration tests.radio.test_coordinate_calibration
+```
+
+测试按以下步骤检查：
+
+1. 不传标定时，meter 字段保持 `None`。
+2. 使用旧的 positional scalar view，确认旧结果不变。
+3. 使用 `scale_x=0.15`、`scale_y=0.20`，确认 `(100, 100)` 的地图差值换算为 `25 m`。
+4. 从 `CoordinateCalibrationResult` 构造 view，确认默认 UE 高度和显式 gNB 高度覆盖。
+5. 检查非等比例 wall crossing 和 O2I indoor/outdoor 距离，并确认子距离之和等于 `distance_2d_m`。
+
+对比无标定和显式标定 debug：
+
+```powershell
+python -m experiments.debug_propagation_geometry
+python -m experiments.debug_propagation_geometry --with-calibration --gnb-height-m 10
+```
+
+第一个命令必须保留旧行为。第二个命令明确 opt in 当前 provisional 标定，
+用于 debug，不代表坐标已经通过真实锚点确认。
 
 ## PR Review Checklist
 
@@ -182,3 +252,5 @@ python -m experiments.debug_propagation_geometry
 - meter 字段是否清楚说明为 optional 且当前可能为 `None`？
 - blocking building 是否和有效目标建筑墙体 crossing 分开？
 - portal 假设是否已经在文档里说明？
+
+ 

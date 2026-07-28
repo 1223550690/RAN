@@ -6,15 +6,16 @@ Coordinate calibration and propagation geometry. The calibration
 core remains separate from `geometry.py` so that physical units can change
 without changing map topology or geometry classification.
 
-This first version adds:
+The coordinate-calibration work adds:
 
 - `ran/radio/coordinate_calibration.py`
 - `configs/ran/coordinate_calibration.json`
 - `experiments/debug_coordinate_calibration.py`
 - standard-library unit tests
 
-It does not change `geometry.py`, `channel.py`, `ChannelState`, the scheduler,
-path loss, metrics, or the editor schema.
+Geometry now consumes the result through an additive read-only adapter. This
+does not change `channel.py`, `ChannelState`, the scheduler, path loss,
+metrics, or the editor schema.
 
 ## Current Bristol Assumption
 
@@ -70,9 +71,26 @@ Optional sample receiver and heights:
 python -m experiments.debug_coordinate_calibration --x 520 --y 280 --gnb-height-m 10 --ue-height-m 1.5 --pretty
 ```
 
-## Next Integration
+## Geometry Compatibility Adapter
 
-The next PR may append optional x/y scale fields to the existing
-`CoordinateCalibrationView` and adapt propagation geometry. It must preserve
-the old scalar path and the no-calibration behavior. Runtime channel
-integration remains a separate cross-group change.
+`coordinate_view_from_calibration(...)` converts this module's result into the
+geometry-owned `CoordinateCalibrationView`. Geometry now supports optional x/y
+scales while preserving both the old scalar path and no-calibration behavior.
+
+Run the focused compatibility tests:
+
+```powershell
+python -m unittest tests.radio.test_geometry_coordinate_calibration tests.radio.test_coordinate_calibration
+```
+
+Then compare the two debug modes:
+
+```powershell
+python -m experiments.debug_propagation_geometry
+python -m experiments.debug_propagation_geometry --with-calibration --gnb-height-m 10
+```
+
+The first command must keep meter fields as `None`. The second explicitly opts
+into the current provisional calibration and must populate 2D/crossing/link
+sub-distance meter fields. Runtime channel integration remains a separate
+cross-group change.

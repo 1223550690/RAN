@@ -65,8 +65,19 @@ python -m experiments.debug_coordinate_calibration --scene bristol_topology --pr
 python -m experiments.debug_coordinate_calibration --x 520 --y 280 --gnb-height-m 10 --ue-height-m 1.5 --pretty
 ```
 
-## 下一步接入
+## Geometry 兼容接口
 
-下一 PR 可以在现有 `CoordinateCalibrationView` 末尾追加可选 x/y scale，
-并接入传播几何。必须保留旧 scalar 路径和无 calibration 时的行为。
-主 channel runtime 接入仍然是后续独立的跨组变更。
+传播几何现在通过 `coordinate_view_from_calibration(...)` 消费坐标标定结果。
+兼容接口在原有 scalar 字段之后追加 X/Y 比例，保留旧 scalar fallback 和
+无标定时 meter 字段为 `None` 的行为。
+
+验证命令：
+
+```powershell
+python -m unittest tests.radio.test_geometry_coordinate_calibration tests.radio.test_coordinate_calibration
+python -m experiments.debug_propagation_geometry
+python -m experiments.debug_propagation_geometry --with-calibration --gnb-height-m 10
+```
+
+第三条命令是对当前 provisional 标定的显式 debug opt-in。主 channel runtime
+接入仍然是后续独立的跨组变更。

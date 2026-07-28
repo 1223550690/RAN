@@ -5,6 +5,7 @@ import math
 from typing import Any
 
 from ran.contracts import GnbSite, Position
+from ran.radio.coordinate_calibration import CoordinateCalibrationResult
 from services.map_service import MapService
 
 
@@ -32,6 +33,29 @@ class CoordinateCalibrationView:
     meters_per_map_unit: float | None = None
     gnb_height_m: float | None = None
     ue_height_m: float | None = None
+    meters_per_map_unit_x: float | None = None
+    meters_per_map_unit_y: float | None = None
+
+
+def coordinate_view_from_calibration(
+    calibration: CoordinateCalibrationResult,
+    *,
+    gnb_height_m: float | None = None,
+    ue_height_m: float | None = None,
+) -> CoordinateCalibrationView:
+    """Adapt a calibration result without moving calibration logic into geometry."""
+
+    return CoordinateCalibrationView(
+        meters_per_map_unit=calibration.meters_per_map_unit,
+        gnb_height_m=(
+            calibration.gnb_height_m if gnb_height_m is None else gnb_height_m
+        ),
+        ue_height_m=(
+            calibration.default_ue_height_m if ue_height_m is None else ue_height_m
+        ),
+        meters_per_map_unit_x=calibration.meters_per_map_unit_x,
+        meters_per_map_unit_y=calibration.meters_per_map_unit_y,
+    )
 
 
 @dataclass(slots=True)
@@ -128,6 +152,7 @@ def analyze_propagation_geometry(
     walls_result = service.get_walls_between(scene, start, end)
     all_crossings = _normalize_wall_crossings(
         walls_result.get("walls", []),
+        link_start=start,
         coordinate_view=coordinate_view,
     )
     _deduplicate_crossings(all_crossings)
@@ -181,8 +206,16 @@ def analyze_propagation_geometry(
         effective_crossings=effective_crossings,
         all_crossings=all_crossings,
     )
-    outdoor_m = _map_units_to_meters(outdoor_map, coordinate_view)
-    indoor_m = _map_units_to_meters(indoor_map, coordinate_view)
+    outdoor_m = _link_subdistance_to_meters(
+        outdoor_map,
+        total_map_distance=link_distance.map_distance_units,
+        total_distance_m=link_distance.distance_2d_m,
+    )
+    indoor_m = _link_subdistance_to_meters(
+        indoor_map,
+        total_map_distance=link_distance.map_distance_units,
+        total_distance_m=link_distance.distance_2d_m,
+    )
 
     return PropagationGeometry(
         gnb_id=gnb.gnb_id,
@@ -263,7 +296,7 @@ def _link_distance(
     coordinate_view: CoordinateCalibrationView | None,
 ) -> LinkDistance:
     map_distance = _distance(start, end)
-    distance_2d_m = _map_units_to_meters(map_distance, coordinate_view)
+    distance_2d_m = _calibrated_distance_m(start, end, coordinate_view)
     distance_3d_m = None
     if (
         distance_2d_m is not None
@@ -283,6 +316,7 @@ def _link_distance(
 def _normalize_wall_crossings(
     walls: list[dict],
     *,
+    link_start: tuple[float, float],
     coordinate_view: CoordinateCalibrationView | None,
 ) -> list[PropagationSurfaceCrossing]:
     crossings: list[PropagationSurfaceCrossing] = []
@@ -304,7 +338,11 @@ def _normalize_wall_crossings(
                 area_name=_optional_str(wall.get("area_name")),
                 intersection=intersection,
                 distance_from_gnb_map_units=distance_from_gnb,
-                distance_from_gnb_m=_map_units_to_meters(distance_from_gnb, coordinate_view),
+                distance_from_gnb_m=_calibrated_distance_m(
+                    link_start,
+                    intersection,
+                    coordinate_view,
+                ),
                 penetration_loss_db=float(wall.get("penetration_loss_db") or 0.0),
                 segment=(start, end),
             )
@@ -375,7 +413,11 @@ def _portal_crossings(
                 segment=portal["segment"],
                 intersection=intersection,
                 distance_from_gnb_map_units=distance_from_gnb,
-                distance_from_gnb_m=_map_units_to_meters(distance_from_gnb, coordinate_view),
+                distance_from_gnb_m=_calibrated_distance_m(
+                    start,
+                    intersection,
+                    coordinate_view,
+                ),
             )
         )
     crossings.sort(key=lambda crossing: crossing.distance_from_gnb_map_units or 0.0)
@@ -702,9 +744,41 @@ def _map_units_to_meters(
     value: float,
     coordinate_view: CoordinateCalibrationView | None,
 ) -> float | None:
+    """Convert directionless map length only through the legacy scalar path."""
+
     if coordinate_view is None or coordinate_view.meters_per_map_unit is None:
         return None
     return value * coordinate_view.meters_per_map_unit
+
+
+def _calibrated_distance_m(
+    start: tuple[float, float],
+    end: tuple[float, float],
+    coordinate_view: CoordinateCalibrationView | None,
+) -> float | None:
+    if coordinate_view is None:
+        return None
+    if (
+        coordinate_view.meters_per_map_unit_x is not None
+        and coordinate_view.meters_per_map_unit_y is not None
+    ):
+        dx_m = (end[0] - start[0]) * coordinate_view.meters_per_map_unit_x
+        dy_m = (end[1] - start[1]) * coordinate_view.meters_per_map_unit_y
+        return math.hypot(dx_m, dy_m)
+    return _map_units_to_meters(_distance(start, end), coordinate_view)
+
+
+def _link_subdistance_to_meters(
+    map_subdistance: float,
+    *,
+    total_map_distance: float,
+    total_distance_m: float | None,
+) -> float | None:
+    if total_distance_m is None:
+        return None
+    if total_map_distance == 0.0:
+        return 0.0
+    return total_distance_m * map_subdistance / total_map_distance
 
 
 def _local_point_to_global(point: tuple[float, float], parent_area) -> tuple[float, float]:
