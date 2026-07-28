@@ -5,6 +5,9 @@ import math
 import unittest
 
 from ran.radio.pathloss_3gpp import (
+    FORMULA_UMI_LOS_PL1,
+    FORMULA_UMI_LOS_PL2,
+    FORMULA_UMI_NLOS,
     LOS,
     NLOS,
     PathLossApplicabilityError,
@@ -12,7 +15,9 @@ from ran.radio.pathloss_3gpp import (
     PathLossRequest,
     SCENARIO_INH_OFFICE,
     SCENARIO_UMI_STREET_CANYON,
+    _umi_los_path_loss_db,
     _validate_request,
+    estimate_path_loss_3gpp,
 )
 
 
@@ -40,6 +45,18 @@ def _inh_request(**changes) -> PathLossRequest:
         ut_height_m=1.0,
     )
     return replace(request, **changes)
+
+
+def _umi_request_at(
+    distance_2d_m: float,
+    *,
+    los_state: str = LOS,
+) -> PathLossRequest:
+    return _umi_request(
+        los_state=los_state,
+        distance_2d_m=distance_2d_m,
+        distance_3d_m=math.hypot(distance_2d_m, 8.5),
+    )
 
 
 class PathLossValidationTests(unittest.TestCase):
@@ -154,6 +171,91 @@ class PathLossValidationTests(unittest.TestCase):
         self.assertIn(
             "non_reference_height: InH reference hBS=3 m and hUT=1 m",
             validated.warnings,
+        )
+
+
+class PathLossUmiTests(unittest.TestCase):
+    def test_los_reference_points_and_formula_selection(self) -> None:
+        cases = (
+            (10.0, 66.7610328085, FORMULA_UMI_LOS_PL1),
+            (100.0, 85.3141891025, FORMULA_UMI_LOS_PL1),
+            (210.0, 92.0554308623, FORMULA_UMI_LOS_PL1),
+            (300.0, 98.2442606638, FORMULA_UMI_LOS_PL2),
+        )
+        for distance_2d_m, expected_db, formula_id in cases:
+            with self.subTest(distance_2d_m=distance_2d_m):
+                result = estimate_path_loss_3gpp(
+                    _umi_request_at(distance_2d_m)
+                )
+
+                self.assertAlmostEqual(
+                    result.mean_path_loss_db,
+                    expected_db,
+                    places=9,
+                )
+                self.assertEqual(result.formula_id, formula_id)
+                self.assertEqual(result.shadow_fading_std_db, 4.0)
+                self.assertAlmostEqual(result.breakpoint_distance_m, 210.0)
+
+    def test_los_formulas_are_continuous_at_breakpoint(self) -> None:
+        request = _umi_request_at(210.0)
+        validated = _validate_request(request)
+        pl1_db, pl1_formula = _umi_los_path_loss_db(
+            request,
+            validated,
+            210.0,
+        )
+        pl2_db, pl2_formula = _umi_los_path_loss_db(
+            replace(request, distance_2d_m=210.0 + 1e-9),
+            validated,
+            210.0,
+        )
+
+        self.assertEqual(pl1_formula, FORMULA_UMI_LOS_PL1)
+        self.assertEqual(pl2_formula, FORMULA_UMI_LOS_PL2)
+        self.assertAlmostEqual(pl1_db, pl2_db, places=6)
+
+    def test_nlos_uses_maximum_of_los_and_candidate(self) -> None:
+        result = estimate_path_loss_3gpp(
+            _umi_request_at(100.0, los_state=NLOS)
+        )
+
+        self.assertAlmostEqual(result.mean_path_loss_db, 104.6438320117)
+        self.assertAlmostEqual(result.los_reference_path_loss_db, 85.3141891025)
+        self.assertAlmostEqual(
+            result.nlos_candidate_path_loss_db,
+            104.6438320117,
+        )
+        self.assertGreaterEqual(
+            result.mean_path_loss_db,
+            result.los_reference_path_loss_db,
+        )
+        self.assertEqual(result.formula_id, FORMULA_UMI_NLOS)
+        self.assertEqual(result.shadow_fading_std_db, 7.82)
+
+    def test_los_metadata_does_not_report_nlos_candidate(self) -> None:
+        result = estimate_path_loss_3gpp(_umi_request_at(100.0))
+
+        self.assertEqual(
+            result.mean_path_loss_db,
+            result.los_reference_path_loss_db,
+        )
+        self.assertIsNone(result.nlos_candidate_path_loss_db)
+        self.assertFalse(result.is_extrapolated)
+        self.assertEqual(result.warnings, ())
+
+    def test_explicit_umi_extrapolation_is_visible_in_result(self) -> None:
+        result = estimate_path_loss_3gpp(
+            _umi_request_at(5.0),
+            allow_extrapolation=True,
+        )
+
+        self.assertTrue(result.is_extrapolated)
+        self.assertTrue(
+            any(
+                warning.startswith("umi_distance_outside_applicability")
+                for warning in result.warnings
+            )
         )
 
 

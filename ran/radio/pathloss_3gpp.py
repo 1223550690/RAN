@@ -12,6 +12,11 @@ SCENARIO_INH_OFFICE = "inh_office"
 LOS = "los"
 NLOS = "nlos"
 
+FORMULA_UMI_LOS_PL1 = "3gpp_38_901_v19_4_0_umi_los_pl1"
+FORMULA_UMI_LOS_PL2 = "3gpp_38_901_v19_4_0_umi_los_pl2"
+FORMULA_UMI_NLOS = "3gpp_38_901_v19_4_0_umi_nlos"
+
+SPEED_OF_LIGHT_M_PER_S = 3.0e8
 MIN_FREQUENCY_GHZ = 0.5
 MAX_FREQUENCY_GHZ = 100.0
 UMI_MIN_DISTANCE_2D_M = 10.0
@@ -65,6 +70,21 @@ class _ValidatedRequest:
     frequency_hz: float
     is_extrapolated: bool
     warnings: tuple[str, ...]
+
+
+def estimate_path_loss_3gpp(
+    request: PathLossRequest,
+    *,
+    allow_extrapolation: bool = False,
+) -> PathLossResult:
+    """Return deterministic 3GPP mean path loss and model metadata."""
+    validated = _validate_request(
+        request,
+        allow_extrapolation=allow_extrapolation,
+    )
+    if request.scenario == SCENARIO_UMI_STREET_CANYON:
+        return _estimate_umi_street_canyon(request, validated)
+    raise NotImplementedError("InH Office path loss is implemented in Stage 1C.")
 
 
 def _validate_request(
@@ -195,3 +215,93 @@ def _validate_request(
         is_extrapolated=bool(applicability_issues),
         warnings=tuple(warnings),
     )
+
+
+def _estimate_umi_street_canyon(
+    request: PathLossRequest,
+    validated: _ValidatedRequest,
+) -> PathLossResult:
+    breakpoint_distance_m = _umi_breakpoint_distance_m(request, validated)
+    los_path_loss_db, los_formula_id = _umi_los_path_loss_db(
+        request,
+        validated,
+        breakpoint_distance_m,
+    )
+
+    if request.los_state == LOS:
+        return PathLossResult(
+            scenario=request.scenario,
+            los_state=request.los_state,
+            mean_path_loss_db=los_path_loss_db,
+            shadow_fading_std_db=4.0,
+            formula_id=los_formula_id,
+            breakpoint_distance_m=breakpoint_distance_m,
+            los_reference_path_loss_db=los_path_loss_db,
+            nlos_candidate_path_loss_db=None,
+            is_extrapolated=validated.is_extrapolated,
+            warnings=validated.warnings,
+        )
+
+    nlos_candidate_db = (
+        35.3 * math.log10(request.distance_3d_m)
+        + 22.4
+        + 21.3 * math.log10(validated.frequency_ghz)
+        - 0.3 * (request.ut_height_m - 1.5)
+    )
+    return PathLossResult(
+        scenario=request.scenario,
+        los_state=request.los_state,
+        mean_path_loss_db=max(los_path_loss_db, nlos_candidate_db),
+        shadow_fading_std_db=7.82,
+        formula_id=FORMULA_UMI_NLOS,
+        breakpoint_distance_m=breakpoint_distance_m,
+        los_reference_path_loss_db=los_path_loss_db,
+        nlos_candidate_path_loss_db=nlos_candidate_db,
+        is_extrapolated=validated.is_extrapolated,
+        warnings=validated.warnings,
+    )
+
+
+def _umi_breakpoint_distance_m(
+    request: PathLossRequest,
+    validated: _ValidatedRequest,
+) -> float:
+    effective_bs_height_m = (
+        request.bs_height_m - UMI_EFFECTIVE_ENVIRONMENT_HEIGHT_M
+    )
+    effective_ut_height_m = (
+        request.ut_height_m - UMI_EFFECTIVE_ENVIRONMENT_HEIGHT_M
+    )
+    return (
+        4.0
+        * effective_bs_height_m
+        * effective_ut_height_m
+        * validated.frequency_hz
+        / SPEED_OF_LIGHT_M_PER_S
+    )
+
+
+def _umi_los_path_loss_db(
+    request: PathLossRequest,
+    validated: _ValidatedRequest,
+    breakpoint_distance_m: float,
+) -> tuple[float, str]:
+    if request.distance_2d_m <= breakpoint_distance_m:
+        path_loss_db = (
+            32.4
+            + 21.0 * math.log10(request.distance_3d_m)
+            + 20.0 * math.log10(validated.frequency_ghz)
+        )
+        return path_loss_db, FORMULA_UMI_LOS_PL1
+
+    height_difference_m = request.bs_height_m - request.ut_height_m
+    path_loss_db = (
+        32.4
+        + 40.0 * math.log10(request.distance_3d_m)
+        + 20.0 * math.log10(validated.frequency_ghz)
+        - 9.5
+        * math.log10(
+            breakpoint_distance_m**2 + height_difference_m**2
+        )
+    )
+    return path_loss_db, FORMULA_UMI_LOS_PL2
