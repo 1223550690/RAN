@@ -2,7 +2,7 @@
 
 ## Scope
 
-Zhiqian owns coordinate calibration and propagation geometry. The calibration
+Coordinate calibration and propagation geometry. The calibration
 core remains separate from `geometry.py` so that physical units can change
 without changing map topology or geometry classification.
 
