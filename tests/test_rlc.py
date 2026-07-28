@@ -8,7 +8,9 @@ from ran.contracts import Drb, RlcQueue
 from ran.protocol.pdcp import PdcpBatch
 from ran.protocol.rlc import (
     RlcEntity,
+    RlcGrantResult,
     RlcRetxBlock,
+    RlcSegment,
     apply_transmission_to_rlc,
     build_rlc_queue,
 )
@@ -88,16 +90,16 @@ class TestOnGrant:
     def test_drains_new_data(self):
         rlc = _make_entity("UM")
         rlc.enqueue(_batch(5000))
-        sent = rlc.on_grant(make_alloc(5000))
-        assert sent == 5000
+        grant = rlc.on_grant(make_alloc(5000))
+        assert grant.actual_sent_bytes == 5000
         assert rlc.queued_bytes == 0
         assert rlc.inflight_new_bytes == 5000
 
     def test_partial_grant(self):
         rlc = _make_entity("UM")
         rlc.enqueue(_batch(5000))
-        sent = rlc.on_grant(make_alloc(3000))
-        assert sent == 3000
+        grant = rlc.on_grant(make_alloc(3000))
+        assert grant.actual_sent_bytes == 3000
         assert rlc.queued_bytes == 2000
 
     def test_retx_priority_over_new_data(self):
@@ -105,8 +107,8 @@ class TestOnGrant:
         rlc = _make_entity("AM")
         rlc.retx_blocks = [RlcRetxBlock(2000, 1)]
         rlc.enqueue(_batch(5000))
-        sent = rlc.on_grant(make_alloc(4000))
-        assert sent == 4000
+        grant = rlc.on_grant(make_alloc(4000))
+        assert grant.actual_sent_bytes == 4000
         assert rlc.retransmission_bytes == 0  # retx fully drained
         assert rlc.queued_bytes == 3000  # 5000 - 2000
 
@@ -114,16 +116,16 @@ class TestOnGrant:
         rlc = _make_entity("AM")
         rlc.retx_blocks = [RlcRetxBlock(5000, 1)]
         rlc.enqueue(_batch(1000))
-        sent = rlc.on_grant(make_alloc(3000))
-        assert sent == 3000
+        grant = rlc.on_grant(make_alloc(3000))
+        assert grant.actual_sent_bytes == 3000
         assert rlc.retransmission_bytes == 2000
         assert rlc.queued_bytes == 1000
 
     def test_zero_grant(self):
         rlc = _make_entity("UM")
         rlc.enqueue(_batch(5000))
-        sent = rlc.on_grant(make_alloc(0))
-        assert sent == 0
+        grant = rlc.on_grant(make_alloc(0))
+        assert grant.actual_sent_bytes == 0
         assert rlc.queued_bytes == 5000
 
     def test_um_no_retx_blocks(self):
@@ -135,6 +137,101 @@ class TestOnGrant:
         assert rlc.retransmission_bytes == 0
         assert rlc.dropped_bytes == 2000
 
+class TestSegmentationDetails:
+    def test_partial_sdu_returns_segment_metadata(self):
+        rlc = _make_entity("UM")
+        rlc.enqueue(_batch(5000))
+
+        first = rlc.on_grant(make_alloc(3000))
+
+        assert isinstance(first, RlcGrantResult)
+        assert first.grant_bytes == 3000
+        assert first.actual_sent_bytes == 3000
+        assert len(first.segments) == 1
+
+        segment = first.segments[0]
+        assert segment.offset_bytes == 0
+        assert segment.segment_bytes == 3000
+        assert segment.is_first is True
+        assert segment.is_last is False
+
+        rlc.on_transmission_result(
+            make_result(
+                1,
+                successful=3000,
+                failed=0,
+            )
+        )
+
+        second = rlc.on_grant(make_alloc(3000))
+
+        assert second.actual_sent_bytes == 2000
+        assert second.segments[0].offset_bytes == 3000
+        assert second.segments[0].segment_bytes == 2000
+        assert second.segments[0].is_first is False
+        assert second.segments[0].is_last is True
+
+    def test_one_grant_can_span_multiple_sdus(self):
+        rlc = _make_entity("UM")
+
+        rlc.enqueue(_batch(1000))
+        rlc.enqueue(_batch(2000))
+
+        grant = rlc.on_grant(make_alloc(1500))
+
+        assert grant.actual_sent_bytes == 1500
+
+        assert [
+            segment.segment_bytes
+            for segment in grant.segments
+        ] == [1000, 500]
+
+        assert grant.segments[0].is_last is True
+        assert grant.segments[1].is_first is True
+        assert grant.segments[1].is_last is False
+
+        assert rlc.queued_bytes == 1500
+
+    def test_actual_sent_never_exceeds_grant(self):
+        rlc = _make_entity("UM")
+        rlc.enqueue(_batch(1000))
+
+        grant = rlc.on_grant(make_alloc(5000))
+
+        assert grant.actual_sent_bytes == 1000
+        assert grant.actual_sent_bytes <= grant.grant_bytes
+
+        assert sum(
+            segment.segment_bytes
+            for segment in grant.segments
+        ) == grant.actual_sent_bytes
+
+    def test_retransmission_segment_is_returned_first(self):
+        rlc = _make_entity("AM")
+
+        rlc.retx_blocks = [
+            RlcRetxBlock(
+                1000,
+                1,
+                rlc_sn=7,
+                sdu_id=4,
+                offset_bytes=200,
+            )
+        ]
+
+        rlc.enqueue(_batch(1000))
+
+        grant = rlc.on_grant(make_alloc(1500))
+
+        assert [
+            segment.is_retransmission
+            for segment in grant.segments
+        ] == [True, False]
+
+        assert grant.segments[0].rlc_sn == 7
+        assert grant.segments[0].offset_bytes == 200
+        assert grant.segments[0].segment_bytes == 1000
+        assert grant.segments[1].segment_bytes == 500
 
 # ---------------------------------------------------------------------------
 # RlcEntity.on_transmission_result — UM mode
@@ -255,10 +352,16 @@ class TestByteConservation:
             rlc.enqueue(_batch(2000))
             total_enqueued += 2000
             # grant capped at queue size; result attempted matches actual sent
-            actual_sent = rlc.on_grant(make_alloc(2000))
-            rlc.on_transmission_result(make_result(
-                tick, successful=actual_sent // 2, failed=actual_sent - actual_sent // 2
-            ))
+            grant_result = rlc.on_grant(make_alloc(2000))
+            actual_sent = grant_result.actual_sent_bytes
+
+            rlc.on_transmission_result(
+                make_result(
+                    tick,
+                    successful=actual_sent // 2,
+                    failed=actual_sent - actual_sent // 2,
+                )
+            )
 
         total_accounted = (
             rlc.delivered_bytes + rlc.dropped_bytes
@@ -274,7 +377,8 @@ class TestByteConservation:
         total_enqueued = 10000
 
         for tick in range(1, 4):
-            actual_sent = rlc.on_grant(make_alloc(5000))
+            grant_result = rlc.on_grant(make_alloc(5000))
+            actual_sent = grant_result.actual_sent_bytes
             half = actual_sent // 2
             rlc.on_transmission_result(make_result(
                 tick, successful=half, failed=actual_sent - half,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from ran.access import select_access
 from ran.contracts import AgentIntent, Position
@@ -104,10 +104,19 @@ class RanUploadScenario:
             return self.snapshot(tick=tick, status="zero_allocation")
 
         # ④ RLC segmentation/dequeue (grant phase)
-        self.rlc.on_grant(allocation)
+        grant_result = self.rlc.on_grant(allocation)
+
+        actual_allocation = replace(
+            allocation,
+            scheduled_bytes=grant_result.actual_sent_bytes,
+        )
 
         # ⑤ PHY transmission
-        transmission = transmit(tick=tick, allocation=allocation, channel=channel)
+        transmission = transmit(
+            tick=tick,
+            allocation=actual_allocation,
+            channel=channel,
+        )
 
         # ⑥ RLC feedback (result phase)
         self.rlc.on_transmission_result(transmission)
@@ -171,6 +180,7 @@ class RanUploadScenario:
             "access": asdict(self.access),
             "qos_flow": asdict(self.qos_flow),
             "drb": asdict(self.drb),
+            "rlc_grant": asdict(grant_result),
             "rlc_queue_after": asdict(rlc_state),
             "channel": asdict(channel),
             "scheduler_request": asdict(scheduler_request),

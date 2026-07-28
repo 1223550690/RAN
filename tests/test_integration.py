@@ -16,6 +16,7 @@ from ran.protocol import (
     build_rlc_queue,
     map_qos_flow_to_drb,
 )
+from ran.ue import state
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +125,18 @@ class TestE2ETick:
 
         for tick in range(1, 6):
             state = scenario.step(tick)
+            assert "rlc_grant" in state
+
+            assert (
+                state["rlc_grant"]["actual_sent_bytes"]
+                == state["transmission"]["attempted_bytes"]
+            )
+
+            assert sum(
+                segment["segment_bytes"]
+                for segment in state["rlc_grant"]["segments"]
+            ) == state["rlc_grant"]["actual_sent_bytes"]
+            
             assert "rlc_queue_after" in state
             rlc = state["rlc_queue_after"]
             assert "delivered_bytes" in rlc
