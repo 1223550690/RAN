@@ -90,7 +90,7 @@ function areasSection(state, store) {
   for (const area of state.scene.areas) {
     body.appendChild(areaCard(area, store, state));
   }
-  return section("Areas", "Areas", [body], null);
+  return section("Areas", "Areas", [body], iconButton("+", "Add area", () => store.addArea()));
 }
 
 function areaCard(area, store, state) {
@@ -207,7 +207,9 @@ function portalsEditorSection(scene, store) {
     const title = document.createElement("div");
     title.className = "object-title";
     title.textContent = `${portal.name} (${portal.kind})`;
-    header.append(title);
+    const remove = iconButton("×", "Delete portal", () => store.deleteSpatialObject("portal", portal.id));
+    remove.classList.add("danger");
+    header.append(title, remove);
     const fields = document.createElement("div");
     fields.className = "collapsible-fields";
     fields.append(
@@ -224,7 +226,10 @@ function portalsEditorSection(scene, store) {
     card.append(header, fields);
     body.append(card);
   }
-  return section("Portals", "Portals", [body], null);
+  return section("Portals", "Portals", [body], null, {
+    onEnter: () => store.setSpatialGroupHover("portal"),
+    onLeave: () => store.setSpatialGroupHover(null),
+  });
 }
 
 function roadsEditorSection(scene, store) {
@@ -285,20 +290,27 @@ function wallsEditorSection(scene, store) {
     card.className = "object-card";
     card.dataset.spatialType = "wall";
     card.dataset.spatialId = wall.wall_id;
+    card.addEventListener("pointerdown", (event) => {
+      if (event.target.closest("button") || event.target.closest("input") || event.target.closest("select") || event.target.closest("textarea")) return;
+      store.setSelectedSpatial({ type: "wall", id: wall.wall_id });
+    });
     const header = document.createElement("div");
     header.className = "object-header";
     const title = document.createElement("div");
     title.className = "object-title";
     title.textContent = `${wall.name} (${wall.wall_type})`;
-    header.append(title);
+    const remove = iconButton("×", "Delete wall", () => store.deleteSpatialObject("wall", wall.wall_id));
+    remove.classList.add("danger");
+    header.append(title, remove);
     const fields = document.createElement("div");
     fields.className = "collapsible-fields";
     fields.append(
-      readonlyField("id", wall.wall_id),
+      field("id", textInput(wall.wall_id, (value) => store.updateWallIdObject(wall, value))),
+      field("name", textInput(wall.name, (value) => store.updateWallObject(wall, "name", value))),
       field("locked", checkboxInput(wall.locked, (value) => store.updateWallObject(wall, "locked", value))),
       field("type", selectInput(wall.wall_type || "interior", ["interior", "exterior", "partition", "glass"], (value) => store.updateWallObject(wall, "wall_type", value))),
-      field("start", pairInputs(wall.start, (index, value) => store.updateWallPointObject(wall, "start", index, value))),
-      field("end", pairInputs(wall.end, (index, value) => store.updateWallPointObject(wall, "end", index, value))),
+      field("start", pairInputs(wall.segment[0], (index, value) => store.updateWallSegmentPointObject(wall, 0, index, value))),
+      field("end", pairInputs(wall.segment[1], (index, value) => store.updateWallSegmentPointObject(wall, 1, index, value))),
       field("material", textInput(wall.material, (value) => store.updateWallObject(wall, "material", value))),
       field("loss", numberInput(wall.penetration_loss_db, (value) => store.updateWallObject(wall, "penetration_loss_db", Number(value)))),
       readonlyField("areas", (wall.areas || []).filter(Boolean).join(" / ")),
@@ -307,7 +319,10 @@ function wallsEditorSection(scene, store) {
     card.append(header, fields);
     body.append(card);
   }
-  return section("Walls", "Walls", [body], null);
+  return section("Walls", "Walls", [body], null, {
+    onEnter: () => store.setSpatialGroupHover("wall"),
+    onLeave: () => store.setSpatialGroupHover(null),
+  });
 }
 
 function portalsSection(scene) {
@@ -353,7 +368,7 @@ function wallsSection(scene) {
   return section("Walls", "Walls", [body], null);
 }
 
-function section(title, label, children, action = null) {
+function section(title, label, children, action = null, hoverHandlers = null) {
   const details = document.createElement("details");
   details.className = "section";
   details.open = true;
@@ -365,6 +380,10 @@ function section(title, label, children, action = null) {
   titleNode.textContent = `${label} / ${title}`;
   summary.append(titleNode);
   if (action) summary.append(action);
+  if (hoverHandlers) {
+    summary.addEventListener("mouseenter", () => hoverHandlers.onEnter?.());
+    summary.addEventListener("mouseleave", () => hoverHandlers.onLeave?.());
+  }
   bindSummaryToggle(details, summary);
 
   const body = document.createElement("div");
@@ -375,8 +394,13 @@ function section(title, label, children, action = null) {
 }
 
 function bindSummaryToggle(details, summary) {
+  summary.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("button")) return;
+    event.preventDefault();
+  });
   summary.addEventListener("click", (event) => {
     event.preventDefault();
+    event.stopPropagation();
     if (event.target.closest("button")) return;
     details.open = !details.open;
   });

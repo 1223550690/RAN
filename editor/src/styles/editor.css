@@ -75,9 +75,10 @@ button.danger {
 }
 
 .editor-shell {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
+  overflow: hidden;
 }
 
 .topbar {
@@ -133,6 +134,7 @@ button.danger {
   grid-template-columns: minmax(320px, 380px) 1fr;
   gap: 12px;
   padding: 12px;
+  overflow: hidden;
 }
 
 .property-panel,
@@ -143,6 +145,12 @@ button.danger {
   border-radius: 8px;
   box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
   overflow: hidden;
+}
+
+.property-panel,
+.preview-panel {
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr);
 }
 
 .panel-header {
@@ -172,10 +180,14 @@ button.danger {
 
 .coordinate-text {
   min-width: 92px;
+  max-width: 420px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 400;
   text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-text {
@@ -185,9 +197,11 @@ button.danger {
 }
 
 .property-content {
-  height: calc(100vh - 128px);
+  min-height: 0;
+  height: auto;
   overflow: auto;
   padding: 10px;
+  overscroll-behavior: contain;
 }
 
 .section {

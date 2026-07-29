@@ -18,7 +18,25 @@ export function normalizeStructureScene(scene) {
       bounds: normalizeBounds(area.bounds),
       metadata: area.metadata || {},
       elements: (area.elements || []).map(normalizeElement),
+      areas: (area.areas || []).map(normalizeArea),
+      portals: Array.isArray(area.portals) ? area.portals.map(normalizePortal) : [],
+      walls: Array.isArray(area.walls) ? area.walls.map(normalizeWall) : [],
+      rendering: area.rendering || {},
     })),
+  };
+}
+
+function normalizeArea(area) {
+  return {
+    node_id: area.node_id,
+    name: area.name || area.node_id,
+    bounds: normalizeBounds(area.bounds),
+    metadata: area.metadata || {},
+    elements: (area.elements || []).map(normalizeElement),
+    areas: (area.areas || []).map(normalizeArea),
+    portals: Array.isArray(area.portals) ? area.portals.map(normalizePortal) : [],
+    walls: Array.isArray(area.walls) ? area.walls.map(normalizeWall) : [],
+    rendering: area.rendering || {},
   };
 }
 
@@ -92,11 +110,11 @@ function normalizeRoadEdge(edge = {}) {
 }
 
 function normalizeWall(wall) {
+  const segment = Array.isArray(wall.segment) ? wall.segment : [wall.start, wall.end];
   return {
     wall_id: wall.wall_id || wall.id,
     name: wall.name || wall.wall_id || wall.id,
-    start: normalizePoint(wall.start),
-    end: normalizePoint(wall.end),
+    segment: normalizeSegment(segment),
     wall_type: wall.wall_type || "interior",
     material: wall.material || "drywall",
     thickness_m: Number(wall.thickness_m || 0.2),
@@ -121,7 +139,7 @@ export function createRoadSegment(scene) {
     bottom: { y: round(cy + 20), x1: round(cx - 60), x2: round(cx + 100) },
     road_type: "pedestrian",
     walkable: true,
-    locked: false,
+    locked: true,
     metadata: { space: "outdoor", area_type: "road" },
   };
 }
@@ -139,8 +157,30 @@ export function createRoadIntersection(scene) {
     connected_roads: [],
     road_type: "junction",
     walkable: true,
-    locked: false,
+    locked: true,
     metadata: { space: "outdoor", area_type: "road_intersection" },
+  };
+}
+
+export function createArea(scene) {
+  const bounds = scene.rendering?.map_bounds || [0, 0, 100, 100];
+  const cx = (bounds[0] + bounds[2]) / 2;
+  const cy = (bounds[1] + bounds[3]) / 2;
+  const id = uniqueId(scene.areas, "new_area");
+  return {
+    node_id: id,
+    name: "New area",
+    bounds: [round(cx - 25), round(cy - 25), round(cx + 25), round(cy + 25)],
+    metadata: {
+      space: "indoor",
+      area_type: "room",
+      locked: true,
+    },
+    elements: [],
+    areas: [],
+    portals: [],
+    walls: [],
+    rendering: {},
   };
 }
 
@@ -152,14 +192,13 @@ export function createWall(scene) {
   return {
     wall_id: id,
     name: "New wall",
-    start: [round(cx - 40), round(cy)],
-    end: [round(cx + 40), round(cy)],
+    segment: [[round(cx - 40), round(cy)], [round(cx + 40), round(cy)]],
     wall_type: "interior",
     material: "drywall",
     thickness_m: 0.2,
     penetration_loss_db: 5,
     blocks_movement: true,
-    locked: false,
+    locked: true,
     areas: [],
     portal_ids: [],
   };
@@ -176,7 +215,7 @@ export function createPortal(scene, endpoints) {
     endpoints,
     areas: endpoints.map((endpoint) => endpoint.object_id),
     segment,
-    locked: false,
+    locked: true,
     open: true,
   });
 }
@@ -189,7 +228,7 @@ export function createElement(area, worldPoint) {
     center: [round(worldPoint[0]), round(worldPoint[1])],
     size: [50, 50],
     movable: true,
-    locked: false,
+    locked: true,
     blocks_movement: false,
     physical_status: "regular",
     evolution_status: "stable",

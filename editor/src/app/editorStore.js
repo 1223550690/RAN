@@ -1,5 +1,6 @@
 import {
   cloneScene,
+  createArea,
   createElement,
   createPortal,
   createRoadIntersection,
@@ -22,6 +23,7 @@ export class EditorStore {
     this.selectedId = null;
     this.selectedAreaId = null;
     this.selectedSpatial = null;
+    this.spatialGroupHover = null;
     this.listeners = new Set();
     this.undoStack = [];
     this.lastSavedAt = null;
@@ -57,6 +59,7 @@ export class EditorStore {
       selectedId: this.selectedId,
       selectedAreaId: this.selectedAreaId,
       selectedSpatial: this.selectedSpatial,
+      spatialGroupHover: this.spatialGroupHover,
       dirty: this.dirty,
       lastSavedAt: this.lastSavedAt,
       canUndo: this.undoStack.length > 0,
@@ -75,6 +78,7 @@ export class EditorStore {
     this.selectedId = null;
     this.selectedAreaId = null;
     this.selectedSpatial = null;
+    this.spatialGroupHover = null;
     this.undoStack = [];
     this.dirty = false;
     this.lastSavedAt = null;
@@ -118,6 +122,20 @@ export class EditorStore {
     this.selectedSpatial = selection;
     this.selectedId = null;
     this.selectedAreaId = selection?.type === "area" ? selection.id : null;
+    this.emit({ renderProperties: false });
+  }
+
+  setSpatialGroupHover(type) {
+    this.spatialGroupHover = type;
+    this.emit({ renderProperties: false, updateHighlights: false });
+  }
+
+  clearSelection() {
+    this.selectedId = null;
+    this.selectedAreaId = null;
+    this.selectedSpatial = null;
+    this.spatialGroupHover = null;
+    this.hoveredId = null;
     this.emit({ renderProperties: false });
   }
 
@@ -246,6 +264,17 @@ export class EditorStore {
     return this.addElement(area.node_id, point);
   }
 
+  addArea() {
+    this.recordChange();
+    const area = createArea(this.scene);
+    this.scene.areas.push(area);
+    this.selectedAreaId = area.node_id;
+    this.selectedId = null;
+    this.selectedSpatial = { type: "area", id: area.node_id };
+    this.markDirty({ renderProperties: true });
+    return area;
+  }
+
   addRoadSegment() {
     this.recordChange();
     const road = createRoadSegment(this.scene);
@@ -309,9 +338,26 @@ export class EditorStore {
     this.markDirty({ renderProperties: true });
   }
 
-  updateWallPointObject(wall, field, index, value) {
+  updateWallIdObject(wall, value) {
+    const nextId = String(value || "").trim();
+    if (!nextId || nextId === wall.wall_id) return;
     this.recordChange();
-    wall[field][index] = Number(value);
+    const previousId = wall.wall_id;
+    wall.wall_id = nextId;
+    for (const portal of this.scene.portals || []) {
+      if (portal.wall_id === previousId) {
+        portal.wall_id = nextId;
+      }
+    }
+    if (this.selectedSpatial?.type === "wall" && this.selectedSpatial.id === previousId) {
+      this.selectedSpatial = { type: "wall", id: nextId };
+    }
+    this.markDirty({ renderProperties: true });
+  }
+
+  updateWallSegmentPointObject(wall, pointIndex, coordIndex, value) {
+    this.recordChange();
+    wall.segment[pointIndex][coordIndex] = Number(value);
     this.markDirty();
   }
 
@@ -507,9 +553,23 @@ export class EditorStore {
     if (!parentSource) return;
     const parentScene = normalizeStructureScene(cloneScene(parentSource));
     const parentArea = findArea(parentScene, parentAreaId);
-    const childArea = this.scene.areas[0];
-    if (!parentArea || !childArea) return;
-    parentArea.elements = childArea.elements.map((element) => mapChildElementToParent(element, childArea.bounds, parentArea.bounds));
+    if (!parentArea) return;
+    parentArea.areas = this.scene.areas
+      .filter((area) => area.metadata?.source !== "auto_open_space")
+      .map((area) => cloneScene(area));
+    const openSpaceArea = this.scene.areas.find((area) => area.metadata?.source === "auto_open_space");
+    const childBounds = this.scene.rendering?.map_bounds || [
+      0,
+      0,
+      parentArea.bounds[2] - parentArea.bounds[0],
+      parentArea.bounds[3] - parentArea.bounds[1],
+    ];
+    parentArea.elements = openSpaceArea
+      ? openSpaceArea.elements.map((element) => mapChildElementToParent(element, childBounds, parentArea.bounds))
+      : [];
+    parentArea.walls = (this.scene.walls || []).map((wall) => cloneScene(wall));
+    parentArea.portals = (this.scene.portals || []).map((portal) => cloneScene(portal));
+    parentArea.rendering = cloneScene(this.scene.rendering || {});
     this.parentSceneCache.set(parentKey, parentScene);
     this.parentScenePathCache.set(parentKey, this.scene.metadata.parent_scene_path);
     return parentScene;
@@ -584,9 +644,6 @@ function applySpatialMove(object, delta, original = object) {
     object.bottom.x1 = original.bottom.x1 + dx;
     object.bottom.x2 = original.bottom.x2 + dx;
     object.bottom.y = original.bottom.y + dy;
-  } else if (original.start && original.end) {
-    object.start = [original.start[0] + dx, original.start[1] + dy];
-    object.end = [original.end[0] + dx, original.end[1] + dy];
   } else if (original.segment) {
     object.segment = original.segment.map((point) => [point[0] + dx, point[1] + dy]);
   }
@@ -618,9 +675,6 @@ function applySpatialResize(object, originalBounds, anchor, worldPoint, original
     const p4 = mapPoint([original.bottom.x2, original.bottom.y]);
     object.top = { y: p1[1], x1: p1[0], x2: p2[0] };
     object.bottom = { y: p3[1], x1: p3[0], x2: p4[0] };
-  } else if (original.start && original.end) {
-    object.start = mapPoint(original.start);
-    object.end = mapPoint(original.end);
   } else if (original.segment) {
     object.segment = original.segment.map(mapPoint);
   }
@@ -670,6 +724,27 @@ function createAreaScene(area, parentSceneKey, parentScenePath) {
   const width = Math.max(1, Math.round(area.bounds[2] - area.bounds[0]));
   const height = Math.max(1, Math.round(area.bounds[3] - area.bounds[1]));
   const childBounds = [0, 0, width, height];
+  const openAreaId = `${area.node_id}_open_space`;
+  const childAreas = [
+    {
+      node_id: openAreaId,
+      name: `${area.name} open space`,
+      bounds: childBounds,
+      metadata: {
+        space: "indoor",
+        area_type: "open_space",
+        parent_area_id: area.node_id,
+        source: "auto_open_space",
+        locked: true,
+      },
+      elements: (area.elements || []).map((element) => mapParentElementToChild(element, area.bounds, childBounds)),
+      areas: [],
+      portals: [],
+      walls: [],
+      rendering: {},
+    },
+    ...(area.areas || []).map((childArea) => cloneScene(childArea)),
+  ];
   return {
     node_id: area.node_id,
     name: area.name,
@@ -678,6 +753,7 @@ function createAreaScene(area, parentSceneKey, parentScenePath) {
       parent_scene_key: parentSceneKey,
       parent_scene_path: parentScenePath,
       parent_area_id: area.node_id,
+      parent_area_bounds: area.bounds.slice(),
     },
     default_agent_start: [Math.round(width / 2), Math.round(height / 2)],
     portals: [],
@@ -685,22 +761,14 @@ function createAreaScene(area, parentSceneKey, parentScenePath) {
     roads: { segments: [], intersections: [] },
     rendering: {
       map_bounds: childBounds,
+      ...(area.rendering || {}),
       area_colors: {
-        [`${area.node_id}_interior`]: "#b7f7c2",
+        [openAreaId]: "#eadb96",
+        ...(area.rendering?.area_colors || {}),
       },
     },
-    areas: [
-      {
-        node_id: `${area.node_id}_interior`,
-        name: `${area.name} interior`,
-        bounds: [0, 0, width, height],
-        metadata: {
-          space: "indoor",
-          area_type: area.metadata?.area_type || "building",
-          parent_area_id: area.node_id,
-        },
-        elements: area.elements.map((element) => mapParentElementToChild(element, area.bounds, childBounds)),
-      },
-    ],
+    areas: childAreas,
+    portals: (area.portals || []).map((portal) => cloneScene(portal)),
+    walls: (area.walls || []).map((wall) => cloneScene(wall)),
   };
 }

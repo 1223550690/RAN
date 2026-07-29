@@ -171,8 +171,7 @@ Junction 是矩形道路交汇区域，用于连接道路段。
 
 墙体包含：
 
-- `start`
-- `end`
+- `segment`
 - `material`
 - `penetration_loss_db`
 - `blocks_movement`

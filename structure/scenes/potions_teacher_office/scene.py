@@ -9,7 +9,11 @@ from ...scene_tree import build_scene_tree
 from .elements import AREA_ELEMENTS, POTIONS_TEACHER_OFFICE_BLOCKING_ELEMENT_IDS
 from .layout import (
     AREA_DEFINITIONS,
+    AREA_CHILD_AREAS,
     AREA_METADATA,
+    AREA_PORTAL_DEFINITIONS,
+    AREA_RENDERING,
+    AREA_WALL_DEFINITIONS,
     POTIONS_TEACHER_OFFICE_DEFAULT_AGENT_START,
     PORTAL_DEFINITIONS,
     RENDERING,
@@ -22,7 +26,7 @@ from .layout import (
 def build_potions_teacher_office_tree() -> Home:
     return build_scene_tree(
         scene_id='potions_teacher_office',
-        scene_name='魔药课教师办公室',
+        scene_name='Potions Teacher Office',
         area_definitions=AREA_DEFINITIONS,
         area_elements=AREA_ELEMENTS,
         blocking_element_ids=POTIONS_TEACHER_OFFICE_BLOCKING_ELEMENT_IDS,
@@ -33,4 +37,8 @@ def build_potions_teacher_office_tree() -> Home:
         road_intersection_definitions=ROAD_INTERSECTION_DEFINITIONS,
         rendering=RENDERING,
         area_metadata=AREA_METADATA,
+        area_child_areas=AREA_CHILD_AREAS,
+        area_wall_definitions=AREA_WALL_DEFINITIONS,
+        area_portal_definitions=AREA_PORTAL_DEFINITIONS,
+        area_rendering=AREA_RENDERING,
     )
