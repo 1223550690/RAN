@@ -44,7 +44,7 @@ class RanUploadScenario:
         self.slice_id = classify_slice(self.ue_request.service_type)
         self.session = establish_pdu_session(self.ue_state, self.ue_request, slice_id=self.slice_id)
         self.traffic = build_ip_traffic(self.ue_request, self.session)
-        self.qos_flow = build_qos_flow(self.ue_request, self.session)
+        self.qos_flow = build_qos_flow(self.ue_request, self.session, traffic=self.traffic)
         self.drb = map_qos_flow_to_drb(self.qos_flow, self.ue_request)
         self.pdcp_batch = build_pdcp_batch(self.traffic, self.drb)
         self.rlc_queue = build_rlc_queue(self.pdcp_batch, self.drb)
@@ -132,6 +132,8 @@ class RanUploadScenario:
             "gnb": asdict(self.gnb),
             "ue_request": asdict(self.ue_request),
             "access": asdict(self.access),
+            "session": asdict(self.session),
+            "traffic": asdict(self.traffic),
             "qos_flow": asdict(self.qos_flow),
             "drb": asdict(self.drb),
             "rlc_queue_after": asdict(self.rlc_queue),
@@ -171,6 +173,10 @@ class RanUploadScenario:
             "gnb": asdict(self.gnb),
             "ue_request": asdict(self.ue_request),
             "access": asdict(self.access),
+            "session": asdict(self.session),
+            "traffic": asdict(self.traffic),
+            "qos_flow": asdict(self.qos_flow),
+            "drb": asdict(self.drb),
             "rlc_queue_after": asdict(self.rlc_queue),
             "progress": {
                 "requested_bytes": self.traffic.total_bytes,
@@ -183,9 +189,15 @@ class RanUploadScenario:
                     - self.cumulative_n3_loss_bytes
                     - self.cumulative_n6_loss_bytes,
                 ),
-                "remaining_queue_bytes": self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes,
+                "remaining_queue_bytes": (
+                    self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes
+                ),
                 "completion_ratio": 0.0,
                 "remaining_ratio": 1.0,
-                "dropped_bytes": self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes,
+                "dropped_bytes": (
+                    self.cumulative_dropped_bytes
+                    + self.cumulative_n3_loss_bytes
+                    + self.cumulative_n6_loss_bytes
+                ),
             },
         }

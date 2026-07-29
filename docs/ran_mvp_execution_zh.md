@@ -111,7 +111,7 @@ AgentIntent
 | UE 状态 | 创建手机 UE 并注册 | `AgentIntent` | `UeState` | `ran/ue/state.py`, `ran/core/amf.py`, `ran/contracts/ue.py` |
 | UE 请求 | 把意图转成 UE 业务请求 | `AgentIntent`, `ue_id` | `UERequest` | `ran/ue/request.py`, `ran/contracts/ue.py` |
 | 接入选择 | 当前固定选择 5G/3GPP | `UERequest`, `GnbSite` | `AccessSelection` | `ran/access/selector.py` |
-| PDU Session | 建立最小 PDU 会话 | `UeState`, `UERequest`, `slice_id` | `PduSession` | `ran/core/smf.py`, `ran/contracts/traffic.py` |
+| PDU Session | 建立并登记 PDU 会话 | `UeState`, `UERequest`, `slice_id` | `PduSession` | `ran/core/smf.py`, `ran/contracts/qos.py` |
 | IP 业务 | 生成上传业务批次 | `UERequest`, `PduSession` | `IPTrafficBatch` | `ran/traffic/ip.py`, `ran/traffic/service_profile.py` |
 | QoS Flow | 选择 QFI、5QI、时延预算 | `UERequest`, service profile | `QoSFlow` | `ran/qos.py`, `configs/ran/service_profiles.json` |
 | 网络切片 | 按业务类型分类切片 | service type | `slice_id`, `SlicePolicy` | `ran/slicing/classifier.py`, `ran/slicing/controller.py`, `configs/ran/slice_policies.json` |
@@ -251,6 +251,8 @@ SimulationLoop.write_preview_state()
 当前 tick 状态和日志中的主要指标：
 
 - `tick`：当前 simulation tick。
+- `session`：本次业务的 PDU Session、SMF、UPF、DNN 和 UE IP。
+- `traffic`：IP 五元组、payload/packet/header 统计和会话 metadata。
 - `cqi`：简化 CQI，来自信道模型。
 - `sinr`：简化 SINR，单位 dB。
 - `prbs`：当前 tick 分配给该 UE/DRB 的 PRB 数。
@@ -292,12 +294,13 @@ MVP 不单独设计 Wi-Fi 文件夹，也不建立第二条 Wi-Fi 链路。当�
 
 未来接入 Wi-Fi/non-3GPP 时，应优先扩展这些字段和 `ran/access/selector.py`，而不是把 Wi-Fi 强行塞进 5G MAC scheduler。共享频谱、干扰和 backhaul 耦合可以作为后续信道/传输层扩展。
 
-## 11. 当前最小实现边界
+## 11. 当前实现边界
 
 - AMF：只更新 UE 注册状态，见 `ran/core/amf.py`。
-- SMF：只创建固定 PDU Session，见 `ran/core/smf.py`。
-- QoS：使用固定 service profile，见 `ran/qos.py` 和 `configs/ran/service_profiles.json`。
-- SDAP：固定 QFI 到 DRB 映射，见 `ran/protocol/sdap.py`。
+- SMF：动态分配 PDU Session ID/UE IP、选择 UPF并维护会话注册表，见 `ran/core/smf.py`。
+- IP traffic：按端点配置生成 UL/DL TCP/UDP 流并保留包/字节证据，见 `ran/traffic/ip.py`。
+- QoS：使用可验证的 service profile 与 QoS rules，区分 QFI 和 5QI，见 `ran/qos.py`。
+- SDAP：动态分配 default/dedicated/shared DRB，维护 `qfi_list`，见 `ran/protocol/sdap.py`。
 - PDCP：只估算 header 和 SN，见 `ran/protocol/pdcp.py`。
 - RLC：只维护字节队列和重传字节，见 `ran/protocol/rlc.py`。
 - Channel：距离、墙损耗、简化 path loss，见 `ran/radio/channel.py`。
