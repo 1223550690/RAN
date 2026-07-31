@@ -15,18 +15,21 @@ class PythonBaselineScheduler:
             return SchedulerResult(tick=request.tick, allocations=[], debug={"reason": "no_active_queue"})
         channel_by_ue = request.channel_states
         policy_by_slice = {policy.slice_id: policy for policy in request.slice_policies}
+        allocations = maxThroughputDLScheduling(channel_by_ue, request, active)
+        print(allocations)
+        return SchedulerResult(tick=request.tick, allocations=allocations, debug={"implementation": "python_baseline"})
+    #UPLINK ALGORITHMS
+    #Time management to be implemented later
+
+
+
+#Equal transmission to all, guarantees fairness
+def roundRobinDLScheduling(channel_by_ue, request, active):
         weight_sum = 0.0
         weights: dict[tuple[str, int], float] = {}
-        # active = sortByBSR(active)
-        i = 0
         for queue in active:
-            #Initial trial allocations
-            weights[queue.ue_id, queue.drb_id] = len(active) -i
-            weight_sum += len(active) -i
-            i+= 1
-            #channel_by_ue, policy_by_slice, weights, weight_sum, queue= mvbScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue)
-            #channel_by_ue, policy_by_slice, weights, weight_sum, queue = roundRobinScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue)
-            #channel_by_ue, policy_by_slice, weights, weight_sum, queue  = grantBasedScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue)
+            weights[queue.ue_id, queue.drb_id] = 1
+            weight_sum += 1
         allocations: list[MacAllocation] = []
         for queue in active:
             
@@ -34,7 +37,7 @@ class PythonBaselineScheduler:
             ratio = weights[(queue.ue_id, queue.drb_id)] / weight_sum if weight_sum else 0.0
             prbs = max(1, int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
-            mcs = max(1, min(28, int(cqi * 1.8)))
+            mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
@@ -53,36 +56,48 @@ class PythonBaselineScheduler:
                     is_retransmission=queue.retransmission_bytes > 0,
                 )
             )
-        return SchedulerResult(tick=request.tick, allocations=allocations, debug={"implementation": "python_baseline"})
-    #UPLINK ALGORITHMS
-    #Time management to be implemented later
-
-# MVP Minimal Implementation: Weights are roughly determined by queue size, CQI, and slice priority.
-def mvbScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue):
-    channel = channel_by_ue.get(queue.ue_id)
-    policy = policy_by_slice.get(queue.slice_id)
-    cqi = channel.cqi if channel else 1
-    priority = policy.priority if policy else 5
-
-    weight = max(1.0, (queue.queued_bytes + queue.retransmission_bytes) / 1_000_000) * max(1, cqi) / max(1, priority)
-    weights[(queue.ue_id, queue.drb_id)] = weight
-    weight_sum += weight
-    return channel_by_ue, policy_by_slice, weights, weight_sum, queue
-    
-
-#Equal transmission to all, guarantees fairness
-def roundRobinScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue):
-    weight = 1
-    weights[(queue.ue_id, queue.drb_id)] = weight
-    weight_sum += weight
-    return channel_by_ue, policy_by_slice, weights, weight_sum, queue
+        return allocations
 
 #Highest potential throughput gets most PRBs
-def maxThroughputScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue, channel_states):
-    channel_states = sortByCQI(channel_states)
-    
-    return channel_by_ue, policy_by_slice, weights, weight_sum, queue 
-def grantBasedScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue):
+def maxThroughputDLScheduling(channel_by_ue, request, active):
+        
+        weights: dict[str, float] = {}
+        channel_by_ue = sortByCQI(channel_by_ue)
+        for queue in active:
+            weights[queue.ue_id] = 0
+        channel_by_ue = list(channel_by_ue.items())
+        weights[channel_by_ue[0][1].ue_id] = 1
+        weight_sum = 1.0
+        channel_by_ue = dict(channel_by_ue)
+        allocations: list[MacAllocation] = []
+        for queue in active:
+            
+            channel = channel_by_ue[queue.ue_id]
+            ratio = weights[queue.ue_id] / weight_sum if weight_sum else 0.0
+            prbs = max(1, int(request.total_prbs * ratio))
+            cqi = channel.cqi if channel else 1
+            mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
+            layers = 1 if cqi < 10 else 2
+            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers)
+            scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
+            allocations.append(
+                MacAllocation(
+                    ue_id=queue.ue_id,
+                    drb_id=queue.drb_id,
+                    qfi=queue.qfi,
+                    slice_id=queue.slice_id,
+                    direction=queue.direction,
+                    prbs=prbs,
+                    mcs=mcs,
+                    layers=layers,
+                    scheduled_bytes=scheduled, 
+                    expected_error_rate=channel.estimated_packet_error_rate if channel else 0.2,
+                    is_retransmission=queue.retransmission_bytes > 0,
+                )
+            )
+        return allocations
+
+def grantBasedULScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue):
 
     
     
@@ -97,13 +112,14 @@ def sortByBSR(queues:list[RlcQueue]):
                 queues[i+1] = temp
         if (check == queues):
             return queues
-def sortByCQI(queues:list[ChannelState]):
+def sortByCQI(queues:dict[str, ChannelState]):
+    queues = list(queues.items())
     while(True):
+        
         check = queues
-        for i in range(0, len(queues)-1):
-            if (queues[i].cqi < queues[i+1].cqi):
-                temp = queues[i]
-                queues[i] = queues[i+1]
-                queues[i+1] = temp
+        for i in range(len(queues) - 1):
+            for j in range(0, len(queues)-i-1):
+                if queues[j][1].cqi < queues[j + 1][1].cqi:
+                    queues[j], queues[j + 1] = queues[j + 1], queues[j]
         if (check == queues):
-            return queues
+            return dict(queues)
