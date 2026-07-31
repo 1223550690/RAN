@@ -698,17 +698,19 @@ Push status:
 
 ## 17. 当前推荐执行点
 
-现在只进入：
+当前已完成：
 
 ```text
 Stage 0 review
 → Stage 1A internal contract and validation
 → Stage 1B UMi
 → Stage 1C InH
+→ Stage 2 standalone debug and FSPL comparison
+→ Stage 3 read-only Geometry/Calibration adapter
 ```
 
-阶段 1 完成后暂停，进行一次 code review 和公式结果汇报，再决定是否进入
-阶段 2 和阶段 3。
+Stage 3 完成后暂停，进行 code review 和 Bristol dry-run 汇报，再决定是否进入
+Stage 4 O2I 设计或 Stage 6 runtime integration。
 
 当前不应开始：
 

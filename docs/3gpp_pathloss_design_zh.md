@@ -6,7 +6,7 @@
 | --- | --- |
 | 分支 | `zhiqian/3gpp` |
 | 模块所有者 | Channel team / Zhiqian |
-| 状态 | Stage 1C 已实现并通过测试，尚未接入 runtime |
+| 状态 | Stage 3 已实现并通过测试，尚未接入 runtime |
 | 主要标准 | 3GPP TR 38.901 V19.4.0，Release 19 |
 | 第一阶段场景 | UMi Street Canyon、InH Office |
 | 第一阶段输出 | 确定性平均 path loss 和 shadow-fading 标准差 |
