@@ -6,7 +6,7 @@
 | --- | --- |
 | Branch | `zhiqian/3gpp` |
 | Module owner | Channel team / Zhiqian |
-| Status | Stage 3 implemented and tested; not integrated into runtime |
+| Status | Stage 3 implemented; Stage 4B O2I has a separate design; no runtime integration |
 | Main standard | 3GPP TR 38.901 V19.4.0, Release 19 |
 | Initial scenarios | UMi Street Canyon and InH Office |
 | Initial output | Deterministic mean path loss and shadow-fading standard deviation |
@@ -15,6 +15,10 @@
 This document covers only the 3GPP large-scale path-loss module. It does not
 modify `ChannelState`, the scheduler, PHY, Geometry, Coordinate Calibration,
 or the current MVP execution path.
+
+> See [`3gpp_o2i_design_en.md`](3gpp_o2i_design_en.md) for the Stage 4A-4B O2I
+> decisions, implementation, and results. Later statements that O2I is not
+> implemented are retained as the historical Stage 1-3 boundary.
 
 ---
 

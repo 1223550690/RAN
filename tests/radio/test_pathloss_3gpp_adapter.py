@@ -16,6 +16,7 @@ from ran.radio.geometry import (
     NLOS,
     LinkDistance,
     PropagationGeometry,
+    PropagationSurfaceCrossing,
 )
 from ran.radio.pathloss_3gpp import (
     SCENARIO_INH_OFFICE,
@@ -25,8 +26,10 @@ from ran.radio.pathloss_3gpp_adapter import (
     InconsistentGeometryLinkError,
     MissingCalibratedDistanceError,
     UnsupportedGeometryLinkError,
+    o2i_path_loss_request_from_geometry,
     path_loss_request_from_geometry,
 )
+from ran.radio.pathloss_3gpp_o2i import LOW_LOSS
 
 
 def _gnb() -> GnbSite:
@@ -80,7 +83,81 @@ def _geometry(
     )
 
 
+def _o2i_geometry(*, blocking_building_ids: list[str] | None = None):
+    geometry = _geometry(
+        link_type=LINK_OUTDOOR_TO_INDOOR,
+        los_state=NLOS,
+    )
+    geometry.receiver_building_id = "target_building"
+    geometry.indoor_distance_m = 20.0
+    geometry.outdoor_distance_m = 80.0
+    exterior = PropagationSurfaceCrossing(
+        surface_id="target_exterior",
+        name="Target exterior",
+        scope="exterior",
+        wall_type="external",
+        material="brick",
+        area_id="target_building",
+        area_name="Target building",
+        intersection=(80.0, 0.0),
+        distance_from_gnb_map_units=80.0,
+        penetration_loss_db=99.0,
+        segment=((80.0, -10.0), (80.0, 10.0)),
+        distance_from_gnb_m=80.0,
+    )
+    geometry.exterior_surfaces_crossed = [exterior]
+    geometry.effective_surface_crossings = [exterior]
+    geometry.all_surface_crossings = [exterior]
+    geometry.blocking_building_ids = list(blocking_building_ids or [])
+    return geometry
+
+
 class GeometryPathLossAdapterTests(unittest.TestCase):
+    def test_o2i_adapter_uses_los_without_external_blocker(self) -> None:
+        request = o2i_path_loss_request_from_geometry(
+            geometry=_o2i_geometry(),
+            gnb=_gnb(),
+            bs_height_m=10.0,
+            ut_height_m=1.5,
+            penetration_model=LOW_LOSS,
+        )
+
+        self.assertEqual(request.basic_outdoor_request.los_state, LOS)
+        self.assertEqual(request.indoor_distance_m, 20.0)
+        self.assertEqual(request.indoor_distance_source, "geometry_measured")
+
+    def test_o2i_adapter_uses_nlos_when_another_building_blocks(self) -> None:
+        request = o2i_path_loss_request_from_geometry(
+            geometry=_o2i_geometry(blocking_building_ids=["blocker"]),
+            gnb=_gnb(),
+            bs_height_m=10.0,
+            ut_height_m=1.5,
+            penetration_model=LOW_LOSS,
+        )
+
+        self.assertEqual(request.basic_outdoor_request.los_state, NLOS)
+
+    def test_o2i_adapter_does_not_copy_raw_map_wall_loss(self) -> None:
+        request = o2i_path_loss_request_from_geometry(
+            geometry=_o2i_geometry(),
+            gnb=_gnb(),
+            bs_height_m=10.0,
+            ut_height_m=1.5,
+            penetration_model=LOW_LOSS,
+        )
+
+        self.assertFalse(hasattr(request, "penetration_loss_db"))
+
+    def test_o2i_adapter_rejects_non_o2i_link(self) -> None:
+        with self.assertRaises(UnsupportedGeometryLinkError):
+            o2i_path_loss_request_from_geometry(
+                geometry=_geometry(link_type=LINK_OUTDOOR_LOS, los_state=LOS),
+                gnb=_gnb(),
+                bs_height_m=10.0,
+                ut_height_m=1.5,
+                penetration_model=LOW_LOSS,
+            )
+
     def test_outdoor_los_maps_to_umi_los(self) -> None:
         request = path_loss_request_from_geometry(
             geometry=_geometry(link_type=LINK_OUTDOOR_LOS, los_state=LOS),
