@@ -15,3 +15,4 @@ class AgentIntent:
     target: str
     content_type: str
     size_bytes: int
+    requirement: str

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ran.contracts import MacAllocation, SchedulerRequest, SchedulerResult, RlcQueue
+from ran.contracts import MacAllocation, SchedulerRequest, SchedulerResult, RlcQueue, ChannelState
 from ran.radio.ofdm import estimate_transport_bytes
 
 
@@ -13,11 +13,11 @@ class PythonBaselineScheduler:
         active = [queue for queue in request.rlc_queues if queue.queued_bytes + queue.retransmission_bytes > 0]
         if not active:
             return SchedulerResult(tick=request.tick, allocations=[], debug={"reason": "no_active_queue"})
-        channel_by_ue = {state.ue_id: state for state in request.channel_states}
+        channel_by_ue = request.channel_states
         policy_by_slice = {policy.slice_id: policy for policy in request.slice_policies}
         weight_sum = 0.0
         weights: dict[tuple[str, int], float] = {}
-        active = sortByBSR(active)
+        # active = sortByBSR(active)
         i = 0
         for queue in active:
             #Initial trial allocations
@@ -30,7 +30,7 @@ class PythonBaselineScheduler:
         allocations: list[MacAllocation] = []
         for queue in active:
             
-            channel = channel_by_ue.get(queue.ue_id)
+            channel = channel_by_ue[queue.ue_id]
             ratio = weights[(queue.ue_id, queue.drb_id)] / weight_sum if weight_sum else 0.0
             prbs = max(1, int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
@@ -48,7 +48,7 @@ class PythonBaselineScheduler:
                     prbs=prbs,
                     mcs=mcs,
                     layers=layers,
-                    scheduled_bytes=scheduled,
+                    scheduled_bytes=scheduled, 
                     expected_error_rate=channel.estimated_packet_error_rate if channel else 0.2,
                     is_retransmission=queue.retransmission_bytes > 0,
                 )
@@ -78,7 +78,8 @@ def roundRobinScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, qu
     return channel_by_ue, policy_by_slice, weights, weight_sum, queue
 
 #Highest potential throughput gets most PRBs
-def maxThroughputScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue):
+def maxThroughputScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue, channel_states):
+    channel_states = sortByCQI(channel_states)
     
     return channel_by_ue, policy_by_slice, weights, weight_sum, queue 
 def grantBasedScheduling(channel_by_ue, policy_by_slice, weights, weight_sum, queue):
@@ -91,6 +92,16 @@ def sortByBSR(queues:list[RlcQueue]):
         check = queues
         for i in range(0, len(queues)-1):
             if (queues[i].queued_bytes + queues[i].retransmission_bytes < queues[i+1].queued_bytes + queues[i+1].retransmission_bytes):
+                temp = queues[i]
+                queues[i] = queues[i+1]
+                queues[i+1] = temp
+        if (check == queues):
+            return queues
+def sortByCQI(queues:list[ChannelState]):
+    while(True):
+        check = queues
+        for i in range(0, len(queues)-1):
+            if (queues[i].cqi < queues[i+1].cqi):
                 temp = queues[i]
                 queues[i] = queues[i+1]
                 queues[i+1] = temp

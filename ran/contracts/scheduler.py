@@ -25,10 +25,12 @@ class SchedulerRequest:
     rlc_queues: list[RlcQueue]  # rlc_queues: RLC 队列摘要。
     qos_flows: list[QoSFlow]  # qos_flows: QoS Flow 列表。
     drbs: list[Drb]  # drbs: DRB 列表。
+    requirements: list[str] #Maybe include in rlcQueue in future/have identifiers
     channel_states: list[ChannelState]  # channel_states: 信道状态。
     slice_policies: list[SlicePolicy]  # slice_policies: 切片策略。
     phr: list[float]
     harq_feedback: list[dict[str, object]] = field(default_factory=list)  # harq_feedback: HARQ 反馈占位。
+
     
 
 

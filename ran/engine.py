@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ran.scheduler import JavaSchedulerAdapter
+from ran.scheduler import PythonBaselineScheduler
 from ran.scenario import RanUploadScenario
 
 
@@ -9,7 +9,7 @@ class RanEngine:
 
     def __init__(self, scene, scheduler=None) -> None:
         self.scene = scene
-        self.scheduler = scheduler or JavaSchedulerAdapter()
+        self.scheduler = scheduler or PythonBaselineScheduler()
 
     def run_agent_upload_demo(self, *, tick: int = 1, max_ticks: int = 5000) -> list[dict[str, object]]:
         """Project implementation detail."""

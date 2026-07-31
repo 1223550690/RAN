@@ -55,4 +55,5 @@ def _request_from_dict(data: dict) -> SchedulerRequest:
         slice_policies=[SlicePolicy(**item) for item in data.get("slice_policies", [])],
         harq_feedback=list(data.get("harq_feedback", [])),
         phr=list(data["phr"]),
+        requirements=list(data["requirements"]),
     )
