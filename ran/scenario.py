@@ -32,15 +32,50 @@ class RanUploadScenario:
             content_type="video",
             size_bytes=100 * 1024 * 1024,
         )
+        # Second Agent (for multi-Agent extension)
+        self.intent2 = AgentIntent(
+            agent_id="student_b",
+            agent_pos=Position(560.0, 420.0),
+            action="upload",
+            target="youtube_server",
+            content_type="photo",
+            size_bytes=50 * 1024 * 1024,
+        )
         self.gnb = load_gnb_site_from_scene(scene)
         self.ue_state = build_demo_ue_state(
             agent_id=self.intent.agent_id,
             ue_id="student_a_phone",
             position=self.intent.agent_pos,
         )
+        self.ue_state2 = build_demo_ue_state(
+            agent_id=self.intent2.agent_id,
+            ue_id="student_b_phone",
+            position=self.intent2.agent_pos,
+        )
         self.ue_state = register_ue(self.ue_state)
+        self.ue_state2 = register_ue(self.ue_state2)
+
         self.ue_request = build_ue_request(self.intent, ue_id=self.ue_state.ue_id, selected_access="5g")
+        self.ue_request2 = build_ue_request(self.intent2,ue_id=self.ue_state2.ue_id, selected_access="5g")
         self.access = select_access(self.ue_request, self.gnb)
+        self.access2 = select_access(self.ue_request2, self.gnb)
+        self.intents = [
+        self.intent,
+        self.intent2,
+        ]
+        self.ue_states = [
+        self.ue_state,
+        self.ue_state2,
+        ]
+        self.ue_requests = [
+        self.ue_request,
+        self.ue_request2,
+        ]
+        self.access_selections = [
+        self.access,
+        self.access2,
+        ]
+        
         self.slice_id = classify_slice(self.ue_request.service_type)
         self.session = establish_pdu_session(self.ue_state, self.ue_request, slice_id=self.slice_id)
         self.traffic = build_ip_traffic(self.ue_request, self.session)
@@ -58,7 +93,6 @@ class RanUploadScenario:
         self.cumulative_n3_loss_bytes = 0
         self.cumulative_n6_loss_bytes = 0
         self.last_state: dict[str, object] | None = None
-
     def step(self, tick: int) -> dict[str, object]:
         """Project implementation detail."""
 
