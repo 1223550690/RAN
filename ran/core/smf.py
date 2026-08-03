@@ -24,6 +24,12 @@ class UpfProfile:
     allowed_slices: frozenset[str]
     gateway: IPv4Address | None = None
 
+    def __post_init__(self) -> None:
+        if not self.dnn or not self.upf_id:
+            raise ValueError("UPF dnn and upf_id must not be empty")
+        if self.gateway is not None and self.gateway not in self.ipv4_pool:
+            raise ValueError(f"gateway {self.gateway} is outside address pool {self.ipv4_pool}")
+
     @classmethod
     def from_dict(cls, value: dict[str, object]) -> UpfProfile:
         pool = ip_network(str(value["ipv4_pool"]), strict=False)
@@ -83,9 +89,12 @@ class SessionManagementFunction:
     ) -> None:
         if not smf_id:
             raise ValueError("smf_id must not be empty")
-        profiles = {profile.dnn: profile for profile in upf_profiles}
+        profile_list = tuple(upf_profiles)
+        profiles = {profile.dnn: profile for profile in profile_list}
         if not profiles:
             raise ValueError("at least one UPF profile is required")
+        if len(profiles) != len(profile_list):
+            raise ValueError("UPF profile DNN values must be unique")
         self.smf_id = smf_id
         self._profiles = profiles
         self._sessions: dict[tuple[str, int], PduSession] = {}
@@ -169,6 +178,8 @@ class SessionManagementFunction:
     def _validate_request(self, ue: UEState, request: UERequest, slice_id: str) -> None:
         if ue.ue_id != request.ue_id:
             raise SmfSessionError("UE state and request refer to different ue_id values")
+        if ue.agent_id != request.agent_id:
+            raise SmfSessionError("UE state and request refer to different agent_id values")
         if ue.rm_state != "REGISTERED":
             raise SmfSessionError(f"UE {ue.ue_id} must be REGISTERED before PDU session establishment")
         if not slice_id:
@@ -199,7 +210,10 @@ class SessionManagementFunction:
 
     def _allocate_ipv4(self, profile: UpfProfile, requested_ip: str | None) -> IPv4Address:
         if requested_ip is not None:
-            parsed = ip_address(requested_ip)
+            try:
+                parsed = ip_address(requested_ip)
+            except ValueError as exc:
+                raise SmfSessionError(f"UE requested an invalid IP address: {requested_ip!r}") from exc
             is_usable = (
                 isinstance(parsed, IPv4Address)
                 and parsed in profile.ipv4_pool

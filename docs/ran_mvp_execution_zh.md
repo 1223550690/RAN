@@ -80,8 +80,8 @@ AgentIntent
 -> IPTrafficBatch
 -> QoSFlow / QFI
 -> SlicePolicy
--> SDAP: QFI -> DRB -> SdapOutput
--> PDCPBatch
+-> SDAP: QFI -> DRB
+-> PDCPBatch（当前主场景兼容路径）
 -> RLCQueue
 -> ChannelState
 -> SchedulerRequest JSON
@@ -115,8 +115,8 @@ AgentIntent
 | IP 业务 | 生成上传业务批次 | `UERequest`, `PduSession` | `IPTrafficBatch` | `ran/traffic/ip.py`, `ran/traffic/service_profile.py` |
 | QoS Flow | 选择 QFI、5QI、时延预算 | `UERequest`, service profile | `QoSFlow` | `ran/qos.py`, `configs/ran/service_profiles.json` |
 | 网络切片 | 按业务类型分类切片 | service type | `slice_id`, `SlicePolicy` | `ran/slicing/classifier.py`, `ran/slicing/controller.py`, `configs/ran/slice_policies.json` |
-| SDAP | QFI 映射到 DRB，并输出正式 SDAP 批次 | `IPTrafficBatch`, `QoSFlow`, `UERequest` | `SdapOutput`（含 `Drb`） | `ran/protocol/sdap.py`, `ran/contracts/bearer.py` |
-| PDCP | 消费 SDAP 输出并生成最小 PDCP 批处理 | `SdapOutput` | `PdcpBatch` | `ran/protocol/pdcp.py` |
+| SDAP | QFI 映射到 DRB；独立 API 可另外输出正式交接批次 | `QoSFlow`, `UERequest`（`process_sdap` 另接收 `IPTrafficBatch`） | `Drb` 或 `SdapOutput` | `ran/protocol/sdap.py`, `ran/contracts/bearer.py` |
+| PDCP | 按当前主场景兼容路径生成最小 PDCP 批处理 | `IPTrafficBatch`, `Drb` | `PdcpBatch` | `ran/protocol/pdcp.py` |
 | RLC | 维护队列和重传字节 | `PdcpBatch`, `Drb` | `RlcQueue` | `ran/protocol/rlc.py`, `ran/contracts/bearer.py` |
 | 地图信道 | 计算距离、墙损耗、SINR、CQI | UE 位置、gNB 位置、地图墙体 | `ChannelState` | `ran/radio/channel.py`, `ran/radio/topology_adapter.py`, `services/map_service.py` |
 | Scheduler 请求 | 汇总 MAC 调度输入 | RLC、QoS、DRB、Channel、Slice | `SchedulerRequest` | `ran/gnb/du.py`, `ran/contracts/scheduler.py` |
@@ -300,8 +300,8 @@ MVP 不单独设计 Wi-Fi 文件夹，也不建立第二条 Wi-Fi 链路。当�
 - SMF：动态分配 PDU Session ID/UE IP、选择 UPF并维护会话注册表，见 `ran/core/smf.py`。
 - IP traffic：按端点配置生成 UL/DL TCP/UDP 流并保留包/字节证据，见 `ran/traffic/ip.py`。
 - QoS：使用可验证的 service profile 与 QoS rules，区分 QFI 和 5QI，见 `ran/qos.py`。
-- SDAP：动态分配 default/dedicated/shared DRB，维护 `qfi_list`，并正式输出 `SdapOutput` 给 PDCP，见 `ran/protocol/sdap.py`。
-- PDCP：消费 `SdapOutput`，记录 SDAP 载荷/header 转移证据并估算 PDCP header 和 SN，见 `ran/protocol/pdcp.py`。
+- SDAP：动态分配 default/dedicated/shared DRB，维护 `qfi_list`，并可通过独立 API 输出 `SdapOutput` 交接契约，见 `ran/protocol/sdap.py`。
+- PDCP：当前主场景仍从 `IPTrafficBatch` 和 `Drb` 生成 PDCP 批次；接入 `SdapOutput` 属于 PDCP 模块后续集成项，见 `ran/protocol/pdcp.py`。
 - RLC：只维护字节队列和重传字节，见 `ran/protocol/rlc.py`。
 - Channel：距离、墙损耗、简化 path loss，见 `ran/radio/channel.py`。
 - Scheduler：Python fallback 分配 PRB/MCS/layers，见 `ran/scheduler/python_baseline.py`。

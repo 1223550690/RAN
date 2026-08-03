@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from ipaddress import ip_address
 from pathlib import Path
+from threading import RLock
 from typing import Iterable
 
 from ran.contracts import IPTrafficBatch, PduSession, UERequest
@@ -102,10 +103,16 @@ class IPPacketFactory:
     """Build validated UL/DL IP flow batches from UE and PDU-session state."""
 
     def __init__(self, endpoints: Iterable[EndpointProfile] = DEFAULT_ENDPOINTS) -> None:
-        endpoint_map = {endpoint.target: endpoint for endpoint in endpoints}
+        endpoint_list = tuple(endpoints)
+        endpoint_map = {endpoint.target: endpoint for endpoint in endpoint_list}
         if not endpoint_map:
             raise ValueError("at least one endpoint profile is required")
+        if len(endpoint_map) != len(endpoint_list):
+            raise ValueError("endpoint targets must be unique")
         self._endpoints = endpoint_map
+        self._flow_ports: dict[tuple[str, int, str, str], int] = {}
+        self._used_ports: dict[str, set[int]] = {}
+        self._lock = RLock()
 
     @classmethod
     def from_json(cls, path: str | Path) -> IPPacketFactory:
@@ -119,12 +126,13 @@ class IPPacketFactory:
         if ip_address(endpoint.ip).version != ip_version:
             raise IPTrafficError("endpoint and UE addresses must use the same IP version")
 
+        ue_port = self._ue_port(request, session)
         if request.direction == "UL":
             src_ip, dst_ip = session.ue_ip, endpoint.ip
-            src_port, dst_port = self._ue_port(session), endpoint.port
+            src_port, dst_port = ue_port, endpoint.port
         else:
             src_ip, dst_ip = endpoint.ip, session.ue_ip
-            src_port, dst_port = endpoint.port, self._ue_port(session)
+            src_port, dst_port = endpoint.port, ue_port
 
         ip_header_bytes = 20 if ip_version == 4 else 40
         transport_header_bytes = 20 if endpoint.protocol == "TCP" else 8
@@ -167,6 +175,33 @@ class IPPacketFactory:
             }
         )
         return traffic
+
+    def release_session(self, ue_id: str, pdu_session_id: int) -> None:
+        """Release ephemeral ports owned by a completed PDU session."""
+
+        with self._lock:
+            released_ports = {
+                port
+                for key, port in self._flow_ports.items()
+                if key[0] == ue_id and key[1] == pdu_session_id
+            }
+            self._flow_ports = {
+                key: port
+                for key, port in self._flow_ports.items()
+                if not (key[0] == ue_id and key[1] == pdu_session_id)
+            }
+            used = self._used_ports.get(ue_id)
+            if used is not None:
+                used.difference_update(released_ports)
+                if not used:
+                    self._used_ports.pop(ue_id, None)
+
+    def reset(self) -> None:
+        """Clear runtime port allocation state."""
+
+        with self._lock:
+            self._flow_ports.clear()
+            self._used_ports.clear()
 
     def _resolve_endpoint(self, request: UERequest) -> EndpointProfile:
         endpoint = self._endpoints.get(request.target)
@@ -218,9 +253,29 @@ class IPPacketFactory:
             f"{request.direction.lower()}_{safe_target}"
         )
 
-    @staticmethod
-    def _ue_port(session: PduSession) -> int:
-        return 49_152 + session.pdu_session_id
+    def _ue_port(self, request: UERequest, session: PduSession) -> int:
+        # Direction is deliberately excluded: UL and DL packets of one
+        # connection use the same UE-side port.
+        flow_key = (
+            request.ue_id,
+            session.pdu_session_id,
+            request.service_type,
+            request.target,
+        )
+        with self._lock:
+            existing = self._flow_ports.get(flow_key)
+            if existing is not None:
+                return existing
+
+            used = self._used_ports.setdefault(request.ue_id, set())
+            preferred = 49_152 + session.pdu_session_id
+            candidates = range(preferred, 65_536)
+            for candidate in candidates:
+                if candidate not in used:
+                    used.add(candidate)
+                    self._flow_ports[flow_key] = candidate
+                    return candidate
+        raise IPTrafficError(f"UE {request.ue_id} has exhausted all ephemeral source ports")
 
 
 def _build_default_factory() -> IPPacketFactory:
@@ -242,3 +297,7 @@ def build_ip_traffic(
     """Compatibility entry point used by the existing scenario."""
 
     return (factory or _DEFAULT_FACTORY).build(request, session)
+
+
+def reset_default_ip_packet_factory() -> None:
+    _DEFAULT_FACTORY.reset()

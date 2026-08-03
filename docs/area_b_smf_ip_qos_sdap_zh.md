@@ -1,15 +1,17 @@
 # Area B：SMF、IP Packet、QoS、SDAP 实现说明
 
 本文说明 `boyu/area-b` 中四个模块的实现边界、状态模型、配置入口和集成方式。
-实现保留了 MVP 原有兼容入口，并将主场景升级为包含正式 SDAP 输出的链路：
+实现保留了 MVP 原有兼容入口，并在 Area B 边界提供可单独调用的正式 SDAP 输出链路：
 
 ```text
 establish_pdu_session()
 -> build_ip_traffic()
 -> build_qos_flow()
 -> process_sdap()
--> build_pdcp_batch()
 ```
+
+现有主场景仍通过 `map_qos_flow_to_drb()` 兼容入口把 DRB 交给 PDCP。
+`SdapOutput` 已经作为明确的下游交接契约，但 PDCP 内部接入由对应模块负责人完成。
 
 同时，每个模块都提供独立的状态管理类，便于多 UE、多会话、单元测试和后续依赖注入。
 
@@ -23,7 +25,7 @@ establish_pdu_session()
 
 `SessionManagementFunction` 实现：
 
-- 校验 UE 已注册、UE ID 一致、slice 已授权；
+- 校验 UE 已注册、UE ID/Agent ID 一致、slice 已授权；
 - 按 DNN 和 slice 选择 UPF；
 - 为每个 UE 动态分配 `PDU Session ID`（1-15）；
 - 从 DNN 对应地址池分配唯一 IPv4 地址；
@@ -56,6 +58,8 @@ establish_pdu_session()
 - TCP 和 UDP 由端点配置确定；
 - 未配置的符号目标会明确报错；IP 字面量可以作为受控回退；
 - `service_id` 包含 UE、业务、PDU Session、方向和目标，保持可读且可区分。
+- 同一 PDU Session 内的不同连接动态分配不同 UE 临时端口，避免五元组冲突；
+- UL/DL 同一连接保持相同 UE 侧端口，并支持会话释放后回收端口。
 
 `IPTrafficBatch` 不逐个创建上万个 Python packet 对象，但保留：
 
@@ -90,6 +94,7 @@ establish_pdu_session()
 - 按 `QoSRule` 的 service type、target、协议、端口和方向匹配 profile；
 - 同一 PDU Session 内的 QFI 冲突检测与重新分配；
 - 相同 flow 的幂等分类；
+- 识别 PDU Session ID 复用和上下文变化，清除旧 slice/QFI 缓存；
 - `qos_hint.latency_budget_ms` 只允许收紧 profile，不能放宽网络策略；
 - 活动会话、DNN、UE、方向和 traffic/session identity 校验。
 
@@ -112,8 +117,9 @@ establish_pdu_session()
 - 文件/网页/上传等可靠业务使用 RLC AM；
 - 游戏、通话、实时视频、控制等时延敏感业务使用 RLC UM；
 - 多 QFI 共享后启用 SDAP header，避免接收端丢失 QFI 区分；
-- `process_sdap()` 正式输出 `SdapOutput`，包含业务标识、QFI、DRB、PDU 数、载荷字节、SDAP header 字节和输出字节；
-- PDCP 的正式输入改为 `SdapOutput`，主场景不再用 `IPTrafficBatch + Drb` 绕过 SDAP；
+- `process_sdap()` 正式输出 `SdapOutput`，包含业务标识、QFI、DRB、PDU 数、应用字节、IP/传输层 header 字节、SDAP header 字节和输出字节；
+- 识别会话编号、slice 或 QFI 复用后的旧 DRB 映射，重建当前上下文；
+- `SdapOutput` 是供下游 PDCP 负责人接入的交接契约，本分支不修改 PDCP 实现；
 - 支持映射查询、列举、会话释放和测试重置。
 
 ## 5. 配置与兼容性
@@ -135,10 +141,10 @@ session = establish_pdu_session(ue, request, slice_id="embb", smf=my_smf)
 traffic = build_ip_traffic(request, session, factory=my_packet_factory)
 qos = build_qos_flow(request, session, traffic=traffic, classifier=my_classifier)
 sdap_output = process_sdap(traffic, qos, request, mapper=my_sdap_mapper)
-pdcp_batch = build_pdcp_batch(sdap_output)
 ```
 
-不传参数时使用默认实例，原有场景无需改写。
+不传管理器参数时使用默认实例。原有场景仍可使用
+`map_qos_flow_to_drb()`，因此无需改写 PDCP 或 Scenario。
 
 ## 6. 验证
 
@@ -155,7 +161,8 @@ python -m unittest discover -s tests -v
 - UL/DL 五元组、TCP/UDP、packet/byte 统计和错误目标；
 - QFI/5QI 区分、GBR/MBR、规则、hint、QFI 冲突；
 - AM/UM 选择、default/dedicated/shared DRB、`qfi_list` 和映射查询；
-- `SdapOutput` 正式输出、SDAP header 字节统计以及向 `PdcpBatch` 的传递；
+- `SdapOutput` 正式输出、IP/传输层字节与 SDAP header 字节统计；
+- 会话、slice 和 QFI 复用后不返回旧 QoS/DRB 状态；
 - 数据契约的非法值拒绝。
 
 端到端 smoke test：
@@ -165,4 +172,5 @@ python -m ran.demo --mode aggregate --max-ticks 5000
 ```
 
 当前实现仍保持 MVP 的抽象边界：不模拟完整 PFCP、真实 IP 分片、完整 NAS QoS rule
-下发或逐比特 SDAP 编解码；但 SDAP 已有正式、可观测、可传递给 PDCP 的批量输出契约。
+下发或逐比特 SDAP 编解码；但 SDAP 已有正式、可观测、可供 PDCP
+后续接入的批量输出契约。

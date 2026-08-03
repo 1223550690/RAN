@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from threading import RLock
 from typing import Iterable
@@ -78,6 +79,7 @@ class QoSFlowClassifier:
         )
         self._flows: dict[tuple[str, int, str], QoSFlow] = {}
         self._qfi_owners: dict[tuple[str, int], dict[int, str]] = {}
+        self._session_contexts: dict[tuple[str, int], tuple[str, str, str, str, str, str]] = {}
         self._lock = RLock()
 
     def build(
@@ -92,27 +94,61 @@ class QoSFlowClassifier:
         profile = service_profile_for(profile_name)
         flow_identity = traffic.service_id if traffic is not None else self._fallback_flow_identity(request)
         flow_key = (session.ue_id, session.pdu_session_id, flow_identity)
+        session_key = (session.ue_id, session.pdu_session_id)
+        session_context = (
+            session.dnn,
+            session.slice_id,
+            session.pdu_session_type,
+            session.ue_ip,
+            session.smf_id,
+            session.upf_id,
+        )
+
+        packet_delay_budget_ms = float(profile["packet_delay_budget_ms"])
+        requested_budget = request.qos_hint.get("latency_budget_ms")
+        if requested_budget is not None:
+            try:
+                requested_budget_value = float(requested_budget)
+            except (TypeError, ValueError) as exc:
+                raise QoSClassificationError(
+                    "qos_hint.latency_budget_ms must be a finite positive number"
+                ) from exc
+            if not math.isfinite(requested_budget_value) or requested_budget_value <= 0:
+                raise QoSClassificationError(
+                    "qos_hint.latency_budget_ms must be a finite positive number"
+                )
+            packet_delay_budget_ms = min(packet_delay_budget_ms, requested_budget_value)
+
+        gbr_value = profile.get("gbr_mbps")
+        mbr_value = profile.get("mbr_mbps")
+        expected_gbr = float(gbr_value) if gbr_value is not None else None
+        expected_mbr = float(mbr_value) if mbr_value is not None else None
 
         with self._lock:
+            previous_context = self._session_contexts.get(session_key)
+            if previous_context is not None and previous_context != session_context:
+                self._release_session_locked(*session_key)
+            self._session_contexts[session_key] = session_context
+
             existing = self._flows.get(flow_key)
-            if existing is not None:
+            if existing is not None and self._flow_matches(
+                existing,
+                request=request,
+                session=session,
+                profile=profile,
+                packet_delay_budget_ms=packet_delay_budget_ms,
+                gbr_mbps=expected_gbr,
+                mbr_mbps=expected_mbr,
+            ):
                 return existing
+            if existing is not None:
+                self._drop_flow_locked(flow_key, session_key, flow_identity)
+
             qfi = self._allocate_qfi(
-                session_key=(session.ue_id, session.pdu_session_id),
+                session_key=session_key,
                 flow_identity=flow_identity,
                 preferred=int(profile["qfi"]),
             )
-
-            packet_delay_budget_ms = float(profile["packet_delay_budget_ms"])
-            requested_budget = request.qos_hint.get("latency_budget_ms")
-            if requested_budget is not None:
-                requested_budget_value = float(requested_budget)
-                if requested_budget_value <= 0:
-                    raise QoSClassificationError("qos_hint.latency_budget_ms must be positive")
-                packet_delay_budget_ms = min(packet_delay_budget_ms, requested_budget_value)
-
-            gbr_value = profile.get("gbr_mbps")
-            mbr_value = profile.get("mbr_mbps")
             flow = QoSFlow(
                 pdu_session_id=session.pdu_session_id,
                 qfi=qfi,
@@ -124,8 +160,8 @@ class QoSFlowClassifier:
                 packet_error_rate=float(profile["packet_error_rate"]),
                 resource_type=str(profile["resource_type"]),
                 slice_id=session.slice_id,
-                gbr_mbps=float(gbr_value) if gbr_value is not None else None,
-                mbr_mbps=float(mbr_value) if mbr_value is not None else None,
+                gbr_mbps=expected_gbr,
+                mbr_mbps=expected_mbr,
             )
             self._flows[flow_key] = flow
             return flow
@@ -143,17 +179,63 @@ class QoSFlowClassifier:
 
     def release_session(self, ue_id: str, pdu_session_id: int) -> None:
         with self._lock:
-            self._flows = {
-                key: flow
-                for key, flow in self._flows.items()
-                if not (key[0] == ue_id and key[1] == pdu_session_id)
-            }
-            self._qfi_owners.pop((ue_id, pdu_session_id), None)
+            self._release_session_locked(ue_id, pdu_session_id)
 
     def reset(self) -> None:
         with self._lock:
             self._flows.clear()
             self._qfi_owners.clear()
+            self._session_contexts.clear()
+
+    def _release_session_locked(self, ue_id: str, pdu_session_id: int) -> None:
+        self._flows = {
+            key: flow
+            for key, flow in self._flows.items()
+            if not (key[0] == ue_id and key[1] == pdu_session_id)
+        }
+        session_key = (ue_id, pdu_session_id)
+        self._qfi_owners.pop(session_key, None)
+        self._session_contexts.pop(session_key, None)
+
+    def _drop_flow_locked(
+        self,
+        flow_key: tuple[str, int, str],
+        session_key: tuple[str, int],
+        flow_identity: str,
+    ) -> None:
+        self._flows.pop(flow_key, None)
+        owners = self._qfi_owners.get(session_key)
+        if owners is None:
+            return
+        stale_qfis = [qfi for qfi, owner in owners.items() if owner == flow_identity]
+        for qfi in stale_qfis:
+            owners.pop(qfi, None)
+        if not owners:
+            self._qfi_owners.pop(session_key, None)
+
+    @staticmethod
+    def _flow_matches(
+        flow: QoSFlow,
+        *,
+        request: UERequest,
+        session: PduSession,
+        profile: dict[str, object],
+        packet_delay_budget_ms: float,
+        gbr_mbps: float | None,
+        mbr_mbps: float | None,
+    ) -> bool:
+        return (
+            flow.direction == request.direction
+            and flow.service_type == request.service_type
+            and flow.slice_id == session.slice_id
+            and flow.five_qi == int(profile["five_qi"])
+            and flow.priority == int(profile["priority"])
+            and flow.packet_delay_budget_ms == packet_delay_budget_ms
+            and flow.packet_error_rate == float(profile["packet_error_rate"])
+            and flow.resource_type == str(profile["resource_type"])
+            and flow.gbr_mbps == gbr_mbps
+            and flow.mbr_mbps == mbr_mbps
+        )
 
     def _select_profile(self, request: UERequest, traffic: IPTrafficBatch | None) -> str:
         for rule in self._rules:
@@ -203,6 +285,8 @@ class QoSFlowClassifier:
                 raise QoSClassificationError("IP traffic and UE request DNN values do not match")
             if traffic.metadata.get("service_type") != request.service_type:
                 raise QoSClassificationError("IP traffic and UE request service types do not match")
+            if traffic.metadata.get("slice_id") != session.slice_id:
+                raise QoSClassificationError("IP traffic and PDU session slices do not match")
             if traffic.direction != request.direction:
                 raise QoSClassificationError("IP traffic and UE request directions do not match")
 
