@@ -5,7 +5,13 @@ import unittest
 
 from ran.contracts import IPTrafficBatch, PduSession, Position, QoSFlow, UERequest, UEState
 from ran.core import SessionManagementFunction, SmfSessionError, reset_default_smf
-from ran.protocol import SdapMapper, reset_default_sdap_mapper
+from ran.protocol import (
+    SdapMapper,
+    SdapMappingError,
+    SdapOutput,
+    build_pdcp_batch,
+    reset_default_sdap_mapper,
+)
 from ran.qos import (
     QoSClassificationError,
     QoSFlowClassifier,
@@ -333,6 +339,92 @@ class SdapMapperTests(unittest.TestCase):
         self.mapper.release_session(request.ue_id, 1)
         self.assertEqual(self.mapper.list_mappings(ue_id=request.ue_id), [])
 
+    def test_emits_formal_output_that_pdcp_consumes(self) -> None:
+        request = build_request(size_bytes=3_000)
+        traffic = self._traffic(request)
+        output = self.mapper.process(
+            traffic,
+            self._flow(service_type="video_upload", qfi=9),
+            request,
+        )
+        pdcp = build_pdcp_batch(output)
+
+        self.assertIsInstance(output, SdapOutput)
+        self.assertEqual(output.payload_bytes, 3_000)
+        self.assertEqual(output.output_bytes, 3_000)
+        self.assertFalse(output.sdap_header_present)
+        self.assertEqual(pdcp.source_service_id, traffic.service_id)
+        self.assertEqual(pdcp.drb_id, output.drb.drb_id)
+        self.assertEqual(pdcp.qfi, output.qfi)
+        self.assertEqual(pdcp.payload_bytes, output.output_bytes)
+
+    def test_sdap_header_bytes_are_transferred_to_pdcp(self) -> None:
+        first_request = build_request()
+        first_output = self.mapper.process(
+            self._traffic(first_request),
+            self._flow(service_type="video_upload", qfi=9),
+            first_request,
+        )
+        second_request = build_request(
+            target="web_server",
+            service_type="web",
+            size_bytes=3_000,
+        )
+        second_output = self.mapper.process(
+            self._traffic(second_request),
+            self._flow(service_type="web", qfi=10, priority=7),
+            second_request,
+        )
+        pdcp = build_pdcp_batch(second_output)
+
+        self.assertFalse(first_output.sdap_header_present)
+        self.assertFalse(first_output.drb.sdap_header_present)
+        self.assertTrue(second_output.sdap_header_present)
+        self.assertEqual(second_output.pdu_count, math.ceil(3_000 / 1_460))
+        self.assertEqual(second_output.header_bytes, second_output.pdu_count)
+        self.assertEqual(pdcp.sdap_header_bytes, second_output.header_bytes)
+        self.assertEqual(pdcp.payload_bytes, second_output.output_bytes)
+
+    def test_rejects_mismatched_ip_to_sdap_transfer(self) -> None:
+        request = build_request()
+        traffic = self._traffic(request)
+        traffic.metadata["pdu_session_id"] = 2
+        with self.assertRaises(SdapMappingError):
+            self.mapper.process(
+                traffic,
+                self._flow(service_type="video_upload", qfi=9),
+                request,
+            )
+
+    def test_legacy_pdcp_entry_point_remains_compatible(self) -> None:
+        request = build_request(size_bytes=3_000)
+        traffic = self._traffic(request)
+        drb = self.mapper.map(self._flow(service_type="video_upload", qfi=9), request)
+        pdcp = build_pdcp_batch(traffic=traffic, drb=drb)
+
+        self.assertEqual(pdcp.drb_id, drb.drb_id)
+        self.assertEqual(pdcp.qfi, drb.qfi)
+        self.assertEqual(pdcp.payload_bytes, traffic.remaining_bytes)
+        self.assertEqual(pdcp.sdap_header_bytes, 0)
+
+    @staticmethod
+    def _traffic(request: UERequest) -> IPTrafficBatch:
+        return IPTrafficBatch(
+            service_id=f"{request.ue_id}_{request.service_type}_test",
+            src_ip="10.20.0.2",
+            dst_ip="10.20.1.80",
+            protocol="TCP",
+            dst_port=443,
+            direction=request.direction,
+            total_bytes=request.size_bytes,
+            remaining_bytes=request.size_bytes,
+            metadata={
+                "pdu_session_id": 1,
+                "slice_id": "embb",
+                "service_type": request.service_type,
+            },
+        )
+
     @staticmethod
     def _flow(
         *,
@@ -406,10 +498,16 @@ class ScenarioIntegrationTests(unittest.TestCase):
         self.assertEqual(scenario.session.pdu_session_id, scenario.qos_flow.pdu_session_id)
         self.assertEqual(scenario.qos_flow.qfi, scenario.drb.qfi)
         self.assertIn(scenario.qos_flow.qfi, scenario.drb.qfi_list)
+        self.assertEqual(scenario.sdap_output.qfi, scenario.qos_flow.qfi)
+        self.assertEqual(scenario.sdap_output.drb.drb_id, scenario.drb.drb_id)
+        self.assertEqual(scenario.pdcp_batch.drb_id, scenario.sdap_output.drb.drb_id)
+        self.assertEqual(scenario.pdcp_batch.payload_bytes, scenario.sdap_output.output_bytes)
         self.assertEqual(scenario.session.slice_id, scenario.qos_flow.slice_id)
         self.assertEqual(scenario.traffic.metadata["smf_id"], scenario.session.smf_id)
         self.assertGreater(scenario.traffic.packet_count, 0)
         self.assertEqual(state["traffic"]["metadata"]["packet_count"], scenario.traffic.packet_count)
+        self.assertEqual(state["sdap_output"]["qfi"], scenario.qos_flow.qfi)
+        self.assertEqual(state["pdcp_batch"]["drb_id"], scenario.drb.drb_id)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from threading import RLock
 
-from ran.contracts import Direction, Drb, QoSFlow, UERequest
+from ran.contracts import Direction, Drb, IPTrafficBatch, QoSFlow, UERequest
 
 
 class SdapMappingError(ValueError):
@@ -21,6 +22,52 @@ class SdapMapping:
     direction: Direction
     default_drb: bool
     sdap_header_present: bool
+
+
+@dataclass(frozen=True, slots=True)
+class SdapOutput:
+    """A formal SDAP output batch ready to be consumed by PDCP.
+
+    The selected DRB travels with byte-level evidence. One octet of SDAP
+    header is accounted for per represented PDU when an explicit QFI header
+    is required.
+    """
+
+    service_id: str
+    ue_id: str
+    pdu_session_id: int
+    qfi: int
+    slice_id: str
+    direction: Direction
+    drb: Drb
+    payload_bytes: int
+    pdu_count: int
+    sdap_header_present: bool
+    header_bytes: int
+    output_bytes: int
+
+    def __post_init__(self) -> None:
+        if not self.service_id:
+            raise ValueError("service_id must not be empty")
+        if self.payload_bytes < 0 or self.pdu_count < 0:
+            raise ValueError("SDAP payload and PDU count must not be negative")
+        if self.header_bytes < 0:
+            raise ValueError("SDAP header bytes must not be negative")
+        if self.sdap_header_present != self.drb.sdap_header_present:
+            raise ValueError("SDAP header flag and DRB state do not match")
+        expected_header_bytes = self.pdu_count if self.sdap_header_present else 0
+        if self.header_bytes != expected_header_bytes:
+            raise ValueError("SDAP header bytes do not match the represented PDU count")
+        if self.output_bytes != self.payload_bytes + self.header_bytes:
+            raise ValueError("SDAP output bytes must equal payload plus header bytes")
+        if self.drb.ue_id != self.ue_id:
+            raise ValueError("SDAP output UE and DRB UE do not match")
+        if self.drb.pdu_session_id != self.pdu_session_id:
+            raise ValueError("SDAP output session and DRB session do not match")
+        if self.drb.qfi != self.qfi or self.drb.direction != self.direction:
+            raise ValueError("SDAP output QFI/direction and DRB do not match")
+        if self.drb.slice_id != self.slice_id:
+            raise ValueError("SDAP output slice and DRB slice do not match")
 
 
 _AM_SERVICES = frozenset(
@@ -105,6 +152,46 @@ class SdapMapper:
 
             self._flow_drbs[flow_key] = flow_drb
             return flow_drb
+
+    def process(
+        self,
+        traffic: IPTrafficBatch,
+        qos_flow: QoSFlow,
+        request: UERequest,
+        *,
+        max_batch_bytes: int | None = None,
+    ) -> SdapOutput:
+        """Map a QoS flow and emit the formal SDAP batch passed to PDCP."""
+
+        self._validate_transfer_inputs(traffic, qos_flow, request)
+        if max_batch_bytes is not None and max_batch_bytes <= 0:
+            raise SdapMappingError("max_batch_bytes must be positive when provided")
+
+        drb = self._snapshot_drb(self.map(qos_flow, request))
+        payload_bytes = min(
+            traffic.remaining_bytes,
+            max_batch_bytes if max_batch_bytes is not None else traffic.remaining_bytes,
+        )
+        pdu_count = (
+            math.ceil(payload_bytes / traffic.payload_bytes_per_packet)
+            if payload_bytes
+            else 0
+        )
+        header_bytes = pdu_count if drb.sdap_header_present else 0
+        return SdapOutput(
+            service_id=traffic.service_id,
+            ue_id=request.ue_id,
+            pdu_session_id=qos_flow.pdu_session_id,
+            qfi=qos_flow.qfi,
+            slice_id=qos_flow.slice_id,
+            direction=qos_flow.direction,
+            drb=drb,
+            payload_bytes=payload_bytes,
+            pdu_count=pdu_count,
+            sdap_header_present=drb.sdap_header_present,
+            header_bytes=header_bytes,
+            output_bytes=payload_bytes + header_bytes,
+        )
 
     def get_mapping(
         self,
@@ -207,6 +294,24 @@ class SdapMapper:
         return f"shared:{qos_flow.slice_id}:{rlc_mode}"
 
     @staticmethod
+    def _snapshot_drb(drb: Drb) -> Drb:
+        """Detach an emitted SDAP result from later mutable mapping updates."""
+
+        return Drb(
+            drb_id=drb.drb_id,
+            ue_id=drb.ue_id,
+            pdu_session_id=drb.pdu_session_id,
+            qfi=drb.qfi,
+            qfi_list=list(drb.qfi_list),
+            slice_id=drb.slice_id,
+            direction=drb.direction,
+            rlc_mode=drb.rlc_mode,
+            priority=drb.priority,
+            default_drb=drb.default_drb,
+            sdap_header_present=drb.sdap_header_present,
+        )
+
+    @staticmethod
     def _validate_inputs(qos_flow: QoSFlow, request: UERequest) -> None:
         if qos_flow.direction != request.direction:
             raise SdapMappingError("QoS flow and UE request directions do not match")
@@ -216,6 +321,27 @@ class SdapMapper:
             raise SdapMappingError("QFI must be in the range 1..63")
         if not 1 <= qos_flow.pdu_session_id <= 15:
             raise SdapMappingError("PDU session identity must be in the range 1..15")
+
+    @staticmethod
+    def _validate_transfer_inputs(
+        traffic: IPTrafficBatch,
+        qos_flow: QoSFlow,
+        request: UERequest,
+    ) -> None:
+        if traffic.direction != qos_flow.direction:
+            raise SdapMappingError("IP traffic and QoS flow directions do not match")
+        if traffic.direction != request.direction:
+            raise SdapMappingError("IP traffic and UE request directions do not match")
+        metadata = traffic.metadata
+        session_id = metadata.get("pdu_session_id")
+        if session_id is not None and session_id != qos_flow.pdu_session_id:
+            raise SdapMappingError("IP traffic and QoS flow sessions do not match")
+        slice_id = metadata.get("slice_id")
+        if slice_id is not None and slice_id != qos_flow.slice_id:
+            raise SdapMappingError("IP traffic and QoS flow slices do not match")
+        service_type = metadata.get("service_type")
+        if service_type is not None and service_type != request.service_type:
+            raise SdapMappingError("IP traffic and UE request service types do not match")
 
 
 _DEFAULT_MAPPER = SdapMapper()
@@ -230,6 +356,24 @@ def map_qos_flow_to_drb(
     """Compatibility entry point used by the existing scenario."""
 
     return (mapper or _DEFAULT_MAPPER).map(qos_flow, request)
+
+
+def process_sdap(
+    traffic: IPTrafficBatch,
+    qos_flow: QoSFlow,
+    request: UERequest,
+    *,
+    mapper: SdapMapper | None = None,
+    max_batch_bytes: int | None = None,
+) -> SdapOutput:
+    """Create the formal SDAP output that becomes PDCP input."""
+
+    return (mapper or _DEFAULT_MAPPER).process(
+        traffic,
+        qos_flow,
+        request,
+        max_batch_bytes=max_batch_bytes,
+    )
 
 
 def reset_default_sdap_mapper() -> None:

@@ -71,7 +71,7 @@ AgentIntent
 -> IPTrafficBatch
 -> QoSFlow / QFI
 -> SlicePolicy
--> SDAP: QFI -> DRB
+-> SDAP: QFI -> DRB -> SdapOutput
 -> PDCPBatch
 -> RLCQueue
 -> ChannelState
@@ -106,8 +106,8 @@ Core orchestration files:
 | IP traffic | Build the upload traffic batch | `UERequest`, `PduSession` | `IPTrafficBatch` | `ran/traffic/ip.py`, `ran/traffic/service_profile.py` |
 | QoS Flow | Select QFI, 5QI, and delay budget | `UERequest`, service profile | `QoSFlow` | `ran/qos.py`, `configs/ran/service_profiles.json` |
 | Network slice | Classify the service into a slice | service type | `slice_id`, `SlicePolicy` | `ran/slicing/classifier.py`, `ran/slicing/controller.py`, `configs/ran/slice_policies.json` |
-| SDAP | Map QFI to DRB | `QoSFlow`, `UERequest` | `Drb` | `ran/protocol/sdap.py`, `ran/contracts/bearer.py` |
-| PDCP | Minimal PDCP batching | `IPTrafficBatch`, `Drb` | `PdcpBatch` | `ran/protocol/pdcp.py` |
+| SDAP | Map QFI to DRB and emit a formal SDAP batch | `IPTrafficBatch`, `QoSFlow`, `UERequest` | `SdapOutput` (including `Drb`) | `ran/protocol/sdap.py`, `ran/contracts/bearer.py` |
+| PDCP | Consume SDAP output and build a minimal PDCP batch | `SdapOutput` | `PdcpBatch` | `ran/protocol/pdcp.py` |
 | RLC | Maintain queue and retransmission bytes | `PdcpBatch`, `Drb` | `RlcQueue` | `ran/protocol/rlc.py`, `ran/contracts/bearer.py` |
 | Map channel | Calculate distance, wall loss, SINR, CQI | UE position, gNB position, map walls | `ChannelState` | `ran/radio/channel.py`, `ran/radio/topology_adapter.py`, `services/map_service.py` |
 | Scheduler request | Aggregate MAC scheduling inputs | RLC, QoS, DRB, Channel, Slice | `SchedulerRequest` | `ran/gnb/du.py`, `ran/contracts/scheduler.py` |

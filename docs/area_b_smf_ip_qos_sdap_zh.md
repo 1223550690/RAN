@@ -1,13 +1,14 @@
 # Area B：SMF、IP Packet、QoS、SDAP 实现说明
 
 本文说明 `boyu/area-b` 中四个模块的实现边界、状态模型、配置入口和集成方式。
-实现保留了 MVP 原有的四个函数入口，因此现有场景以及其他组员分支可以继续调用：
+实现保留了 MVP 原有兼容入口，并将主场景升级为包含正式 SDAP 输出的链路：
 
 ```text
 establish_pdu_session()
 -> build_ip_traffic()
 -> build_qos_flow()
--> map_qos_flow_to_drb()
+-> process_sdap()
+-> build_pdcp_batch()
 ```
 
 同时，每个模块都提供独立的状态管理类，便于多 UE、多会话、单元测试和后续依赖注入。
@@ -111,6 +112,8 @@ establish_pdu_session()
 - 文件/网页/上传等可靠业务使用 RLC AM；
 - 游戏、通话、实时视频、控制等时延敏感业务使用 RLC UM；
 - 多 QFI 共享后启用 SDAP header，避免接收端丢失 QFI 区分；
+- `process_sdap()` 正式输出 `SdapOutput`，包含业务标识、QFI、DRB、PDU 数、载荷字节、SDAP header 字节和输出字节；
+- PDCP 的正式输入改为 `SdapOutput`，主场景不再用 `IPTrafficBatch + Drb` 绕过 SDAP；
 - 支持映射查询、列举、会话释放和测试重置。
 
 ## 5. 配置与兼容性
@@ -131,7 +134,8 @@ configs/ran/service_profiles.json
 session = establish_pdu_session(ue, request, slice_id="embb", smf=my_smf)
 traffic = build_ip_traffic(request, session, factory=my_packet_factory)
 qos = build_qos_flow(request, session, traffic=traffic, classifier=my_classifier)
-drb = map_qos_flow_to_drb(qos, request, mapper=my_sdap_mapper)
+sdap_output = process_sdap(traffic, qos, request, mapper=my_sdap_mapper)
+pdcp_batch = build_pdcp_batch(sdap_output)
 ```
 
 不传参数时使用默认实例，原有场景无需改写。
@@ -151,6 +155,7 @@ python -m unittest discover -s tests -v
 - UL/DL 五元组、TCP/UDP、packet/byte 统计和错误目标；
 - QFI/5QI 区分、GBR/MBR、规则、hint、QFI 冲突；
 - AM/UM 选择、default/dedicated/shared DRB、`qfi_list` 和映射查询；
+- `SdapOutput` 正式输出、SDAP header 字节统计以及向 `PdcpBatch` 的传递；
 - 数据契约的非法值拒绝。
 
 端到端 smoke test：
@@ -160,4 +165,4 @@ python -m ran.demo --mode aggregate --max-ticks 5000
 ```
 
 当前实现仍保持 MVP 的抽象边界：不模拟完整 PFCP、真实 IP 分片、完整 NAS QoS rule
-下发、真实 SDAP PDU 编解码；这些接口均已留出清晰扩展点。
+下发或逐比特 SDAP 编解码；但 SDAP 已有正式、可观测、可传递给 PDCP 的批量输出契约。

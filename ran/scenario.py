@@ -7,7 +7,7 @@ from ran.contracts import AgentIntent, Position
 from ran.core import deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue
 from ran.gnb import build_scheduler_request, forward_to_n3, receive_radio
 from ran.metrics import build_end_to_end_result, calculate_qos, summarize_slice_usage
-from ran.protocol import apply_transmission_to_rlc, build_pdcp_batch, build_rlc_queue, map_qos_flow_to_drb
+from ran.protocol import apply_transmission_to_rlc, build_pdcp_batch, build_rlc_queue, process_sdap
 from ran.qos import build_qos_flow
 from ran.radio import estimate_channel, load_gnb_site_from_scene, transmit
 from ran.scheduler import JavaSchedulerAdapter
@@ -45,8 +45,9 @@ class RanUploadScenario:
         self.session = establish_pdu_session(self.ue_state, self.ue_request, slice_id=self.slice_id)
         self.traffic = build_ip_traffic(self.ue_request, self.session)
         self.qos_flow = build_qos_flow(self.ue_request, self.session, traffic=self.traffic)
-        self.drb = map_qos_flow_to_drb(self.qos_flow, self.ue_request)
-        self.pdcp_batch = build_pdcp_batch(self.traffic, self.drb)
+        self.sdap_output = process_sdap(self.traffic, self.qos_flow, self.ue_request)
+        self.drb = self.sdap_output.drb
+        self.pdcp_batch = build_pdcp_batch(self.sdap_output)
         self.rlc_queue = build_rlc_queue(self.pdcp_batch, self.drb)
         self.slice_policies = update_slice_policies()
         self.completed = False
@@ -135,6 +136,8 @@ class RanUploadScenario:
             "session": asdict(self.session),
             "traffic": asdict(self.traffic),
             "qos_flow": asdict(self.qos_flow),
+            "sdap_output": asdict(self.sdap_output),
+            "pdcp_batch": asdict(self.pdcp_batch),
             "drb": asdict(self.drb),
             "rlc_queue_after": asdict(self.rlc_queue),
             "channel": asdict(channel),
@@ -176,6 +179,8 @@ class RanUploadScenario:
             "session": asdict(self.session),
             "traffic": asdict(self.traffic),
             "qos_flow": asdict(self.qos_flow),
+            "sdap_output": asdict(self.sdap_output),
+            "pdcp_batch": asdict(self.pdcp_batch),
             "drb": asdict(self.drb),
             "rlc_queue_after": asdict(self.rlc_queue),
             "progress": {
