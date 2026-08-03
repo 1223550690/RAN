@@ -11,6 +11,7 @@ dist/
 local/
 build/
 .agents/
+note/
 outputs/live_state.json
 outputs/live_state.json.tmp
 pixel_preview_sandbox/

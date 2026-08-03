@@ -170,9 +170,13 @@ class CoordinateCalibrationTests(unittest.TestCase):
 
         self.assertIsNotNone(calibration)
         assert calibration is not None
-        self.assertEqual(calibration.calibration_id, "bristol_topology_extent_v0")
-        self.assertAlmostEqual(calibration.meters_per_map_unit_x, 0.15)
-        self.assertAlmostEqual(calibration.meters_per_map_unit_y, 0.20)
+        self.assertEqual(
+            calibration.calibration_id,
+            "bristol_topology_uniform_extent_v1",
+        )
+        self.assertAlmostEqual(calibration.meters_per_map_unit_x, 0.1375)
+        self.assertAlmostEqual(calibration.meters_per_map_unit_y, 0.1375)
+        self.assertAlmostEqual(calibration.meters_per_map_unit, 0.1375)
 
     def test_loader_rejects_partial_or_invalid_extent(self) -> None:
         data = {

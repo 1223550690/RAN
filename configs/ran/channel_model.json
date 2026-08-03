@@ -1,0 +1,43 @@
+{
+  "schema_version": "1",
+  "default_mode": "shadow",
+  "scenes": {
+    "bristol_topology": {
+      "mode": "shadow",
+      "fallback_model": "legacy",
+      "allow_provisional_calibration_in_shadow": true,
+      "require_confirmed_calibration_when_active": true,
+      "allow_extrapolation_in_shadow": true,
+      "allow_extrapolation_when_active": false,
+      "height_reference": "local_ground",
+      "gnb_heights": {
+        "gnb_001": {
+          "height_m": 10.0,
+          "source": "3gpp_umi_reference",
+          "status": "assumed"
+        }
+      },
+      "default_ue_height": {
+        "height_m": 1.5,
+        "source": "3gpp_umi_reference_handheld",
+        "status": "assumed"
+      },
+      "o2i": {
+        "penetration_residual_db": 0.0,
+        "unconfigured_building_policy": "legacy_fallback",
+        "building_profiles": {
+          "block_09_student_union": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "gym_sports_centre": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          }
+        }
+      }
+    }
+  }
+}
