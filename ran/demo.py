@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-sys.path.insert(1, 'C:/Users/maxia/Documents/RAN/')
+
 
 from services.scene_service import SceneService
 from engine import RanEngine

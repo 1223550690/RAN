@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ran.contracts import MacAllocation, SchedulerRequest, SchedulerResult, RlcQueue, ChannelState
 from ran.radio.ofdm import estimate_transport_bytes
+import math
 
 
 class PythonBaselineScheduler:
@@ -16,7 +17,6 @@ class PythonBaselineScheduler:
         channel_by_ue = request.channel_states
         policy_by_slice = {policy.slice_id: policy for policy in request.slice_policies}
         allocations = grantBasedULScheduling(channel_by_ue, request, active)
-        print(allocations)
         return SchedulerResult(tick=request.tick, allocations=allocations, debug={"implementation": "python_baseline"})
     #UPLINK ALGORITHMS
     #Time management to be implemented later
@@ -35,7 +35,7 @@ def roundRobinDLScheduling(channel_by_ue, request, active):
             
             channel = channel_by_ue[queue.ue_id]
             ratio = weights[(queue.ue_id, queue.drb_id)] / weight_sum if weight_sum else 0.0
-            prbs = max(1, int(request.total_prbs * ratio))
+            prbs = math.floor(int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
             mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
             layers = 1 if cqi < 10 else 2
@@ -74,7 +74,7 @@ def maxThroughputDLScheduling(channel_by_ue, request, active):
             
             channel = channel_by_ue[queue.ue_id]
             ratio = weights[queue.ue_id] / weight_sum if weight_sum else 0.0
-            prbs = max(1, int(request.total_prbs * ratio))
+            prbs = math.floor(int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
             mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
             layers = 1 if cqi < 10 else 2
@@ -111,9 +111,9 @@ def grantBasedULScheduling(channel_by_ue, request, active):
             channel = channel_by_ue[queue.ue_id]
             ratio = weights[(queue.ue_id, queue.drb_id)] / weight_sum if weight_sum else 0.0
 
-            prbs = max(1, int(request.total_prbs * ratio))
+            prbs = math.floor(int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
-            mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
+            mcs = max(1, min(28, int(cqi * 1.8))) 
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
@@ -139,7 +139,6 @@ def weightedULScheduling(channel_by_ue, request, active):
         weights: dict[tuple[str, int], float] = {}
         active = sortByBSR(active)
         length = len(active)
-        print(active)
         for i in range(0, length):
             #Weights assigned according to bsr sizes
             weights[active[i].ue_id, active[i].drb_id] = length -i
@@ -150,7 +149,7 @@ def weightedULScheduling(channel_by_ue, request, active):
             channel = channel_by_ue[queue.ue_id]
             ratio = weights[(queue.ue_id, queue.drb_id)] / weight_sum if weight_sum else 0.0
 
-            prbs = max(1, int(request.total_prbs * ratio))
+            prbs = math.floor(int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
             mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
             layers = 1 if cqi < 10 else 2
