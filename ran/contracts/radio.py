@@ -37,6 +37,42 @@ class ChannelState:
     sinr_db: float = 0.0
     cqi: int = 1
     estimated_packet_error_rate: float = 0.0
+    channel_model_mode: str = "legacy"
+    path_loss_model: str = "legacy"
+    path_loss_formula_id: str = "legacy_fspl_plus_raw_wall_loss"
+    evaluated_path_loss_model: str | None = None
+    evaluated_total_path_loss_db: float | None = None
+    evaluated_formula_id: str | None = None
+    link_type: str = "unknown"
+    los_state: str = "unknown"
+    map_distance_units: float | None = None
+    distance_2d_m: float | None = None
+    distance_3d_m: float | None = None
+    outdoor_distance_m: float | None = None
+    indoor_distance_m: float | None = None
+    effective_walls_crossed: list[str] = field(default_factory=list)
+    portals_crossed: list[str] = field(default_factory=list)
+    external_wall_loss_db: float | None = None
+    indoor_loss_db: float | None = None
+    shadow_fading_std_db: float | None = None
+    penetration_loss_std_db: float | None = None
+    is_extrapolated: bool = False
+    path_loss_warnings: list[str] = field(default_factory=list)
+    fallback_reason: str | None = None
+    calibration_id: str | None = None
+    calibration_status: str | None = None
+    meters_per_map_unit_x: float | None = None
+    meters_per_map_unit_y: float | None = None
+    bs_height_m: float | None = None
+    bs_height_source: str | None = None
+    bs_height_status: str | None = None
+    ut_height_m: float | None = None
+    ut_height_source: str | None = None
+    ut_height_status: str | None = None
+    height_reference: str | None = None
+    penetration_model: str | None = None
+    penetration_model_source: str | None = None
+    penetration_model_status: str | None = None
 
 
 @dataclass(slots=True)
