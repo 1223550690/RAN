@@ -90,6 +90,10 @@ class MultiAgentRanScenario:
         """推进一个 tick：汇总所有活跃队列，调度一次，再逐业务执行。"""
 
         if self.completed:
+            # 无活跃业务时仍刷新 RAN 侧 Agent 副本,避免嵌套快照过期
+            # (此前 completed 快速路径不重读 Agent 坐标,预览页读取该
+            #  副本时移动阶段呈现冻结,直到首个意图提交场景重新激活)
+            self._update_agent_states(tick)
             return self.snapshot(tick=tick, status="completed")
 
         self._update_agent_states(tick)

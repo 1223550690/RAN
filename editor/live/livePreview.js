@@ -532,6 +532,26 @@ function poll() {
         return;
       }
       const ran = data.ran_state || data;
+      // 合并顶层实时 Agent 状态(移动/生命周期),ran 侧保留控制面字段。
+      // 顶层 data.agents 是 Agent 子系统权威实时状态;ran_state.agent_states
+      // 是 RAN 场景副本(无活跃业务时曾停止刷新),以顶层为准避免移动冻结。
+      // 注意:顶层 position/waypoints 是数组 [x,y],需归一化为 {x,y}。
+      const normPt = (v) => (Array.isArray(v) && v.length >= 2 ? { x: v[0], y: v[1] } : v);
+      if (Array.isArray(data.agents) && data.agents.length) {
+        const top = new Map(data.agents.map((a) => [a.agent_id, a]));
+        ran.agent_states = (ran.agent_states || []).map((s) => {
+          const t = top.get(s.agent_id);
+          if (!t) return s;
+          const m = Object.assign({}, s);
+          if (t.lifecycle_status !== undefined) m.status = t.lifecycle_status;
+          if (t.position !== undefined) m.position = normPt(t.position);
+          if (t.waypoints !== undefined) m.waypoints = Array.isArray(t.waypoints) ? t.waypoints.map(normPt) : t.waypoints;
+          for (const f of ['waypoint_index', 'waypoint_count', 'current_room_id', 'destination_id', 'current_intent_id', 'activity_state', 'error', 'last_transition_tick']) {
+            if (t[f] !== undefined) m[f] = t[f];
+          }
+          return m;
+        });
+      }
       if (ran.tick === tick) return; // 无新 tick
       // 渲染链:单步失败不阻塞其余更新,tick 照常推进(不能因渲染问题卡停)
       const safe = (fn, name) => {

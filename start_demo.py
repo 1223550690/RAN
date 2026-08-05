@@ -55,6 +55,13 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8766)
     args = parser.parse_args()
 
+    # 清理上一轮残留的暂停控制文件(防下一轮模拟从 tick 0 就暂停)
+    ctrl_file = PROJECT_ROOT / "outputs" / "simulation_control.json"
+    try:
+        ctrl_file.unlink(missing_ok=True)
+    except OSError:
+        pass
+
     # 1) 先启动模拟子进程(拿到 PID,供服务器守护)
     cmd = [
         sys.executable, "-m", "simulation.main",
