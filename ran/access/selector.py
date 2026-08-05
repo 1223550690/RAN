@@ -4,8 +4,28 @@ from ran.contracts import AccessSelection, GnbSite, UERequest
 
 
 def select_access(request: UERequest, gnb: GnbSite) -> AccessSelection:
-    """Project implementation detail."""
+    """Select the most suitable access network."""
 
     if request.selected_access == "wifi":
-        return AccessSelection("wifi", "non_3gpp", "wifi_reserved", "Wi-Fi access is reserved only; the MVP does not execute a separate Wi-Fi path")
-    return AccessSelection("5g", "3gpp", gnb.gnb_id, "MVP uses the single-cell 5G gNB by default")
+        return AccessSelection(
+            "wifi",
+            "non_3gpp",
+            "wifi_reserved",
+            "User explicitly selected Wi-Fi."
+        )
+
+    if request.selected_access == "5g":
+        return AccessSelection(
+            "5g",
+            "3gpp",
+            gnb.gnb_id,
+            "MVP uses the single-cell 5G gNB by default."
+        )
+
+    # Auto selection
+    return AccessSelection(
+        "5g",
+        "3gpp",
+        gnb.gnb_id,
+        "MVP uses the single-cell 5G gNB by default."
+    )
