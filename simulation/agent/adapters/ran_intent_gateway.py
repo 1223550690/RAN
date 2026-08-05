@@ -20,17 +20,27 @@ DEFAULT_INTENT_PROFILES: dict = {
         "target": "youtube_server",
         "content_type": "video",
         "action": "upload",
+        "direction": "UL",
+    },
+    "video_download": {
+        "size_profiles": {"small": 20 * 1024 * 1024, "medium": 100 * 1024 * 1024, "large": 500 * 1024 * 1024},
+        "target": "video_server",
+        "content_type": "video",
+        "action": "download",
+        "direction": "DL",
     },
     "file_transfer": {
         "size_profiles": {"small": 10 * 1024 * 1024, "medium": 50 * 1024 * 1024, "large": 200 * 1024 * 1024},
         "target": "file_server",
         "content_type": "file",
         "action": "upload",
+        "direction": "UL",
     },
     "video_call": {
         "target": "video_call_server",
         "content_type": "video",
         "action": "video_call",
+        "direction": "UL",
         "qos_hint": {"latency_budget_ms": 150, "reliability": "high", "throughput_preference": "high"},
     },
     "message": {
@@ -38,6 +48,7 @@ DEFAULT_INTENT_PROFILES: dict = {
         "target": "chat_server",
         "content_type": "text",
         "action": "send_message",
+        "direction": "UL",
     },
 }
 
@@ -96,6 +107,7 @@ class RanIntentGateway:
                 created_tick=tick,
                 duration_seconds=duration,
                 qos_hint=dict(profile.get("qos_hint", {})),
+                direction=str(profile.get("direction", "UL")),
             )
 
         if plan.intent_type == "message":
@@ -110,6 +122,7 @@ class RanIntentGateway:
                 service_type="message",
                 requested_payload_bytes=payload_bytes,
                 created_tick=tick,
+                direction=str(profile.get("direction", "UL")),
             )
 
         size_profiles = profile.get("size_profiles", {})
@@ -125,4 +138,5 @@ class RanIntentGateway:
             service_type=plan.intent_type,
             requested_payload_bytes=payload_bytes,
             created_tick=tick,
+            direction=str(profile.get("direction", "UL")),
         )

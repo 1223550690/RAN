@@ -24,6 +24,7 @@ class AgentIntent:
     created_tick: int = 0  # created_tick: 意图创建的仿真 tick。
     duration_seconds: float | None = None  # duration_seconds: 连续业务(如 video_call)的持续时长;按数据量结束的业务为 None。
     qos_hint: dict | None = None  # qos_hint: QoS 参数提示;缺省时由 build_ue_request 使用默认值。
+    direction: str = "UL"  # direction: 业务方向 UL/DL(集成扩展,默认上行,向后兼容)。
 
 
 @dataclass(slots=True)

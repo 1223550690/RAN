@@ -86,6 +86,16 @@
    "service_types": [
     "message"
    ]
+  },
+  {
+   "target": "video_server",
+   "dnn": "internet",
+   "ip": "10.20.1.85",
+   "protocol": "TCP",
+   "port": 443,
+   "service_types": [
+    "video_download"
+   ]
   }
  ]
 }

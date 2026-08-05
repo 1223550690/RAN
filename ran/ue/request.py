@@ -24,7 +24,7 @@ def build_ue_request(
         ue_id=ue_id,
         agent_id=intent.agent_id,
         position=intent.agent_pos,
-        direction="UL",
+        direction=intent.direction,
         selected_access=selected_access,  # type: ignore[arg-type]
         access_type=access_type,  # type: ignore[arg-type]
         target=intent.target,

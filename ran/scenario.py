@@ -4,8 +4,19 @@ from dataclasses import asdict, replace
 from typing import Any
 
 from ran.access import select_access
-from ran.contracts import CONTRACT_VERSION, AgentIntent, AgentStateSnapshot, Position, QosMetrics
-from ran.core import deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue
+from ran.contracts import (
+    CONTRACT_VERSION,
+    AgentIntent,
+    AgentStateSnapshot,
+    Position,
+    QosMetrics,
+    RlcQueue,
+    Drb,
+    UERequest,
+    N3ForwardingResult,
+    N6DeliveryResult,
+)
+from ran.core import Amf, deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue
 from ran.gnb import build_scheduler_request, forward_to_n3, receive_radio
 from ran.metrics import build_end_to_end_result, calculate_qos, summarize_slice_usage
 from ran.orchestration import (
@@ -59,6 +70,7 @@ class MultiAgentRanScenario:
         self.agent_ids = tuple(item.agent_id for item in self.definition.agents)
         self.agent_state_provider = agent_state_provider or MockAgentStateProvider(self.definition)
         self.gnb = load_gnb_site_from_scene(scene)
+        self.amf = Amf()
         self.slice_policies = update_slice_policies()
         self.agents: dict[str, AgentContext] = {}
         self.intents: dict[str, IntentContext] = {}
@@ -105,7 +117,8 @@ class MultiAgentRanScenario:
             tick=tick,
             gnb_id=self.gnb.gnb_id,
             total_prbs=self.gnb.total_prbs,
-            rlc_queues=[service.rlc_queue for service in active_services],
+            rlc_queues=[service.rlc_queue for service in active_services]
+            + [service.dl_queue for service in active_services if service.dl_queue is not None],
             qos_flows=[service.qos_flow for service in active_services],
             drbs=[service.drb for service in active_services],
             channel_states=list(channel_by_link.values()),
@@ -114,7 +127,8 @@ class MultiAgentRanScenario:
         scheduler_result = self.scheduler.allocate(scheduler_request)
         self._validate_scheduler_result(scheduler_request, scheduler_result)
         allocation_by_bearer = {
-            (allocation.ue_id, allocation.drb_id): allocation for allocation in scheduler_result.allocations
+            (allocation.ue_id, allocation.drb_id, allocation.direction): allocation
+            for allocation in scheduler_result.allocations
         }
 
         service_states: list[dict[str, object]] = []
@@ -124,7 +138,9 @@ class MultiAgentRanScenario:
                 service_states.append(self._reuse_terminal_state(service, tick))
                 continue
 
-            allocation = allocation_by_bearer.get((service.ue_id, service.drb.drb_id))
+            allocation = allocation_by_bearer.get(
+                (service.ue_id, service.drb.drb_id, service.ue_request.direction)
+            )
             channel = channel_by_service[service.service_instance_id]
             if allocation is None or allocation.scheduled_bytes <= 0:
                 service.status = "WAITING_FOR_ALLOCATION"
@@ -132,9 +148,10 @@ class MultiAgentRanScenario:
                 continue
 
             # 最小 RLC grant mock：当前仅按队列字节截断；后续替换为真实 segment 列表。
+            grant_queue = service.dl_queue if service.dl_queue is not None else service.rlc_queue
             actual_grant_bytes = min(
                 allocation.scheduled_bytes,
-                service.rlc_queue.queued_bytes + service.rlc_queue.retransmission_bytes,
+                grant_queue.queued_bytes + grant_queue.retransmission_bytes,
             )
             executed_allocation = replace(allocation, scheduled_bytes=actual_grant_bytes)
             service_states.append(
@@ -203,7 +220,7 @@ class MultiAgentRanScenario:
 
         if item.ue_id in self.ues:
             return
-        ue_state = register_ue(
+        ue_state = self.amf.register_ue(
             build_demo_ue_state(
                 agent_id=item.agent_id,
                 ue_id=item.ue_id,
@@ -238,7 +255,17 @@ class MultiAgentRanScenario:
         qos_flow = build_qos_flow(ue_request, session)
         drb = map_qos_flow_to_drb(qos_flow, ue_request)
         pdcp_batch = build_pdcp_batch(traffic, drb)
-        rlc_queue = build_rlc_queue(pdcp_batch, drb)
+        is_downlink = ue_request.direction == "DL"
+        if is_downlink:
+            # 下行:数据由 DN 侧生成,入 gNB 侧 DL 队列;UL 队列为空(占位,保持结构一致)。
+            dl_queue = build_rlc_queue(pdcp_batch, drb)
+            rlc_queue = replace(rlc_queue_placeholder(ue_request, drb))
+        else:
+            dl_queue = None
+            rlc_queue = build_rlc_queue(pdcp_batch, drb)
+
+        # RRC 建立:业务需要无线承载 → IDLE/INACTIVE → CONNECTED。
+        self.amf.establish_rrc(ue_state)
 
         agent_context = self.agents.get(item.agent_id)
         if agent_context is None:
@@ -277,6 +304,7 @@ class MultiAgentRanScenario:
             drb=drb,
             pdcp_batch=pdcp_batch,
             rlc_queue=rlc_queue,
+            dl_queue=dl_queue,
             status="ACTIVE",
         )
         self.service_order.append(service_instance_id)
@@ -319,6 +347,8 @@ class MultiAgentRanScenario:
 
     def _execute_service_tick(self, service, channel, allocation, tick: int) -> dict[str, object]:
         service.status = "ACTIVE"
+        if service.dl_queue is not None:
+            return self._execute_downlink_tick(service, channel, allocation, tick)
         transmission = transmit(
             tick=tick,
             allocation=allocation,
@@ -362,6 +392,7 @@ class MultiAgentRanScenario:
             counters.permanently_dropped_protocol_bytes += unresolved_protocol_bytes
             self._update_payload_counters(service)
             service.status = "COMPLETED"
+            self._maybe_suspend_rrc(service)
 
         qos = calculate_qos(
             requested_bytes=service.traffic.total_bytes,
@@ -396,6 +427,113 @@ class MultiAgentRanScenario:
         )
         service.last_state = state
         return state
+
+    def _execute_downlink_tick(self, service, channel, allocation, tick: int) -> dict[str, object]:
+        """下行 tick:DN 侧数据经 gNB 无线链路交付到 UE。
+
+        与上行对称:传输成功字节 = UE 接收字节;完成 = DL 队列清空。
+        N3/N6 为零值占位(数据由 DN 直达 gNB,不经 UE 上行转发)。
+        """
+
+        transmission = transmit(
+            tick=tick,
+            allocation=allocation,
+            channel=channel,
+            rlc_mode=service.dl_queue.rlc_mode,
+        )
+        service.dl_queue = apply_transmission_to_rlc(service.dl_queue, transmission)
+
+        counters = service.counters
+        counters.attempted_protocol_bytes += transmission.attempted_bytes
+        original_protocol_bytes = service.pdcp_batch.output_bytes
+        remaining_protocol_bytes = max(
+            0,
+            original_protocol_bytes
+            - counters.delivered_protocol_bytes
+            - counters.permanently_dropped_protocol_bytes,
+        )
+        delivered_protocol_this_tick = min(
+            remaining_protocol_bytes, max(0, transmission.successful_bytes)
+        )
+        counters.delivered_protocol_bytes += delivered_protocol_this_tick
+        counters.permanently_dropped_protocol_bytes += max(0, transmission.failed_bytes)
+        self._update_payload_counters(service)
+
+        if service.dl_queue.queued_bytes <= 0 and service.dl_queue.retransmission_bytes <= 0:
+            unresolved_protocol_bytes = max(
+                0,
+                original_protocol_bytes
+                - counters.delivered_protocol_bytes
+                - counters.permanently_dropped_protocol_bytes,
+            )
+            counters.permanently_dropped_protocol_bytes += unresolved_protocol_bytes
+            self._update_payload_counters(service)
+            service.status = "COMPLETED"
+            self._maybe_suspend_rrc(service)
+
+        n3 = N3ForwardingResult(
+            tunnel_id=f"dl_{service.session.pdu_session_id}",
+            teid=0,
+            ue_id=service.ue_id,
+            pdu_session_id=service.session.pdu_session_id,
+            upf_id=service.session.upf_id,
+            forwarded_bytes=0,
+            n3_delay_ms=0.0,
+            n3_loss_bytes=0,
+        )
+        delivered = N6DeliveryResult(
+            dnn=service.ue_request.dnn,
+            target=service.ue_request.target,
+            delivered_bytes=0,
+            n6_delay_ms=0.0,
+            n6_loss_bytes=0,
+        )
+        qos = calculate_qos(
+            requested_bytes=service.traffic.total_bytes,
+            transmission=transmission,
+            n3=n3,
+            n6=delivered,
+            delay_budget_ms=service.qos_flow.packet_delay_budget_ms,
+        )
+        result = build_end_to_end_result(
+            service_id=service.service_instance_id,
+            ue_id=service.ue_id,
+            target=service.ue_request.target,
+            slice_id=service.slice_id,
+            access_type=service.access.access_type,
+            requested_bytes=service.traffic.total_bytes,
+            delivered_bytes=counters.delivered_payload_bytes,
+            qos=qos,
+        )
+        state = self._service_state_base(service, tick)
+        state.update(
+            {
+                "status": service.status,
+                "result": asdict(result),
+                "rlc_queue_after": asdict(service.dl_queue),
+                "channel": asdict(channel),
+                "allocation": asdict(allocation),
+                "transmission": asdict(transmission),
+                "n3": asdict(n3),
+                "n6": asdict(delivered),
+                "progress": self._service_progress(service),
+            }
+        )
+        service.last_state = state
+        return state
+
+    def _maybe_suspend_rrc(self, service) -> None:
+        """该 UE 无活跃业务时挂起 RRC:CONNECTED→INACTIVE(3GPP 业务间隙行为)。"""
+
+        ue_context = self.ues.get(service.ue_id)
+        if ue_context is None:
+            return
+        if any(
+            self.services[service_id].status not in TERMINAL_SERVICE_STATUSES
+            for service_id in ue_context.active_service_ids
+        ):
+            return
+        self.amf.suspend_rrc(ue_context.state)
 
     def _build_waiting_service_state(self, service, channel, tick: int) -> dict[str, object]:
         state = self._service_state_base(service, tick)
@@ -458,17 +596,33 @@ class MultiAgentRanScenario:
         return state
 
     def _service_state_base(self, service, tick: int) -> dict[str, object]:
+        dl_remaining = None
+        if service.dl_queue is not None:
+            dl_remaining = service.dl_queue.queued_bytes + service.dl_queue.retransmission_bytes
         return {
             "agent_id": service.agent_id,
             "intent_id": service.intent_id,
             "service_instance_id": service.service_instance_id,
             "ue_id": service.ue_id,
             "tick": tick,
+            "direction": service.ue_request.direction,
+            "dl_remaining_queue_bytes": dl_remaining,
             "ue_request": asdict(service.ue_request),
             "access": asdict(service.access),
             "qos_flow": asdict(service.qos_flow),
             "drb": asdict(service.drb),
         }
+
+    def _agent_state_with_cp(self, agent_id: str) -> dict[str, object]:
+        """Agent 快照 + 该 Agent UE 的 CM/RRC 控制面状态(前端展示)。"""
+
+        snapshot = asdict(self.agents[agent_id].state)
+        for ue_context in self.ues.values():
+            if ue_context.state.agent_id == agent_id:
+                snapshot["cm_state"] = ue_context.state.cm_state
+                snapshot["rrc_state"] = ue_context.state.rrc_state
+                break
+        return snapshot
 
     def _compose_state(
         self,
@@ -490,7 +644,7 @@ class MultiAgentRanScenario:
             "tick": tick,
             "ticks_executed": self.ticks_executed,
             "agent_count": self.agent_count,
-            "agent_states": [asdict(self.agents[item].state) for item in self.agent_ids],
+            "agent_states": [self._agent_state_with_cp(item) for item in self.agent_ids],
             "service_states": service_states,
             "results": [item["result"] for item in service_states],
             "gnb": asdict(self.gnb),
@@ -538,11 +692,12 @@ class MultiAgentRanScenario:
         delivered = service.counters.delivered_payload_bytes
         dropped = service.counters.permanently_dropped_payload_bytes
         remaining = max(0, requested - delivered - dropped)
+        queue = service.dl_queue if service.dl_queue is not None else service.rlc_queue
         return {
             "requested_bytes": requested,
             "delivered_bytes": delivered,
             "remaining_payload_bytes": remaining,
-            "remaining_queue_bytes": service.rlc_queue.queued_bytes + service.rlc_queue.retransmission_bytes,
+            "remaining_queue_bytes": queue.queued_bytes + queue.retransmission_bytes,
             "completion_ratio": delivered / requested if requested else 1.0,
             "remaining_ratio": remaining / requested if requested else 0.0,
             "dropped_bytes": dropped,
@@ -682,6 +837,22 @@ def _mock_ue_ip(index: int) -> str:
     if third_octet > 254:
         raise ValueError("Mock UE IPv4 pool exhausted")
     return f"10.20.{third_octet}.{fourth_octet}"
+
+
+def rlc_queue_placeholder(ue_request: UERequest, drb: Drb) -> RlcQueue:
+    """DL 业务的 UL 占位队列(0 字节):保持 ServiceContext 结构一致,不参与调度竞争。"""
+
+    return RlcQueue(
+        ue_id=drb.ue_id,
+        drb_id=drb.drb_id,
+        qfi=drb.qfi,
+        slice_id=drb.slice_id,
+        direction="UL",
+        rlc_mode=drb.rlc_mode,
+        queued_bytes=0,
+        retransmission_bytes=0,
+        head_of_line_delay_ms=0.0,
+    )
 class RanUploadScenario:
     """Project implementation detail."""
 

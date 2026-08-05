@@ -16,6 +16,6 @@ def validate_plan(plan: AgentPlan, navigation: NavigationPlanner) -> tuple[bool,
     destination = navigation.resolve_destination(plan.destination_ref)
     if destination is None:
         return False, f"destination_ref unresolved: {plan.destination_ref!r}"
-    if plan.intent_type not in ("video_call", "video_upload", "file_transfer", "message"):
+    if plan.intent_type not in ("video_call", "video_upload", "video_download", "file_transfer", "message"):
         return False, f"unknown intent_type: {plan.intent_type!r}"
     return True, None

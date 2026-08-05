@@ -1,4 +1,4 @@
-from .amf import register_ue
+from .amf import Amf, register_ue
 from .data_network import deliver_to_data_network
 from .smf import (
     SessionManagementFunction,
@@ -16,6 +16,7 @@ __all__ = [
     "deliver_to_data_network",
     "establish_pdu_session",
     "forward_via_upf",
+    "Amf",
     "register_ue",
     "reset_default_smf",
 ]

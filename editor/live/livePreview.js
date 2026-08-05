@@ -255,6 +255,7 @@ function buildAgentCard(agent, service) {
   appendKeyValue(status, "目标", target);
   appendKeyValue(status, "路径", progress);
   appendKeyValue(status, "意图", intent);
+  appendKeyValue(status, "控制面", `CM ${agent.cm_state ?? "-"} · RRC ${agent.rrc_state ?? "-"}`);
   if (agent.error) {
     appendKeyValue(status, "错误", agent.error);
   }
@@ -277,7 +278,7 @@ function buildAgentCard(agent, service) {
     const transmission = service.transmission || {};
     const qosFlow = service.qos_flow || {};
     const drb = service.drb || {};
-    appendKeyValue(net, "服务", service.service_instance_id || "-");
+    appendKeyValue(net, "服务", `${service.direction === "DL" ? "↓DL " : service.direction === "UL" ? "↑UL " : ""}${service.service_instance_id || "-"}`);
     appendKeyValue(net, "slice", service.slice_id || result.slice_id || "-");
     appendKeyValue(net, "qfi/drb", `${qosFlow.qfi ?? "-"} / ${drb.drb_id ?? "-"}`);
     appendKeyValue(net, "信道", `cqi ${channel.cqi ?? "-"}  sinr ${fmt(channel.sinr_db)}dB`);

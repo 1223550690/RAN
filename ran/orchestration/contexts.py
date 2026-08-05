@@ -79,6 +79,7 @@ class ServiceContext:
     drb: Drb
     pdcp_batch: PdcpBatch
     rlc_queue: RlcQueue
+    dl_queue: RlcQueue | None = None  # dl_queue: 下行业务时 DN 侧队列(UL 业务为 None)。
     status: ServiceStatus = "INITIALIZING"
     counters: ServiceCounters = field(default_factory=ServiceCounters)
     last_state: dict[str, object] | None = None
