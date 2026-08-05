@@ -502,17 +502,23 @@ function poll() {
         setConnStatus(false);
         return;
       }
-      emptyFetches = 0;
-      setConnStatus(true);
       const ran = data.ran_state || data;
       if (ran.tick === tick) return; // 无新 tick
-      tick = ran.tick;
-      lastRan = ran;
-      aggregateTick(ran);
-      updateBanner(ran, data.now_seconds);
-      renderRoutes(ran);
-      renderAgents();
-      updateCharts();
+      try {
+        // 渲染链整体保护:任一步抛错都不推进 tick 标记,下次 poll 自动重试
+        tick = ran.tick;
+        lastRan = ran;
+        aggregateTick(ran);
+        updateBanner(ran, data.now_seconds);
+        renderRoutes(ran);
+        renderAgents();
+        updateCharts();
+        emptyFetches = 0;
+        setConnStatus(true);
+      } catch (err) {
+        // 渲染异常:不提交 tick,保持旧状态,下个轮询重试(避免 tick 卡死)
+        console.warn('[preview] 渲染异常(已跳过本 tick):', err);
+      }
     })
     .catch((err) => {
       emptyFetches++;
@@ -544,3 +550,7 @@ function initChartsWhenReady() {
 initChartsWhenReady();
 poll();
 setInterval(() => { if (!paused) poll(); }, 500);
+// 后台标签页 setInterval 会被浏览器节流:切回前台立即拉一次,不等下一个周期
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && !paused) poll();
+});
