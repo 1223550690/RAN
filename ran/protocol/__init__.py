@@ -8,7 +8,15 @@ from .rlc import (
     apply_transmission_to_rlc,
     build_rlc_queue,
 )
-from .sdap import map_qos_flow_to_drb
+from .sdap import (
+    SdapMapper,
+    SdapMapping,
+    SdapMappingError,
+    SdapOutput,
+    map_qos_flow_to_drb,
+    process_sdap,
+    reset_default_sdap_mapper,
+)
 
 __all__ = [
     "PdcpBatch",
@@ -18,8 +26,14 @@ __all__ = [
     "RlcRetxBlock",
     "RlcSdu",
     "RlcSegment",
+    "SdapMapper",
+    "SdapMapping",
+    "SdapMappingError",
+    "SdapOutput",
     "apply_transmission_to_rlc",
     "build_pdcp_batch",
     "build_rlc_queue",
     "map_qos_flow_to_drb",
+    "process_sdap",
+    "reset_default_sdap_mapper",
 ]

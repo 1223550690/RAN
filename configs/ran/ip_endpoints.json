@@ -1,0 +1,53 @@
+{
+  "description": "Deterministic Data Network endpoints and L4 transport profiles.",
+  "endpoints": [
+    {
+      "target": "youtube_server",
+      "dnn": "internet",
+      "ip": "10.20.1.80",
+      "protocol": "TCP",
+      "port": 443,
+      "service_types": ["video_upload", "video_stream"]
+    },
+    {
+      "target": "web_server",
+      "dnn": "internet",
+      "ip": "10.20.1.10",
+      "protocol": "TCP",
+      "port": 443,
+      "service_types": ["web", "file_upload", "file_download"]
+    },
+    {
+      "target": "gaming_server",
+      "dnn": "internet",
+      "ip": "10.20.2.20",
+      "protocol": "UDP",
+      "port": 3074,
+      "service_types": ["game"]
+    },
+    {
+      "target": "message_server",
+      "dnn": "internet",
+      "ip": "10.20.3.30",
+      "protocol": "TCP",
+      "port": 443,
+      "service_types": ["message"]
+    },
+    {
+      "target": "video_call_server",
+      "dnn": "internet",
+      "ip": "10.20.4.40",
+      "protocol": "UDP",
+      "port": 3478,
+      "service_types": ["video_call", "voice_call", "live_video"]
+    },
+    {
+      "target": "campus_iot",
+      "dnn": "campus",
+      "ip": "10.30.1.20",
+      "protocol": "UDP",
+      "port": 5683,
+      "service_types": ["telemetry", "control"]
+    }
+  ]
+}

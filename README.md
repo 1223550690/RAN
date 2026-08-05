@@ -33,8 +33,15 @@ pip install -e .
 - `outputs/`: Local runtime outputs such as logs, metrics, and reports.
 - `docs/`: Project documentation and team collaboration notes.
 
-There is currently no dedicated `tests/` directory. Add one later when the RAN
-modules and simulation contracts become stable enough for automated checks.
+The `tests/` directory contains automated contract and integration checks for
+the SMF, IP traffic, QoS, and SDAP modules:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The Area B module design and extension points are documented in
+[`docs/area_b_smf_ip_qos_sdap_zh.md`](docs/area_b_smf_ip_qos_sdap_zh.md).
 
 ## Scene Quick Start
 
