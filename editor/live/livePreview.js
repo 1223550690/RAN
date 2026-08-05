@@ -519,7 +519,9 @@ function setConnStatus(ok) {
   }
 }
 function poll() {
-  fetch('/outputs/live_state.json', { cache: 'no-store' })
+  // URL 加时间戳:Chrome 对无缓存头响应的启发式缓存/条件请求会返回旧副本
+  // (页面静止、后台数据在动的根因),时间戳参数保证每次都是真实请求
+  fetch('/outputs/live_state.json?ts=' + Date.now(), { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
       if (!data) {
