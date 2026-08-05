@@ -47,34 +47,75 @@ def _pid_alive(pid: int) -> bool:
         return False
 
 
+def _pid_creation_time(pid: int) -> int | None:
+    """返回进程创建时间(FILETIME 整数,1601 起 100ns 单位);进程不存在返回 None。
+
+    用于识别 PID 复用:同一 PID 若创建时间与锁记录不符,说明锁属于已死进程。
+    """
+
+    if sys.platform != "win32":
+        return None
+    import ctypes
+    from ctypes import wintypes
+
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return None
+    try:
+        creation = wintypes.FILETIME()
+        exit_t = wintypes.FILETIME()
+        kernel_t = wintypes.FILETIME()
+        user_t = wintypes.FILETIME()
+        ok = ctypes.windll.kernel32.GetProcessTimes(
+            handle,
+            ctypes.byref(creation),
+            ctypes.byref(exit_t),
+            ctypes.byref(kernel_t),
+            ctypes.byref(user_t),
+        )
+        if not ok:
+            return None
+        return (creation.dwHighDateTime << 32) | creation.dwLowDateTime
+    finally:
+        ctypes.windll.kernel32.CloseHandle(handle)
+
+
 def acquire_simulation_lock() -> None:
     """单实例锁:已有存活模拟进程时拒绝启动,避免并发写 live_state.json。
 
-    锁文件 outputs/simulation.lock 记录 PID;进程异常退出时残留锁,
-    下次启动通过 PID 存活检查自动清理。
+    锁文件 outputs/simulation.lock 记录 PID + 进程创建时间;
+    进程异常退出(强杀)时残留锁,下次启动按 PID 存活与创建时间自动清理,
+    并可识别 PID 复用(同一 PID 创建时间不符 = 旧锁)。
     """
 
+    creation = _pid_creation_time(os.getpid())
     if LOCK_PATH.exists():
         try:
             meta = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
             pid = int(meta.get("pid", 0))
+            locked_creation = meta.get("pid_creation")
             if pid and _pid_alive(pid):
-                print(
-                    f"[lock] 已有模拟进程运行中 (pid={pid}, started={meta.get('started_at', '?')})。\n"
-                    f"       同一时间只允许一个模拟实例;请先结束该进程,"
-                    f"或确认其已退出后删除 {LOCK_PATH} 重试。",
-                    file=sys.stderr,
-                )
-                raise SystemExit(1)
+                # 旧格式锁(无创建时间):仅按 PID 判断;新格式:创建时间须一致
+                reused = locked_creation is not None and creation is not None and int(locked_creation) != creation
+                if not reused:
+                    print(
+                        f"[lock] 已有模拟进程运行中 (pid={pid}, started={meta.get('started_at', '?')})。\n"
+                        f"       同一时间只允许一个模拟实例;请先结束该进程,"
+                        f"或确认其已退出后删除 {LOCK_PATH} 重试。",
+                        file=sys.stderr,
+                    )
+                    raise SystemExit(1)
         except (OSError, ValueError, json.JSONDecodeError):
             pass
-        LOCK_PATH.unlink(missing_ok=True)  # 残留锁(持有进程已死)
+        LOCK_PATH.unlink(missing_ok=True)  # 残留锁(持有进程已死或 PID 已复用)
 
     LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
     LOCK_PATH.write_text(
         json.dumps(
             {
                 "pid": os.getpid(),
+                "pid_creation": creation,
                 "started_at": datetime.now().isoformat(timespec="seconds"),
             },
             ensure_ascii=False,
