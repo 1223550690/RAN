@@ -69,4 +69,5 @@ def _request_from_dict(data: dict) -> SchedulerRequest:
         harq_feedback=list(data.get("harq_feedback", [])),
         phr=list(data["phr"]),
         requirements=list(data["requirements"]),
+        slot_ms=float(data.get("slot_ms", 1.0)),
     )

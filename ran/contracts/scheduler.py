@@ -25,8 +25,9 @@ class SchedulerRequest:
     channel_states: list[ChannelState]  # channel_states: 信道状态 record 列表。
     slice_policies: list[SlicePolicy]  # slice_policies: 切片策略列表。
     harq_feedback: list[dict[str, object]] = field(default_factory=list)
-    requirements: list[str] = field(default_factory=list)  # requirements: 业务需求标识(tr22068 扩展,可选)。
-    phr: list[float] = field(default_factory=list)  # phr: UE 功率余量(tr22068 扩展,可选)。
+    requirements: list[str] = field(default_factory=list)  # requirements: 调度需求标签(tr22068 扩展,可选)。
+    phr: list[float] = field(default_factory=list)  # phr: UE 功率余量报告(tr22068 扩展,可选)。
+    slot_ms: float = 1.0  # slot_ms: 本 tick 代表的无线时隙时长(ms);传输量按 tick 语义时长缩放。
 
 
 @dataclass(slots=True)

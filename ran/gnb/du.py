@@ -16,10 +16,12 @@ def build_scheduler_request(
     slice_policies: list[SlicePolicy],
     power_report: list[float] | None = None,
     requirements: list[str] | None = None,
+    slot_ms: float = 1.0,
 ) -> SchedulerRequest:
     """汇总所有活跃 UE/DRB，构造一次 UL SchedulerRequest。
 
     power_report / requirements 为 tr22068 调度扩展字段，缺省为空列表。
+    slot_ms 为该 tick 的无线时隙时长(默认 1ms),传输量按比例缩放。
     """
 
     return SchedulerRequest(
@@ -37,4 +39,5 @@ def build_scheduler_request(
         slice_policies=slice_policies,
         phr=list(power_report or []),
         requirements=list(requirements or []),
+        slot_ms=slot_ms,
     )

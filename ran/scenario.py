@@ -60,10 +60,12 @@ class MultiAgentRanScenario:
         *,
         definition: RanScenarioDefinition | None = None,
         agent_state_provider: AgentStateProvider | None = None,
+        tick_ms: float = 1000.0,
     ) -> None:
         
         self.scene = scene
         self.scheduler = scheduler or JavaSchedulerAdapter()
+        self.tick_ms = float(tick_ms)
         self.definition = definition or build_default_three_agent_definition()
         self.simulation_id = self.definition.simulation_id
         self.agent_count = self.definition.agent_count
@@ -123,6 +125,7 @@ class MultiAgentRanScenario:
             drbs=[service.drb for service in active_services],
             channel_states=list(channel_by_link.values()),
             slice_policies=self.slice_policies,
+            slot_ms=self.tick_ms,
         )
         scheduler_result = self.scheduler.allocate(scheduler_request)
         self._validate_scheduler_result(scheduler_request, scheduler_result)

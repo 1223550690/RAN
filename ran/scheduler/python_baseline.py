@@ -44,7 +44,7 @@ class PythonBaselineScheduler:
             cqi = channel.cqi if channel else 1
             mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
             layers = 1 if cqi < 10 else 2
-            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers)
+            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
             allocations.append(
                 MacAllocation(
@@ -123,7 +123,7 @@ def roundRobinDLScheduling(channel_by_ue, request, active):
             cqi = channel.cqi if channel else 1
             mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
             layers = 1 if cqi < 10 else 2
-            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers)
+            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
             allocations.append(
                 MacAllocation(
@@ -162,7 +162,7 @@ def maxThroughputDLScheduling(channel_by_ue, request, active):
             cqi = channel.cqi if channel else 1
             mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
             layers = 1 if cqi < 10 else 2
-            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers)
+            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
             allocations.append(
                 MacAllocation(
@@ -199,7 +199,7 @@ def grantBasedULScheduling(channel_by_ue, request, active):
             cqi = channel.cqi if channel else 1
             mcs = max(1, min(28, int(cqi * 1.8))) 
             layers = 1 if cqi < 10 else 2
-            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers)
+            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
             allocations.append(
                 MacAllocation(
@@ -237,7 +237,7 @@ def weightedULScheduling(channel_by_ue, request, active):
             cqi = channel.cqi if channel else 1
             mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
             layers = 1 if cqi < 10 else 2
-            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers)
+            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
             allocations.append(
                 MacAllocation(

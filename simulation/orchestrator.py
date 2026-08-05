@@ -40,6 +40,7 @@ class SimulationOrchestrator:
         agent_radius: float = 0.5,
         speed_m_per_tick: float = 0.5,
         same_building_only: bool = False,
+        tick_ms: float = 1000.0,
         seed: int | None = None,
     ) -> None:
         self.scene = scene
@@ -70,6 +71,7 @@ class SimulationOrchestrator:
             scheduler=scheduler,
             definition=ran_definition,
             agent_state_provider=SimulationAgentStateProvider(self.registry),
+            tick_ms=tick_ms,
         )
         # 3) 建意图网关并挂载回 registry。
         self.gateway = RanIntentGateway(self.scenario, intent_profiles=intent_profiles)

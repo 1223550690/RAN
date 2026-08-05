@@ -153,6 +153,7 @@ def run_agent_sim_tick(
         agent_radius=args.agent_radius,
         speed_m_per_tick=args.agent_speed,
         same_building_only=args.llm_same_building,
+        tick_ms=args.tick_ms,
     )
     state = SimulationState(scene=scene)
     loop = SimulationLoop(
