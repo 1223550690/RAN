@@ -1,12 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from ran.access import select_access
-from ran.contracts import AgentIntent, Position
+from ran.contracts import CONTRACT_VERSION, AgentIntent, AgentStateSnapshot, QosMetrics
 from ran.core import deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue
 from ran.gnb import build_scheduler_request, forward_to_n3, receive_radio
 from ran.metrics import build_end_to_end_result, calculate_qos, summarize_slice_usage
+from ran.orchestration import (
+    AgentContext,
+    AgentStateProvider,
+    IntentContext,
+    MockAgentStateProvider,
+    RanScenarioDefinition,
+    ServiceContext,
+    UeContext,
+    build_default_three_agent_definition,
+)
 from ran.protocol import apply_transmission_to_rlc, build_pdcp_batch, build_rlc_queue, map_qos_flow_to_drb
 from ran.qos import build_qos_flow
 from ran.radio import estimate_channel, load_gnb_site_from_scene, transmit
@@ -18,174 +28,649 @@ from ran.transport import apply_backhaul, build_n3_result, forward_n6
 from ran.ue import build_demo_ue_state, build_ue_request
 
 
-class RanUploadScenario:
-    """Project implementation detail."""
+TERMINAL_SERVICE_STATUSES = {"COMPLETED", "FAILED"}
 
-    def __init__(self, scene, scheduler=None) -> None:
+
+class MultiAgentRanScenario:
+    """固定 Agent 集合的 RAN 场景编排器；协议细节由各模块继续完善。"""
+
+    def __init__(
+        self,
+        scene,
+        scheduler=None,
+        *,
+        definition: RanScenarioDefinition | None = None,
+        agent_state_provider: AgentStateProvider | None = None,
+    ) -> None:
+        
         self.scene = scene
         self.scheduler = scheduler or JavaSchedulerAdapter()
-        self.intent = AgentIntent(
-            agent_id="student_a",
-            agent_pos=Position(520.0, 430.0),
-            action="upload",
-            target="youtube_server",
-            content_type="video",
-            size_bytes=100 * 1024 * 1024,
-        )
+        self.definition = definition or build_default_three_agent_definition()
+        self.simulation_id = self.definition.simulation_id
+        self.agent_count = self.definition.agent_count
+        self.agent_ids = tuple(item.agent_id for item in self.definition.agents)
+        self.agent_state_provider = agent_state_provider or MockAgentStateProvider(self.definition)
         self.gnb = load_gnb_site_from_scene(scene)
-        self.ue_state = build_demo_ue_state(
-            agent_id=self.intent.agent_id,
-            ue_id="student_a_phone",
-            position=self.intent.agent_pos,
-        )
-        self.ue_state = register_ue(self.ue_state)
-        self.ue_request = build_ue_request(self.intent, ue_id=self.ue_state.ue_id, selected_access="5g")
-        self.access = select_access(self.ue_request, self.gnb)
-        self.slice_id = classify_slice(self.ue_request.service_type)
-        self.session = establish_pdu_session(self.ue_state, self.ue_request, slice_id=self.slice_id)
-        self.traffic = build_ip_traffic(self.ue_request, self.session)
-        self.qos_flow = build_qos_flow(self.ue_request, self.session)
-        self.drb = map_qos_flow_to_drb(self.qos_flow, self.ue_request)
-        self.pdcp_batch = build_pdcp_batch(self.traffic, self.drb)
-        self.rlc_queue = build_rlc_queue(self.pdcp_batch, self.drb)
         self.slice_policies = update_slice_policies()
+        self.agents: dict[str, AgentContext] = {}
+        self.intents: dict[str, IntentContext] = {}
+        self.ues: dict[str, UeContext] = {}
+        self.services: dict[str, ServiceContext] = {}
+        self.service_order: list[str] = []
         self.completed = False
         self.ticks_executed = 0
-        self.cumulative_attempted_bytes = 0
-        self.cumulative_successful_bytes = 0
-        self.cumulative_failed_bytes = 0
-        self.cumulative_dropped_bytes = 0
-        self.cumulative_n3_loss_bytes = 0
-        self.cumulative_n6_loss_bytes = 0
         self.last_state: dict[str, object] | None = None
 
+        initial_states = self._read_agent_states(tick=0)
+        self._build_contexts(initial_states)
+
     def step(self, tick: int) -> dict[str, object]:
-        """Project implementation detail."""
+        """推进一个 tick：汇总所有活跃队列，调度一次，再逐业务执行。"""
 
         if self.completed:
             return self.snapshot(tick=tick, status="completed")
 
-        channel = estimate_channel(tick=tick, scene=self.scene, ue_request=self.ue_request, gnb=self.gnb)
+        self._update_agent_states(tick)
+        active_services = [
+            self.services[service_id]
+            for service_id in self.service_order
+            if self.services[service_id].status not in TERMINAL_SERVICE_STATUSES
+        ]
+        if not active_services:
+            self.completed = True
+            return self.snapshot(tick=tick, status="completed")
+
+        channel_by_service = {}
+        channel_by_link = {}
+        for service in active_services:
+            channel = estimate_channel(
+                tick=tick,
+                scene=self.scene,
+                ue_request=service.ue_request,
+                gnb=self.gnb,
+            )
+            channel_by_service[service.service_instance_id] = channel
+            channel_by_link[(channel.ue_id, channel.gnb_id, channel.direction)] = channel
+
         scheduler_request = build_scheduler_request(
+            simulation_id=self.simulation_id,
             tick=tick,
+            gnb_id=self.gnb.gnb_id,
             total_prbs=self.gnb.total_prbs,
-            rlc_queues=[self.rlc_queue],
-            qos_flows=[self.qos_flow],
-            drbs=[self.drb],
-            channel_states=[channel],
+            rlc_queues=[service.rlc_queue for service in active_services],
+            qos_flows=[service.qos_flow for service in active_services],
+            drbs=[service.drb for service in active_services],
+            channel_states=list(channel_by_link.values()),
             slice_policies=self.slice_policies,
         )
         scheduler_result = self.scheduler.allocate(scheduler_request)
-        if not scheduler_result.allocations:
-            self.completed = True
-            return self.snapshot(tick=tick, status="no_allocation")
+        self._validate_scheduler_result(scheduler_request, scheduler_result)
+        allocation_by_bearer = {
+            (allocation.ue_id, allocation.drb_id): allocation for allocation in scheduler_result.allocations
+        }
 
-        allocation = scheduler_result.allocations[0]
-        if allocation.scheduled_bytes <= 0:
-            self.completed = True
-            return self.snapshot(tick=tick, status="zero_allocation")
+        service_states: list[dict[str, object]] = []
+        for service_id in self.service_order:
+            service = self.services[service_id]
+            if service.status in TERMINAL_SERVICE_STATUSES:
+                service_states.append(self._reuse_terminal_state(service, tick))
+                continue
 
-        transmission = transmit(tick=tick, allocation=allocation, channel=channel)
-        self.rlc_queue = apply_transmission_to_rlc(self.rlc_queue, transmission)
-        ru_result = receive_radio(transmission)
-        n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, self.session)))
-        n6 = forward_n6(forward_via_upf(n3, self.session, target=self.ue_request.target))
-        delivered = deliver_to_data_network(n6)
+            allocation = allocation_by_bearer.get((service.ue_id, service.drb.drb_id))
+            channel = channel_by_service[service.service_instance_id]
+            if allocation is None or allocation.scheduled_bytes <= 0:
+                service.status = "WAITING_FOR_ALLOCATION"
+                service_states.append(self._build_waiting_service_state(service, channel, tick))
+                continue
+
+            # 最小 RLC grant mock：当前仅按队列字节截断；后续替换为真实 segment 列表。
+            actual_grant_bytes = min(
+                allocation.scheduled_bytes,
+                service.rlc_queue.queued_bytes + service.rlc_queue.retransmission_bytes,
+            )
+            executed_allocation = replace(allocation, scheduled_bytes=actual_grant_bytes)
+            service_states.append(
+                self._execute_service_tick(service, channel, executed_allocation, tick)
+            )
 
         self.ticks_executed += 1
-        self.cumulative_attempted_bytes += transmission.attempted_bytes
-        self.cumulative_successful_bytes += delivered.delivered_bytes
-        self.cumulative_failed_bytes += transmission.failed_bytes + n3.n3_loss_bytes + delivered.n6_loss_bytes
-        self.cumulative_dropped_bytes += transmission.dropped_bytes
-        self.cumulative_n3_loss_bytes += n3.n3_loss_bytes
-        self.cumulative_n6_loss_bytes += delivered.n6_loss_bytes
-        if self.rlc_queue.queued_bytes <= 0 and self.rlc_queue.retransmission_bytes <= 0:
-            self.completed = True
-
-        qos = calculate_qos(
-            requested_bytes=self.traffic.total_bytes,
-            transmission=transmission,
-            n3=n3,
-            n6=delivered,
-            delay_budget_ms=self.qos_flow.packet_delay_budget_ms,
+        self._refresh_lifecycle_states(tick)
+        self.completed = all(
+            service.status in TERMINAL_SERVICE_STATUSES for service in self.services.values()
         )
-        result = build_end_to_end_result(
-            service_id=self.traffic.service_id,
-            ue_id=self.ue_request.ue_id,
-            target=self.ue_request.target,
-            slice_id=self.slice_id,
-            access_type=self.access.access_type,
-            requested_bytes=self.traffic.total_bytes,
-            delivered_bytes=min(self.traffic.total_bytes, self.cumulative_successful_bytes),
-            qos=qos,
+        state = self._compose_state(
+            tick=tick,
+            status="completed" if self.completed else "running",
+            service_states=service_states,
+            scheduler_request=asdict(scheduler_request),
+            scheduler_result=asdict(scheduler_result),
+            slice_usage=summarize_slice_usage(scheduler_result.allocations),
         )
-        delivered_payload_bytes = min(self.traffic.total_bytes, self.cumulative_successful_bytes)
-        dropped_bytes = self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes
-        remaining_payload_bytes = max(0, self.traffic.total_bytes - delivered_payload_bytes - dropped_bytes)
-        remaining_queue_bytes = self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes
-        state = {
-            "mode": "tick",
-            "status": "completed" if self.completed else "running",
-            "tick": tick,
-            "ticks_executed": self.ticks_executed,
-            "result": asdict(result),
-            "gnb": asdict(self.gnb),
-            "ue_request": asdict(self.ue_request),
-            "access": asdict(self.access),
-            "qos_flow": asdict(self.qos_flow),
-            "drb": asdict(self.drb),
-            "rlc_queue_after": asdict(self.rlc_queue),
-            "channel": asdict(channel),
-            "scheduler_request": asdict(scheduler_request),
-            "scheduler_result": asdict(scheduler_result),
-            "transmission": asdict(transmission),
-            "n3": asdict(n3),
-            "n6": asdict(delivered),
-            "slice_usage": summarize_slice_usage(scheduler_result.allocations),
-            "progress": {
-                "requested_bytes": self.traffic.total_bytes,
-                "delivered_bytes": delivered_payload_bytes,
-                "remaining_payload_bytes": remaining_payload_bytes,
-                "remaining_queue_bytes": remaining_queue_bytes,
-                "completion_ratio": min(1.0, delivered_payload_bytes / self.traffic.total_bytes),
-                "remaining_ratio": remaining_payload_bytes / self.traffic.total_bytes,
-                "dropped_bytes": dropped_bytes,
-            },
-        }
         self.last_state = state
         return state
 
+    def get_agent_states(self, *, tick: int) -> list[dict[str, object]]:
+        """公开 mock/真实 AgentStateProvider 的统一状态接口。"""
+
+        states = self._read_agent_states(tick)
+        return [asdict(state) for state in states]
+
     def snapshot(self, *, tick: int, status: str | None = None) -> dict[str, object]:
-        """Project implementation detail."""
+        """返回当前场景快照，不推进协议状态。"""
 
         if self.last_state is not None:
             state = dict(self.last_state)
             state["tick"] = tick
-            state["status"] = status or state.get("status", "running")
+            state["status"] = status or str(state.get("status", "running"))
             return state
+
+        service_states = [self._build_initial_service_state(self.services[item]) for item in self.service_order]
+        return self._compose_state(
+            tick=tick,
+            status=status or "initialized",
+            service_states=service_states,
+            scheduler_request={},
+            scheduler_result={"allocations": []},
+            slice_usage={},
+        )
+
+    def _build_contexts(self, initial_states: list[AgentStateSnapshot]) -> None:
+        state_by_agent = {state.agent_id: state for state in initial_states}
+        for index, item in enumerate(self.definition.agents):
+            agent_state = state_by_agent[item.agent_id]
+            self._register_ue(item, agent_state)
+            if item.intent is None:
+                # 无初始 Intent:仅注册 UE,业务由运行时通过 submit_intent 动态提交。
+                self.agents[item.agent_id] = AgentContext(
+                    agent_id=item.agent_id,
+                    state=agent_state,
+                    intent_ids=[],
+                    ue_ids=[item.ue_id],
+                )
+                continue
+            self._create_service(item, item.intent, index)
+
+    def _register_ue(self, item, agent_state) -> None:
+        """注册并保存 Agent 的 UE 控制面上下文。重复注册同一 UE 时保持现有上下文。"""
+
+        if item.ue_id in self.ues:
+            return
+        ue_state = register_ue(
+            build_demo_ue_state(
+                agent_id=item.agent_id,
+                ue_id=item.ue_id,
+                position=agent_state.position,
+            )
+        )
+        self.ues[item.ue_id] = UeContext(
+            state=ue_state,
+            active_service_ids=[],
+        )
+
+    def _create_service(self, item, intent: AgentIntent, index: int) -> str:
+        """根据一个 Intent 构建完整业务上下文,返回 service_instance_id。"""
+
+        service_instance_id = f"service_{intent.intent_id}"
+        ue_state = self.ues[item.ue_id].state
+        ue_request = build_ue_request(
+            intent,
+            ue_id=ue_state.ue_id,
+            service_instance_id=service_instance_id,
+            selected_access=item.selected_access,
+        )
+        access = select_access(ue_request, self.gnb)
+        slice_id = classify_slice(ue_request.service_type)
+        session = establish_pdu_session(
+            ue_state,
+            ue_request,
+            slice_id=slice_id,
+            ue_ip=_mock_ue_ip(index),
+        )
+        traffic = build_ip_traffic(ue_request, session)
+        qos_flow = build_qos_flow(ue_request, session)
+        drb = map_qos_flow_to_drb(qos_flow, ue_request)
+        pdcp_batch = build_pdcp_batch(traffic, drb)
+        rlc_queue = build_rlc_queue(pdcp_batch, drb)
+
+        agent_context = self.agents.get(item.agent_id)
+        if agent_context is None:
+            # 理论不可达:_build_contexts 总会先注册 AgentContext;此处兜底保证不变量。
+            agent_context = AgentContext(
+                agent_id=item.agent_id,
+                state=AgentStateSnapshot(
+                    agent_id=item.agent_id,
+                    tick=0,
+                    position=ue_state.position,
+                    status="READY",
+                ),
+                intent_ids=[],
+                ue_ids=[item.ue_id],
+            )
+            self.agents[item.agent_id] = agent_context
+        agent_context.intent_ids.append(intent.intent_id)
+        self.intents[intent.intent_id] = IntentContext(
+            intent=intent,
+            status="ACTIVE",
+            service_instance_ids=[service_instance_id],
+        )
+        ue_context = self.ues[item.ue_id]
+        ue_context.active_service_ids.append(service_instance_id)
+        self.services[service_instance_id] = ServiceContext(
+            service_instance_id=service_instance_id,
+            intent_id=intent.intent_id,
+            agent_id=item.agent_id,
+            ue_id=item.ue_id,
+            ue_request=ue_request,
+            access=access,
+            slice_id=slice_id,
+            session=session,
+            traffic=traffic,
+            qos_flow=qos_flow,
+            drb=drb,
+            pdcp_batch=pdcp_batch,
+            rlc_queue=rlc_queue,
+            status="ACTIVE",
+        )
+        self.service_order.append(service_instance_id)
+        return service_instance_id
+
+    def submit_intent(self, intent: AgentIntent, *, selected_access: str = "5g") -> str:
+        """运行中提交一个新的业务意图,返回 service_instance_id。
+
+        校验:
+        - agent_id 必须属于场景建立时冻结的 Agent 集合。
+        - intent_id 必须全局唯一。
+        - requested_payload_bytes 必须为正。
+        提交后若场景此前已 completed,会重新激活 step 循环。
+        """
+
+        if intent.agent_id not in self.agent_ids:
+            raise ValueError(
+                f"Intent {intent.intent_id!r} references unknown agent {intent.agent_id!r}; "
+                "the Agent set is frozen at scenario creation"
+            )
+        if intent.intent_id in self.intents:
+            raise ValueError(f"Intent id {intent.intent_id!r} already exists in this scenario")
+        if intent.requested_payload_bytes <= 0:
+            raise ValueError(f"Intent {intent.intent_id!r} must request positive payload bytes")
+
+        item = next(
+            item for item in self.definition.agents if item.agent_id == intent.agent_id
+        )
+        item = replace(item, selected_access=selected_access)  # type: ignore[arg-type]
+        if self.completed:
+            self.completed = False
+        return self._create_service(item, intent, self._next_service_index())
+
+    def _next_service_index(self) -> int:
+        """为动态提交的业务分配稳定且唯一的 UE IPv4 索引。"""
+
+        index = getattr(self, "_service_index_counter", len(self.service_order))
+        self._service_index_counter = index + 1
+        return index
+
+    def _execute_service_tick(self, service, channel, allocation, tick: int) -> dict[str, object]:
+        service.status = "ACTIVE"
+        transmission = transmit(
+            tick=tick,
+            allocation=allocation,
+            channel=channel,
+            rlc_mode=service.rlc_queue.rlc_mode,
+        )
+        service.rlc_queue = apply_transmission_to_rlc(service.rlc_queue, transmission)
+        ru_result = receive_radio(transmission)
+        n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, service.session)))
+        n6 = forward_n6(forward_via_upf(n3, service.session, target=service.ue_request.target))
+        delivered = deliver_to_data_network(n6)
+
+        counters = service.counters
+        counters.attempted_protocol_bytes += transmission.attempted_bytes
+        original_protocol_bytes = service.pdcp_batch.output_bytes
+        remaining_protocol_bytes = max(
+            0,
+            original_protocol_bytes
+            - counters.delivered_protocol_bytes
+            - counters.permanently_dropped_protocol_bytes,
+        )
+        delivered_protocol_this_tick = min(remaining_protocol_bytes, delivered.delivered_bytes)
+        counters.delivered_protocol_bytes += delivered_protocol_this_tick
+        remaining_protocol_bytes -= delivered_protocol_this_tick
+        dropped_protocol_this_tick = min(
+            remaining_protocol_bytes,
+            transmission.dropped_bytes + n3.n3_loss_bytes + delivered.n6_loss_bytes,
+        )
+        counters.permanently_dropped_protocol_bytes += dropped_protocol_this_tick
+        counters.n3_loss_bytes += n3.n3_loss_bytes
+        counters.n6_loss_bytes += delivered.n6_loss_bytes
+        self._update_payload_counters(service)
+
+        if service.rlc_queue.queued_bytes <= 0 and service.rlc_queue.retransmission_bytes <= 0:
+            unresolved_protocol_bytes = max(
+                0,
+                original_protocol_bytes
+                - counters.delivered_protocol_bytes
+                - counters.permanently_dropped_protocol_bytes,
+            )
+            counters.permanently_dropped_protocol_bytes += unresolved_protocol_bytes
+            self._update_payload_counters(service)
+            service.status = "COMPLETED"
+
+        qos = calculate_qos(
+            requested_bytes=service.traffic.total_bytes,
+            transmission=transmission,
+            n3=n3,
+            n6=delivered,
+            delay_budget_ms=service.qos_flow.packet_delay_budget_ms,
+        )
+        result = build_end_to_end_result(
+            service_id=service.service_instance_id,
+            ue_id=service.ue_id,
+            target=service.ue_request.target,
+            slice_id=service.slice_id,
+            access_type=service.access.access_type,
+            requested_bytes=service.traffic.total_bytes,
+            delivered_bytes=counters.delivered_payload_bytes,
+            qos=qos,
+        )
+        state = self._service_state_base(service, tick)
+        state.update(
+            {
+                "status": service.status,
+                "result": asdict(result),
+                "rlc_queue_after": asdict(service.rlc_queue),
+                "channel": asdict(channel),
+                "allocation": asdict(allocation),
+                "transmission": asdict(transmission),
+                "n3": asdict(n3),
+                "n6": asdict(delivered),
+                "progress": self._service_progress(service),
+            }
+        )
+        service.last_state = state
+        return state
+
+    def _build_waiting_service_state(self, service, channel, tick: int) -> dict[str, object]:
+        state = self._service_state_base(service, tick)
+        state.update(
+            {
+                "status": service.status,
+                "result": self._result_snapshot(service, QosMetrics(0.0, 0.0, 0.0, True, False)),
+                "rlc_queue_after": asdict(service.rlc_queue),
+                "channel": asdict(channel),
+                "allocation": {},
+                "transmission": {},
+                "n3": {},
+                "n6": {},
+                "progress": self._service_progress(service),
+            }
+        )
+        service.last_state = state
+        return state
+
+    def _build_initial_service_state(self, service) -> dict[str, object]:
+        state = self._service_state_base(service, tick=0)
+        state.update(
+            {
+                "status": "INITIALIZING",
+                "result": self._result_snapshot(service, QosMetrics(0.0, 0.0, 0.0, False, False)),
+                "rlc_queue_after": asdict(service.rlc_queue),
+                "channel": {},
+                "allocation": {},
+                "transmission": {},
+                "n3": {},
+                "n6": {},
+                "progress": self._service_progress(service),
+            }
+        )
+        return state
+
+    def _result_snapshot(self, service, qos: QosMetrics) -> dict[str, object]:
+        result = build_end_to_end_result(
+            service_id=service.service_instance_id,
+            ue_id=service.ue_id,
+            target=service.ue_request.target,
+            slice_id=service.slice_id,
+            access_type=service.access.access_type,
+            requested_bytes=service.traffic.total_bytes,
+            delivered_bytes=service.counters.delivered_payload_bytes,
+            qos=qos,
+        )
+        return asdict(result)
+
+    def _reuse_terminal_state(self, service, tick: int) -> dict[str, object]:
+        if service.last_state is None:
+            return self._build_initial_service_state(service)
+        state = dict(service.last_state)
+        state["tick"] = tick
+        state["status"] = service.status
+        state["allocation"] = {}
+        state["transmission"] = {}
+        state["n3"] = {}
+        state["n6"] = {}
+        return state
+
+    def _service_state_base(self, service, tick: int) -> dict[str, object]:
         return {
+            "agent_id": service.agent_id,
+            "intent_id": service.intent_id,
+            "service_instance_id": service.service_instance_id,
+            "ue_id": service.ue_id,
+            "tick": tick,
+            "ue_request": asdict(service.ue_request),
+            "access": asdict(service.access),
+            "qos_flow": asdict(service.qos_flow),
+            "drb": asdict(service.drb),
+        }
+
+    def _compose_state(
+        self,
+        *,
+        tick: int,
+        status: str,
+        service_states: list[dict[str, object]],
+        scheduler_request: dict[str, object],
+        scheduler_result: dict[str, object],
+        slice_usage: dict[str, int],
+    ) -> dict[str, object]:
+        primary = service_states[0] if service_states else {}
+        progress = self._aggregate_progress()
+        state = {
+            "contract_version": CONTRACT_VERSION,
             "mode": "tick",
-            "status": status or "initialized",
+            "simulation_id": self.simulation_id,
+            "status": status,
             "tick": tick,
             "ticks_executed": self.ticks_executed,
+            "agent_count": self.agent_count,
+            "agent_states": [asdict(self.agents[item].state) for item in self.agent_ids],
+            "service_states": service_states,
+            "results": [item["result"] for item in service_states],
             "gnb": asdict(self.gnb),
-            "ue_request": asdict(self.ue_request),
-            "access": asdict(self.access),
-            "rlc_queue_after": asdict(self.rlc_queue),
-            "progress": {
-                "requested_bytes": self.traffic.total_bytes,
-                "delivered_bytes": min(self.traffic.total_bytes, self.cumulative_successful_bytes),
-                "remaining_payload_bytes": max(
-                    0,
-                    self.traffic.total_bytes
-                    - min(self.traffic.total_bytes, self.cumulative_successful_bytes)
-                    - self.cumulative_dropped_bytes
-                    - self.cumulative_n3_loss_bytes
-                    - self.cumulative_n6_loss_bytes,
-                ),
-                "remaining_queue_bytes": self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes,
-                "completion_ratio": 0.0,
-                "remaining_ratio": 1.0,
-                "dropped_bytes": self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes,
-            },
+            "scheduler_request": scheduler_request,
+            "scheduler_result": scheduler_result,
+            "slice_usage": slice_usage,
+            "progress": progress,
+            # 兼容旧预览：只映射首个 Service，后续前端应读取 service_states。
+            "result": primary.get("result", {}),
+            "ue_request": primary.get("ue_request", {}),
+            "access": primary.get("access", {}),
+            "qos_flow": primary.get("qos_flow", {}),
+            "drb": primary.get("drb", {}),
+            "rlc_queue_after": primary.get("rlc_queue_after", {}),
+            "channel": primary.get("channel", {}),
+            "transmission": primary.get("transmission", {}),
+            "n3": primary.get("n3", {}),
+            "n6": primary.get("n6", {}),
         }
+        return state
+
+    def _aggregate_progress(self) -> dict[str, object]:
+        requested = sum(service.traffic.total_bytes for service in self.services.values())
+        delivered = sum(service.counters.delivered_payload_bytes for service in self.services.values())
+        dropped = sum(
+            service.counters.permanently_dropped_payload_bytes for service in self.services.values()
+        )
+        remaining = max(0, requested - delivered - dropped)
+        queue_bytes = sum(
+            service.rlc_queue.queued_bytes + service.rlc_queue.retransmission_bytes
+            for service in self.services.values()
+        )
+        return {
+            "requested_bytes": requested,
+            "delivered_bytes": delivered,
+            "remaining_payload_bytes": remaining,
+            "remaining_queue_bytes": queue_bytes,
+            "completion_ratio": delivered / requested if requested else 1.0,
+            "remaining_ratio": remaining / requested if requested else 0.0,
+            "dropped_bytes": dropped,
+        }
+
+    def _service_progress(self, service) -> dict[str, object]:
+        requested = service.traffic.total_bytes
+        delivered = service.counters.delivered_payload_bytes
+        dropped = service.counters.permanently_dropped_payload_bytes
+        remaining = max(0, requested - delivered - dropped)
+        return {
+            "requested_bytes": requested,
+            "delivered_bytes": delivered,
+            "remaining_payload_bytes": remaining,
+            "remaining_queue_bytes": service.rlc_queue.queued_bytes + service.rlc_queue.retransmission_bytes,
+            "completion_ratio": delivered / requested if requested else 1.0,
+            "remaining_ratio": remaining / requested if requested else 0.0,
+            "dropped_bytes": dropped,
+        }
+
+    def _remaining_payload_bytes(self, service) -> int:
+        return max(
+            0,
+            service.traffic.total_bytes
+            - service.counters.delivered_payload_bytes
+            - service.counters.permanently_dropped_payload_bytes,
+        )
+
+    @staticmethod
+    def _update_payload_counters(service) -> None:
+        """按原始 PDCP batch 比例映射协议结果，防止 header 被计为应用 payload。"""
+
+        counters = service.counters
+        protocol_total = service.pdcp_batch.output_bytes
+        payload_total = service.traffic.total_bytes
+        if protocol_total <= 0:
+            counters.delivered_payload_bytes = 0
+            counters.permanently_dropped_payload_bytes = payload_total
+            return
+
+        counters.delivered_payload_bytes = min(
+            payload_total,
+            payload_total * counters.delivered_protocol_bytes // protocol_total,
+        )
+        accounted_protocol_bytes = (
+            counters.delivered_protocol_bytes + counters.permanently_dropped_protocol_bytes
+        )
+        if accounted_protocol_bytes >= protocol_total:
+            counters.permanently_dropped_payload_bytes = (
+                payload_total - counters.delivered_payload_bytes
+            )
+        else:
+            counters.permanently_dropped_payload_bytes = min(
+                payload_total - counters.delivered_payload_bytes,
+                payload_total * counters.permanently_dropped_protocol_bytes // protocol_total,
+            )
+
+    def _read_agent_states(self, tick: int) -> list[AgentStateSnapshot]:
+        states = self.agent_state_provider.get_agent_states(tick=tick)
+        state_ids = [state.agent_id for state in states]
+        if len(state_ids) != len(set(state_ids)):
+            raise ValueError("AgentStateProvider returned duplicate agent_id values")
+        if set(state_ids) != set(self.agent_ids) or len(states) != self.agent_count:
+            raise ValueError("AgentStateProvider must return the fixed Agent set defined at scenario creation")
+        if any(state.tick != tick for state in states):
+            raise ValueError("AgentStateProvider returned a snapshot for the wrong tick")
+        return states
+
+    def _update_agent_states(self, tick: int) -> None:
+        for state in self._read_agent_states(tick):
+            self.agents[state.agent_id].state = state
+            for ue_id in self.agents[state.agent_id].ue_ids:
+                self.ues[ue_id].state.position = state.position
+            for service in self.services.values():
+                if service.agent_id == state.agent_id:
+                    service.ue_request.position = state.position
+
+    def _refresh_lifecycle_states(self, tick: int) -> None:
+        for intent_context in self.intents.values():
+            statuses = [self.services[item].status for item in intent_context.service_instance_ids]
+            intent_context.status = "COMPLETED" if all(
+                item in TERMINAL_SERVICE_STATUSES for item in statuses
+            ) else "ACTIVE"
+
+        for ue_context in self.ues.values():
+            ue_context.active_service_ids = [
+                item
+                for item in ue_context.active_service_ids
+                if self.services[item].status not in TERMINAL_SERVICE_STATUSES
+            ]
+
+        for agent_context in self.agents.values():
+            service_ids = [
+                service_id
+                for intent_id in agent_context.intent_ids
+                for service_id in self.intents[intent_id].service_instance_ids
+            ]
+            if not service_ids:
+                # 无任何已提交 Intent(动态模式):不派生生命周期状态,保留 provider 状态。
+                continue
+            derived_status = "COMPLETED" if all(
+                self.services[item].status in TERMINAL_SERVICE_STATUSES for item in service_ids
+            ) else "ACTIVE"
+            agent_context.state = replace(
+                agent_context.state,
+                tick=tick,
+                status=derived_status,
+            )
+
+    @staticmethod
+    def _validate_scheduler_result(request, result) -> None:
+        if result.contract_version != request.contract_version:
+            raise ValueError("SchedulerResult contract_version does not match SchedulerRequest")
+        if result.simulation_id != request.simulation_id:
+            raise ValueError("SchedulerResult simulation_id does not match SchedulerRequest")
+        if result.scheduler_request_id != request.scheduler_request_id or result.tick != request.tick:
+            raise ValueError("SchedulerResult does not reference the current SchedulerRequest")
+
+        queue_by_bearer = {
+            (queue.ue_id, queue.drb_id, queue.direction): queue for queue in request.rlc_queues
+        }
+        seen = set()
+        allocated_prbs = 0
+        for allocation in result.allocations:
+            key = (allocation.ue_id, allocation.drb_id, allocation.direction)
+            if key in seen:
+                raise ValueError(f"Scheduler returned duplicate allocation for bearer {key!r}")
+            if key not in queue_by_bearer:
+                raise ValueError(f"Scheduler returned allocation for unknown bearer {key!r}")
+            if allocation.prbs < 0 or allocation.scheduled_bytes < 0:
+                raise ValueError("Scheduler returned a negative PRB or byte allocation")
+            queue = queue_by_bearer[key]
+            if allocation.scheduled_bytes > queue.queued_bytes + queue.retransmission_bytes:
+                raise ValueError(f"Scheduler over-allocated bytes for bearer {key!r}")
+            seen.add(key)
+            allocated_prbs += allocation.prbs
+        if allocated_prbs > request.total_prbs:
+            raise ValueError(
+                f"Scheduler allocated {allocated_prbs} PRBs but only {request.total_prbs} are available"
+            )
+
+
+# 兼容已有导入；新代码统一使用 MultiAgentRanScenario。
+RanUploadScenario = MultiAgentRanScenario
+
+
+def _mock_ue_ip(index: int) -> str:
+    """为当前 mock 分配互不冲突的私网 IPv4 地址。"""
+
+    third_octet = index // 240
+    fourth_octet = 15 + index % 240
+    if third_octet > 254:
+        raise ValueError("Mock UE IPv4 pool exhausted")
+    return f"10.20.{third_octet}.{fourth_octet}"

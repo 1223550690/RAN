@@ -3,14 +3,21 @@ from __future__ import annotations
 from ran.contracts import ChannelState, MacAllocation, TransmissionResult
 
 
-def transmit(*, tick: int, allocation: MacAllocation, channel: ChannelState) -> TransmissionResult:
-    """Project implementation detail."""
+def transmit(
+    *,
+    tick: int,
+    allocation: MacAllocation,
+    channel: ChannelState,
+    rlc_mode: str = "AM",
+) -> TransmissionResult:
+    """执行最小 PHY mock；HARQ 实现前将最终失败明确交给 RLC 或 drop。"""
 
     error_rate = max(allocation.expected_error_rate, channel.estimated_packet_error_rate)
     failed = int(allocation.scheduled_bytes * error_rate)
     successful = max(0, allocation.scheduled_bytes - failed)
-    harq_retx = failed if error_rate <= 0.15 else int(failed * 0.5)
-    rlc_retx = failed - harq_retx
+    harq_retx = 0
+    rlc_retx = failed if rlc_mode == "AM" else 0
+    dropped = failed if rlc_mode != "AM" else 0
     return TransmissionResult(
         tick=tick,
         ue_id=allocation.ue_id,
@@ -29,6 +36,6 @@ def transmit(*, tick: int, allocation: MacAllocation, channel: ChannelState) -> 
         harq_ack=failed == 0,
         harq_retx_bytes=harq_retx,
         rlc_retx_bytes=rlc_retx,
-        dropped_bytes=0,
+        dropped_bytes=dropped,
         transmission_delay_ms=1.0,
     )

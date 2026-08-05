@@ -1,0 +1,15 @@
+{
+  "simulation_id": "llm_single_student_bristol",
+  "seed": 42,
+  "loop_policy": "stop",
+  "llm_mode": true,
+  "agents": [
+    {
+      "agent_id": "student_001",
+      "role": "student",
+      "spawn_position": [520.0, 300.0],
+      "ue_id": "student_001_phone"
+    }
+  ],
+  "plans": {}
+}

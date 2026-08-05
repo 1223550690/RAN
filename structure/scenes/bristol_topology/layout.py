@@ -4629,7 +4629,7 @@ AREA_PORTAL_DEFINITIONS = {'block_09_student_union': [{'id': 'student_union_west
                                'endpoints': [{'object_type': 'area',
                                               'object_id': 'wills_physics_laboratory_open_space'},
                                              {'object_type': 'area', 'object_id': 'outside'}],
-                               'segment': [[145, 194], [230, 194]],
+                               'segment': [[139, 194], [224, 194]],
                                'wall_id': None,
                                'width_m': 0,
                                'open': True}],

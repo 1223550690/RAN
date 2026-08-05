@@ -29,6 +29,15 @@ SERVICE_QOS_TABLE: dict[str, dict[str, object]] = {
         "resource_type": "non_gbr",
         "slice_id": "mmtc",
     },
+    "voice_upload": {
+        "qfi": 7,
+        "five_qi": 7,
+        "priority": 3,
+        "packet_delay_budget_ms": 100.0,
+        "packet_error_rate": 1e-3,
+        "resource_type": "non_gbr",
+        "slice_id": "urllc",
+    },
 }
 
 

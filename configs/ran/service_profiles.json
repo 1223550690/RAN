@@ -26,5 +26,14 @@
     "packet_error_rate": 0.000001,
     "resource_type": "non_gbr",
     "slice_id": "mmtc"
+  },
+  "voice_upload": {
+    "qfi": 7,
+    "five_qi": 7,
+    "priority": 3,
+    "packet_delay_budget_ms": 100,
+    "packet_error_rate": 0.001,
+    "resource_type": "non_gbr",
+    "slice_id": "urllc"
   }
 }

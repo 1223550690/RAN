@@ -60,6 +60,18 @@ export class ScenePreview {
 
   setAgents(agentStates = []) {
     this.agents = agentStates;
+    this.agentTrails = this.agentTrails || {};
+    for (const agent of agentStates) {
+      if (!agent.position) continue;
+      const key = agent.agent_id || "agent";
+      const trail = this.agentTrails[key] || [];
+      const last = trail[trail.length - 1];
+      if (!last || Math.abs(last[0] - agent.position[0]) > 1e-9 || Math.abs(last[1] - agent.position[1]) > 1e-9) {
+        trail.push([agent.position[0], agent.position[1]]);
+        if (trail.length > 2000) trail.shift();
+      }
+      this.agentTrails[key] = trail;
+    }
     this.render();
   }
 
@@ -734,9 +746,11 @@ export class ScenePreview {
   drawAgentOverlay() {
     for (const agent of this.agents) {
       if (!agent.position) continue;
+      const color = agent.color || "#7f4ac9";
+      this.drawAgentRoute(agent, color);
       const [x, y] = this.transform.toScreen(agent.position);
       this.ctx.save();
-      this.ctx.fillStyle = agent.color || "#7f4ac9";
+      this.ctx.fillStyle = color;
       this.ctx.beginPath();
       this.ctx.arc(x, y, 7, 0, Math.PI * 2);
       this.ctx.fill();
@@ -748,6 +762,50 @@ export class ScenePreview {
         this.ctx.font = "11px Segoe UI, sans-serif";
         this.ctx.fillText(agent.behavior, x + 10, y + 12);
       }
+      this.ctx.restore();
+    }
+  }
+
+  drawAgentRoute(agent, color) {
+    // 历史轨迹:细半透明线。
+    const trail = this.agentTrails?.[agent.agent_id || "agent"] || [];
+    if (trail.length >= 2) {
+      this.ctx.save();
+      this.ctx.strokeStyle = color;
+      this.ctx.globalAlpha = 0.25;
+      this.ctx.lineWidth = 1.5;
+      this.ctx.beginPath();
+      trail.forEach((point, index) => {
+        const [sx, sy] = this.transform.toScreen(point);
+        if (index === 0) this.ctx.moveTo(sx, sy);
+        else this.ctx.lineTo(sx, sy);
+      });
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
+    // 当前规划路线:虚线折线(waypoints 由导航器生成)。
+    const waypoints = agent.waypoints || [];
+    if (waypoints.length >= 2) {
+      this.ctx.save();
+      this.ctx.strokeStyle = color;
+      this.ctx.globalAlpha = 0.85;
+      this.ctx.lineWidth = 2.5;
+      this.ctx.setLineDash([8, 6]);
+      this.ctx.beginPath();
+      waypoints.forEach((point, index) => {
+        const [sx, sy] = this.transform.toScreen(point);
+        if (index === 0) this.ctx.moveTo(sx, sy);
+        else this.ctx.lineTo(sx, sy);
+      });
+      this.ctx.stroke();
+      this.ctx.setLineDash([]);
+      // 终点标记:小方框。
+      const [ex, ey] = this.transform.toScreen(waypoints[waypoints.length - 1]);
+      this.ctx.fillStyle = color;
+      this.ctx.strokeStyle = "#ffffff";
+      this.ctx.lineWidth = 1.5;
+      this.ctx.fillRect(ex - 4, ey - 4, 8, 8);
+      this.ctx.strokeRect(ex - 4, ey - 4, 8, 8);
       this.ctx.restore();
     }
   }

@@ -1,22 +1,24 @@
-# RAN MVP 执行逻辑说明
+# 多 Agent RAN 基线执行逻辑说明
 
-本文说明当前 RAN MVP 如何从固定测试场景执行到 Data Network，并标明每一步对应的代码文件。当前目标是提供一条可运行、可预览、可替换 scheduler 的最小链路；各模块内部算法仍保持最小实现，后续可以由组员逐步替换。
+本文说明当前 RAN 基线如何从固定规模的多 Agent 测试场景执行到 Data Network，并标明每一步对应的代码文件。合同、身份和守恒规则以 `docs/integration/frozen_contracts_v1_zh.md` 为准。以下协议链对每个 `ServiceContext` 分别执行，各模块内部算法仍保持最小实现。
 
 ## 1. 测试背景
 
 - 地图：`bristol_topology`
-- Agent：`student_a`
-- Agent 位置：学生生活动中心附近，地图坐标 `(520, 430)`
-- UE：`student_a_phone`
+- 场景建立时固定三个 Agent，运行期间不可隐式增删。
+- `student_a/student_a_phone`：上传 100 MiB 视频到 `youtube_server`。
+- `student_b/student_b_phone`：发送 4 KiB 即时消息到 `chat_server`。
+- `student_c/student_c_phone`：上传 1 MiB 语音片段到 `voice_server`。
 - 接入方式：`selected_access="5g"`，`access_type="3gpp"`
-- 业务：通过手机 5G 上传 100MB 视频到 `youtube_server`
 - DNN：`internet`
 - 单基站：`gnb_001`
 - 基站初始位置：大地图左上角，地图坐标约 `(90, 90)`
 
 对应代码：
 
-- 场景固定参数：`ran/scenario.py`
+- 默认场景参数：`ran/orchestration/definitions.py`
+- Agent 状态 mock：`ran/orchestration/agent_state.py`
+- 多 Agent 编排：`ran/scenario.py`
 - 地图加载：`services/scene_service.py`
 - 基站从地图读取：`ran/radio/topology_adapter.py`
 - 地图数据：`editor/data/scenes/bristol_topology.json`
@@ -37,9 +39,9 @@ simulation/main.py
 -> SceneService.load_scene()
 -> start_preview_server()
 -> run_ran_mvp_tick()
--> RanEngine.build_upload_scenario()
+-> RanEngine.build_scenario()
 -> SimulationLoop.run()
--> RanUploadScenario.step()
+-> MultiAgentRanScenario.step()
 ```
 
 说明：
@@ -60,8 +62,8 @@ python -m simulation.main -s bristol_topology --ran-mvp --ran-mvp-mode aggregate
 ```text
 simulation/main.py
 -> run_ran_mvp_aggregate()
--> RanEngine.run_agent_upload_demo()
--> RanUploadScenario.step() 多次
+-> RanEngine.run_scenario()
+-> MultiAgentRanScenario.step() 多次
 -> 打印最终摘要
 ```
 
@@ -69,7 +71,7 @@ simulation/main.py
 
 ## 3. 总体链路
 
-当前 MVP 的协议/模块链路如下：
+对每个活跃 Service 执行的协议/模块链路如下；SchedulerRequest 会在同一 tick 汇总所有活跃 Service，并只调用一次 Scheduler：
 
 ```text
 AgentIntent

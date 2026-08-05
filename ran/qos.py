@@ -9,6 +9,8 @@ def build_qos_flow(request: UERequest, session: PduSession) -> QoSFlow:
 
     profile = service_profile_for(request.service_type)
     return QoSFlow(
+        ue_id=request.ue_id,
+        service_instance_id=request.service_instance_id,
         pdu_session_id=session.pdu_session_id,
         qfi=int(profile["qfi"]),
         five_qi=int(profile["five_qi"]),

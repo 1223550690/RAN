@@ -49,7 +49,33 @@ function renderStatus(state) {
   statusText.textContent = `tick ${state.tick} - ${state.scene?.name || state.scene?.node_id || "scene"}`;
   latestPaused = Boolean(state.control_state?.paused);
   pauseButton.textContent = latestPaused ? "Resume" : "Pause";
+  renderAgentSummary(state.agents || []);
+}
+
+function renderAgentSummary(agents) {
   agentSummary.innerHTML = "";
+  for (const agent of agents) {
+    const badge = document.createElement("div");
+    badge.className = "agent-summary-item";
+    const color = agent.color || "#7f4ac9";
+    const activity = agent.activity_state || agent.lifecycle_status || "unknown";
+    const pos = agent.position ? `(${agent.position[0].toFixed(2)}, ${agent.position[1].toFixed(2)})` : "";
+    const target = agent.destination_id ? `→ ${agent.destination_id}` : "";
+    const progress =
+      agent.waypoint_count > 0 ? `wp ${Math.min(agent.waypoint_index + 1, agent.waypoint_count)}/${agent.waypoint_count}` : "";
+    const intent = agent.current_intent_id ? `intent ${agent.current_intent_id}` : "";
+    const error = agent.error ? `error ${agent.error}` : "";
+    const lines = [activity, pos, target, progress, intent, error].filter(Boolean);
+
+    const dot = document.createElement("span");
+    dot.className = "agent-summary-dot";
+    dot.style.background = color;
+    const text = document.createElement("span");
+    text.className = "agent-summary-text";
+    text.textContent = `${agent.agent_id}: ${lines.join(" ")}`;
+    badge.append(dot, text);
+    agentSummary.append(badge);
+  }
 }
 
 function renderConsole(state) {
@@ -130,6 +156,24 @@ function buildSnapshotEmpty(text) {
 
 function formatRanStateLines(ranState) {
   if (!ranState || !ranState.status) return [];
+  if (Array.isArray(ranState.service_states) && ranState.service_states.length) {
+    const gnb = ranState.gnb || {};
+    const lines = ranState.service_states.map((service) => {
+      const result = service.result || {};
+      const qos = result.qos || {};
+      const progress = service.progress || {};
+      const channel = service.channel || {};
+      const allocation = service.allocation || {};
+      const transmission = service.transmission || {};
+      const drb = service.drb || {};
+      const qosFlow = service.qos_flow || {};
+      return `ran agent=${service.agent_id || "-"} service=${service.service_instance_id || "-"} status=${service.status || "-"} tick=${service.tick ?? ranState.tick} ue=${service.ue_id || "-"} gnb=${gnb.gnb_id || "-"} gnb_pos=(${gnb.position?.x ?? "-"}, ${gnb.position?.y ?? "-"}) slice=${result.slice_id || "-"} qfi=${qosFlow.qfi ?? "-"} drb=${drb.drb_id ?? "-"} cqi=${channel.cqi ?? "-"} sinr=${fmt(channel.sinr_db)}dB prbs=${allocation.prbs ?? "-"} mcs=${allocation.mcs ?? "-"} layers=${allocation.layers ?? "-"} tx=${transmission.successful_bytes ?? 0} fail=${transmission.failed_bytes ?? 0} delivered=${progress.delivered_bytes ?? 0} / ${progress.requested_bytes ?? "-"} remaining_payload=${progress.remaining_payload_bytes ?? "-"} queue_bytes=${progress.remaining_queue_bytes ?? "-"} completion_ratio=${fmtPct(progress.completion_ratio)} remaining_ratio=${fmtPct(progress.remaining_ratio)} tick_throughput_mbps=${fmt(qos.throughput_mbps)} loss_rate=${fmtPct(qos.packet_loss_rate)} dropped=${progress.dropped_bytes ?? 0}`;
+    });
+    const progress = ranState.progress || {};
+    lines.push(`ran total agents=${ranState.agent_count ?? ranState.service_states.length} status=${ranState.status} tick=${ranState.tick} delivered=${progress.delivered_bytes ?? 0} / ${progress.requested_bytes ?? "-"} remaining_payload=${progress.remaining_payload_bytes ?? "-"} queue_bytes=${progress.remaining_queue_bytes ?? "-"} completion_ratio=${fmtPct(progress.completion_ratio)} remaining_ratio=${fmtPct(progress.remaining_ratio)} dropped=${progress.dropped_bytes ?? 0}`);
+    return lines;
+  }
+
   const result = ranState.result || {};
   const qos = result.qos || {};
   const progress = ranState.progress || {};

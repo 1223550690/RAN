@@ -34,6 +34,12 @@ def main() -> None:
         run_console(scene)
         return
 
+    if args.agent_sim:
+        if args.preview:
+            start_preview_server(args.preview_port, scene, control)
+        run_agent_sim_tick(scene, args, preview_service, control)
+        return
+
     if args.ran_mvp:
         if args.ran_mvp_mode == "tick":
             if args.preview:
@@ -64,33 +70,128 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-p", "--preview", action="store_true", help="open the live preview page")
     parser.add_argument("--preview-port", type=int, default=8766, help="preview server port")
     parser.add_argument("--console", action="store_true", help="open an interactive map query console")
-    parser.add_argument("--ran-mvp", action="store_true", help="run the fixed RAN MVP upload scenario")
+    parser.add_argument("--ran-mvp", action="store_true", help="run the default three-agent RAN scenario")
     parser.add_argument(
         "--ran-mvp-mode",
         choices=["aggregate", "tick"],
         default="aggregate",
         help="RAN MVP mode: aggregate summary or per-tick simulation",
     )
+    parser.add_argument("--agent-sim", action="store_true", help="run the LLM/template guided agent simulation")
+    parser.add_argument(
+        "--agent-mode",
+        choices=["template", "auto"],
+        default="template",
+        help="agent plan source: template (deterministic) or auto (LLM guided)",
+    )
+    parser.add_argument(
+        "--agents-config",
+        default=None,
+        help="path to an agent simulation definition JSON (configs/agents/*.json)",
+    )
+    parser.add_argument(
+        "--agent-speed",
+        type=float,
+        default=0.5,
+        help="agent movement distance in meters per tick",
+    )
+    parser.add_argument(
+        "--agent-radius",
+        type=float,
+        default=0.3,
+        help="agent collision radius in meters",
+    )
+    parser.add_argument("--llm-endpoint", default=None, help="OpenAI-compatible endpoint base URL for auto mode")
+    parser.add_argument("--llm-api-key", default=None, help="API key for the LLM endpoint")
+    parser.add_argument("--llm-model", default="gpt-4o-mini", help="LLM model name for auto mode")
+    parser.add_argument("--llm-record", default=None, help="record LLM plans to this JSONL file")
+    parser.add_argument("--llm-replay", default=None, help="replay LLM plans from this JSONL file (no LLM calls)")
+    parser.add_argument(
+        "--llm-same-building",
+        action="store_true",
+        help="restrict LLM destination catalog to the agent's current building",
+    )
     return parser.parse_args()
+
+
+def run_agent_sim_tick(
+    scene,
+    args: argparse.Namespace,
+    preview_service: LivePreviewService,
+    control: SimulationControl,
+) -> None:
+    """运行 Agent 子系统仿真:Agent 移动 + 网络意图 + RAN 处理。"""
+
+    from simulation.agent import build_default_three_agent_definition, load_agent_simulation_definition
+    from simulation.agent.planning import LlmAgentPlanProvider, TemplatePlanProvider
+    from simulation.orchestrator import SimulationOrchestrator
+
+    if args.agents_config:
+        definition = load_agent_simulation_definition(args.agents_config)
+    else:
+        definition = build_default_three_agent_definition()
+    print(
+        f"agent_sim simulation_id={definition.simulation_id} "
+        f"mode={args.agent_mode} agents={definition.agent_count}",
+        flush=True,
+    )
+    if args.agent_mode == "auto":
+        plan_provider = LlmAgentPlanProvider(
+            endpoint=args.llm_endpoint,
+            api_key=args.llm_api_key,
+            model=args.llm_model,
+            record_path=args.llm_record,
+            replay_path=args.llm_replay,
+        )
+    else:
+        plan_provider = TemplatePlanProvider(definition)
+
+    orchestrator = SimulationOrchestrator(
+        scene,
+        agent_definition=definition,
+        plan_provider=plan_provider,
+        agent_radius=args.agent_radius,
+        speed_m_per_tick=args.agent_speed,
+        same_building_only=args.llm_same_building,
+    )
+    state = SimulationState(scene=scene)
+    loop = SimulationLoop(
+        state,
+        clock=SimulationClock(tick_ms=args.tick_ms),
+        preview_service=preview_service,
+        control=control,
+        orchestrator=orchestrator,
+    )
+    loop.run(args.ticks)
 
 
 def run_ran_mvp_aggregate(scene, tick: int) -> None:
     engine = RanEngine(scene)
-    result = engine.run_agent_upload_demo(tick=1, max_ticks=max(5000, tick))
-    summary = result["result"]
-    qos = summary["qos"]
-    requested = summary["requested_bytes"]
-    delivered = summary["delivered_bytes"]
-    remaining_ratio = max(0, requested - delivered) / requested if requested else 0.0
+    result = engine.run_scenario(tick=1, max_ticks=max(5000, tick))
+    for service_state in result.get("service_states", []):
+        summary = service_state["result"]
+        qos = summary["qos"]
+        progress = service_state["progress"]
+        print(
+            "ran_mvp="
+            f"agent_id={service_state['agent_id']} "
+            f"service_id={service_state['service_instance_id']} "
+            f"delivered={summary['delivered_bytes']} "
+            f"undelivered={summary['failed_bytes']} "
+            f"tick_throughput_mbps={qos['throughput_mbps']:.3f} "
+            f"latency_ms={qos['latency_ms']:.3f} "
+            f"remaining_ratio={progress['remaining_ratio']:.6f} "
+            f"loss_rate={qos['packet_loss_rate']:.6f}",
+            flush=True,
+        )
+    progress = result["progress"]
     print(
-        "ran_mvp="
-        f"service_id={summary['service_id']} "
-        f"delivered={summary['delivered_bytes']} "
-        f"undelivered={summary['failed_bytes']} "
-        f"tick_throughput_mbps={qos['throughput_mbps']:.3f} "
-        f"latency_ms={qos['latency_ms']:.3f} "
-        f"remaining_ratio={remaining_ratio:.6f} "
-        f"loss_rate={qos['packet_loss_rate']:.6f}",
+        "ran_mvp_total="
+        f"agents={result['agent_count']} "
+        f"delivered={progress['delivered_bytes']} "
+        f"requested={progress['requested_bytes']} "
+        f"dropped={progress['dropped_bytes']} "
+        f"remaining_ratio={progress['remaining_ratio']:.6f}",
         flush=True,
     )
 
@@ -107,7 +208,7 @@ def run_ran_mvp_tick(
         state,
         clock=SimulationClock(tick_ms=args.tick_ms),
         preview_service=preview_service,
-        ran_scenario=engine.build_upload_scenario(),
+        ran_scenario=engine.build_scenario(),
         control=control,
     )
     loop.run(args.ticks)

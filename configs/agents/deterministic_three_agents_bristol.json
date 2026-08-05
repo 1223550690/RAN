@@ -1,0 +1,64 @@
+{
+  "simulation_id": "deterministic_three_agents_bristol",
+  "seed": 42,
+  "loop_policy": "stop",
+  "llm_mode": false,
+  "agents": [
+    {
+      "agent_id": "student_001",
+      "role": "student",
+      "spawn_position": [520.0, 300.0],
+      "ue_id": "student_001_phone"
+    },
+    {
+      "agent_id": "teacher_001",
+      "role": "teacher",
+      "spawn_position": [1000.0, 1100.0],
+      "ue_id": "teacher_001_phone"
+    },
+    {
+      "agent_id": "staff_001",
+      "role": "staff",
+      "spawn_position": [850.0, 250.0],
+      "ue_id": "staff_001_phone"
+    }
+  ],
+  "plans": {
+    "student_001": [
+      {
+        "destination_ref": "Block 09 / Student Union / Food Service South",
+        "intent_type": "message",
+        "intent_parameters": {}
+      },
+      {
+        "destination_ref": "Block 09 / Student Union / Entrance Lobby",
+        "intent_type": "video_call",
+        "intent_parameters": {"duration_seconds": 10, "bitrate_kbps": 1024}
+      }
+    ],
+    "teacher_001": [
+      {
+        "destination_ref": "Physics Central Tower / Computer Lab",
+        "intent_type": "video_upload",
+        "intent_parameters": {"size_profile": "small"}
+      },
+      {
+        "destination_ref": "Physics Central Tower / Meeting Room",
+        "intent_type": "message",
+        "intent_parameters": {}
+      }
+    ],
+    "staff_001": [
+      {
+        "destination_ref": "Gym / Sports Centre / Main Sports Hall East",
+        "intent_type": "message",
+        "intent_parameters": {}
+      },
+      {
+        "destination_ref": "Gym / Sports Centre / Equipment Storage",
+        "intent_type": "video_call",
+        "intent_parameters": {"duration_seconds": 5, "bitrate_kbps": 1024}
+      }
+    ]
+  }
+}

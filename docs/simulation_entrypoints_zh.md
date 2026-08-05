@@ -59,7 +59,7 @@ python -m simulation.main -s bristol_topology --ran-mvp --ran-mvp-mode aggregate
 说明：
 - 默认模式就是 `aggregate`。
 - 内部会连续推进最多 `max(5000, --ticks)` 个 RAN tick。
-- 最后只打印一行聚合结果。
+- 最后为每个 Agent 打印一行结果，并追加一行全局聚合结果。
 - 不启动 live preview。
 
 等价简写：
@@ -71,7 +71,10 @@ python -m simulation.main -s bristol_topology --ran-mvp
 输出示例：
 
 ```text
-ran_mvp=service_id=student_a_phone_video_upload_001 delivered=... undelivered=... tick_throughput_mbps=... latency_ms=... remaining_ratio=... loss_rate=...
+ran_mvp=agent_id=student_a service_id=service_intent_video_upload_001 delivered=... undelivered=... tick_throughput_mbps=... latency_ms=... remaining_ratio=... loss_rate=...
+ran_mvp=agent_id=student_b service_id=service_intent_chat_message_001 delivered=... undelivered=... tick_throughput_mbps=... latency_ms=... remaining_ratio=... loss_rate=...
+ran_mvp=agent_id=student_c service_id=service_intent_voice_upload_001 delivered=... undelivered=... tick_throughput_mbps=... latency_ms=... remaining_ratio=... loss_rate=...
+ran_mvp_total=agents=3 delivered=... requested=... dropped=... remaining_ratio=...
 ```
 
 ## RAN MVP 逐 tick 模式
@@ -84,7 +87,7 @@ python -m simulation.main -s bristol_topology --ran-mvp --ran-mvp-mode tick --ti
 - 每个 simulation tick 调用一次 RAN scenario `step()`。
 - 每 tick 写入 `outputs/live_state.json`。
 - 配合 `-p` 可以在 live preview 中看到 RAN 状态。
-- 到上传完成后，scenario 状态会变为 `completed`，但 simulation loop 会继续跑到 `--ticks` 结束。
+- 全部 Agent 的业务进入终态后，scenario 状态会变为 `completed`，但 simulation loop 会继续跑到 `--ticks` 结束。
 
 live preview 会显示：
 - RAN running/completed 状态。

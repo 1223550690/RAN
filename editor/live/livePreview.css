@@ -58,6 +58,30 @@ body {
   gap: 8px;
 }
 
+.agent-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 108, 189, 0.08);
+  border: 1px solid rgba(15, 108, 189, 0.25);
+  border-radius: 10px;
+  padding: 3px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.agent-summary-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.agent-summary-text {
+  color: #dde4ec;
+  white-space: nowrap;
+}
+
 .header-tools {
   display: flex;
   align-items: center;

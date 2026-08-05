@@ -1,0 +1,16 @@
+{
+  "roles": {
+    "student": {
+      "description": "Student moving across campus areas, producing media and messaging traffic",
+      "default_ue": "phone"
+    },
+    "teacher": {
+      "description": "Teacher in work/teaching areas, producing file transfer and video call traffic",
+      "default_ue": "phone"
+    },
+    "staff": {
+      "description": "Staff member serving offices and maintenance areas, producing messaging and upload traffic",
+      "default_ue": "phone"
+    }
+  }
+}

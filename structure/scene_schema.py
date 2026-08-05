@@ -190,6 +190,9 @@ class Portal:
     wall_id: str | None = None
     width_m: float | None = None
     open: bool = True
+    # channel_id: 同一物理通道的多个门(编辑器多视角/多名称)共享的唯一通道标识。
+    # 缺省时导航层按几何(共线重叠开口段)自动合并。
+    channel_id: str | None = None
 
     def to_dict(self) -> dict:
         endpoints = self.endpoints
@@ -213,6 +216,8 @@ class Portal:
             data["wall_id"] = self.wall_id
         if self.width_m is not None:
             data["width_m"] = self.width_m
+        if self.channel_id is not None:
+            data["channel_id"] = self.channel_id
         return data
 
 
@@ -274,12 +279,15 @@ class Area:
             "rendering": dict(self.rendering),
         }
 
-
 @dataclass
 class Home:
     node_id: str
     name: str
     default_agent_start: tuple[float, float] | None = None
+    # spawn_points: 可编辑出生点集合(P1 数据合同)。每个元素形如
+    # {"spawn_id": str, "name": str, "position": [x, y], "role": str | None}。
+    # 编辑器 UI 支持放 P2;为空时回退到 default_agent_start。
+    spawn_points: list[dict] = field(default_factory=list)
     portals: list[Portal | dict] = field(default_factory=list)
     walls: list[WallSegment | dict] = field(default_factory=list)
     road_segments: list[RoadSegment | dict] = field(default_factory=list)
@@ -412,6 +420,7 @@ class Home:
             "node_id": self.node_id,
             "name": self.name,
             "default_agent_start": list(self.default_agent_start) if self.default_agent_start is not None else None,
+            "spawn_points": [dict(item) for item in self.spawn_points],
             "portals": [portal.to_dict() if hasattr(portal, "to_dict") else deepcopy(portal) for portal in self.portals],
             "walls": [wall.to_dict() if hasattr(wall, "to_dict") else deepcopy(wall) for wall in self.walls],
             "roads": {

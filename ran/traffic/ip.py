@@ -4,19 +4,26 @@ from ran.contracts import IPTrafficBatch, PduSession, UERequest
 
 
 def build_ip_traffic(request: UERequest, session: PduSession) -> IPTrafficBatch:
-    """Project implementation detail."""
+    """构造临时字节级流量批次；后续由 IpPacketBatch 实现替换。"""
 
-    dst_ip = "10.20.1.80" if request.target == "youtube_server" else "10.20.1.1"
+    endpoint_by_target = {
+        "youtube_server": "10.20.1.80",
+        "chat_server": "10.20.1.40",
+        "voice_server": "10.20.1.60",
+    }
+    dst_ip = endpoint_by_target.get(request.target, "10.20.1.1")
     return IPTrafficBatch(
-        service_id=f"{request.ue_id}_{request.service_type}_001",
+        service_id=request.service_instance_id,
         src_ip=session.ue_ip,
         dst_ip=dst_ip,
         protocol="TCP",
         dst_port=443,
         direction=request.direction,
-        total_bytes=request.size_bytes,
-        remaining_bytes=request.size_bytes,
+        total_bytes=request.requested_payload_bytes,
+        remaining_bytes=request.requested_payload_bytes,
         metadata={
+            "intent_id": request.intent_id,
+            "service_instance_id": request.service_instance_id,
             "ue_id": request.ue_id,
             "direction": request.direction,
             "dnn": request.dnn,

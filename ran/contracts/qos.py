@@ -22,8 +22,10 @@ class PduSession:
 
 @dataclass(slots=True)
 class QoSFlow:
-    """Project implementation detail."""
+    """一个 UE PDU Session 内的 QoS Flow 摘要。"""
 
+    ue_id: str  # ue_id: QFI 所属 UE，避免跨 UE 产生编号歧义。
+    service_instance_id: str  # service_instance_id: 当前简化模型中的业务来源。
     pdu_session_id: int
     qfi: int  # qfi: QoS Flow Identifier。
     five_qi: int
