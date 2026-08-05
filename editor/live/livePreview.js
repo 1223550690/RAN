@@ -62,7 +62,6 @@ let lastRan = null;
 let serviceHistory = [];
 
 /* ================= 地图渲染(编辑器场景 JSON) ================= */
-const SCENE_PATH = '../data/scenes/bristol_topology.json';
 const DOOR_KINDS = new Set(['door', 'building_entrance', 'open_passage', 'entrance']);
 
 function collinearOverlap(a, b, c, d, eps = 0.1) {
@@ -225,7 +224,7 @@ function renderMap(scene) {
   });
 }
 
-fetch(SCENE_PATH)
+fetch('/editor/data/scenes/bristol_topology.json')
   .then((r) => r.json())
   .then(renderMap)
   .catch((err) => console.warn('场景加载失败:', err));
@@ -398,7 +397,7 @@ function setConnStatus(ok) {
   }
 }
 function poll() {
-  fetch('../outputs/live_state.json', { cache: 'no-store' })
+  fetch('/outputs/live_state.json', { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
       if (!data) {
