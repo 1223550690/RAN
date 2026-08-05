@@ -1,4 +1,5 @@
 from .amf import Amf, register_ue
+from .upf import GtpTunnel, Upf, forward_via_upf
 from .data_network import deliver_to_data_network
 from .smf import (
     SessionManagementFunction,
@@ -7,7 +8,6 @@ from .smf import (
     establish_pdu_session,
     reset_default_smf,
 )
-from .upf import forward_via_upf
 
 __all__ = [
     "SessionManagementFunction",

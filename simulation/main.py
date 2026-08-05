@@ -185,6 +185,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tick-ms", type=int, default=500, help="milliseconds per tick")
     parser.add_argument("-p", "--preview", action="store_true", help="open the live preview page")
     parser.add_argument("--preview-port", type=int, default=8766, help="preview server port")
+    parser.add_argument(
+        "--n3-bandwidth-mbps",
+        type=float,
+        default=None,
+        help="N3 backhaul bandwidth in Mbps (None = instantaneous, radio remains the bottleneck)",
+    )
     parser.add_argument("--console", action="store_true", help="open an interactive map query console")
     parser.add_argument("--ran-mvp", action="store_true", help="run the default three-agent RAN scenario")
     parser.add_argument(
@@ -270,6 +276,7 @@ def run_agent_sim_tick(
         speed_m_per_tick=args.agent_speed,
         same_building_only=args.llm_same_building,
         tick_ms=args.tick_ms,
+        n3_bandwidth_mbps=args.n3_bandwidth_mbps,
     )
     state = SimulationState(scene=scene)
     loop = SimulationLoop(

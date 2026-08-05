@@ -79,8 +79,11 @@ class ServiceContext:
     drb: Drb
     pdcp_batch: PdcpBatch
     rlc_queue: RlcQueue
-    dl_queue: RlcQueue | None = None  # dl_queue: 下行业务时 DN 侧队列(UL 业务为 None)。
+    dl_queue: RlcQueue | None = None  # dl_queue: 下行业务时 gNB 侧队列(UL 业务为 None)。
     intent_type: str = ""  # intent_type: 业务类型(message/video_upload/video_download 等,前端展示用)。
+    upf_buffered_bytes: int = 0  # upf_buffered_bytes: UPF 侧 DL 缓冲字节(未过 N3)。
+    n3_tunnel_id: str | None = None  # n3_tunnel_id: GTP-U 隧道 id(dl_{session}/ul_{session})。
+    n3_gtp_overhead_bytes: int = 0  # n3_gtp_overhead_bytes: 累计 GTP-U 封装开销(统计)。
     status: ServiceStatus = "INITIALIZING"
     counters: ServiceCounters = field(default_factory=ServiceCounters)
     last_state: dict[str, object] | None = None

@@ -41,6 +41,7 @@ class SimulationOrchestrator:
         speed_m_per_tick: float = 0.5,
         same_building_only: bool = False,
         tick_ms: float = 1000.0,
+        n3_bandwidth_mbps: float | None = None,
         seed: int | None = None,
     ) -> None:
         self.scene = scene
@@ -72,6 +73,7 @@ class SimulationOrchestrator:
             definition=ran_definition,
             agent_state_provider=SimulationAgentStateProvider(self.registry),
             tick_ms=tick_ms,
+            n3_bandwidth_mbps=n3_bandwidth_mbps,
         )
         # 3) 建意图网关并挂载回 registry。
         self.gateway = RanIntentGateway(self.scenario, intent_profiles=intent_profiles)

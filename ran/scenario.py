@@ -16,7 +16,7 @@ from ran.contracts import (
     N3ForwardingResult,
     N6DeliveryResult,
 )
-from ran.core import Amf, deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue
+from ran.core import Amf, Upf, deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue
 from ran.gnb import build_scheduler_request, forward_to_n3, receive_radio
 from ran.metrics import build_end_to_end_result, calculate_qos, summarize_slice_usage
 from ran.orchestration import (
@@ -61,6 +61,7 @@ class MultiAgentRanScenario:
         definition: RanScenarioDefinition | None = None,
         agent_state_provider: AgentStateProvider | None = None,
         tick_ms: float = 1000.0,
+        n3_bandwidth_mbps: float | None = None,
     ) -> None:
         
         self.scene = scene
@@ -73,6 +74,7 @@ class MultiAgentRanScenario:
         self.agent_state_provider = agent_state_provider or MockAgentStateProvider(self.definition)
         self.gnb = load_gnb_site_from_scene(scene)
         self.amf = Amf()
+        self.upf = Upf(n3_bandwidth_mbps=n3_bandwidth_mbps)
         self.slice_policies = update_slice_policies()
         self.agents: dict[str, AgentContext] = {}
         self.intents: dict[str, IntentContext] = {}
@@ -105,6 +107,18 @@ class MultiAgentRanScenario:
         if not active_services:
             self.completed = True
             return self.snapshot(tick=tick, status="completed")
+
+        # N3 流转:UPF 缓冲 → gNB DL 队列(下行;默认瞬时到达,受 n3 带宽约束)。
+        # 放在调度之前,保证本次调度窗口能看到已到达 gNB 的下行数据。
+        for service in active_services:
+            if service.dl_queue is not None:
+                dl_tunnel = self.upf.tunnel_of(service.session.pdu_session_id, "DL")
+                if dl_tunnel is not None:
+                    n3_tx = self.upf.forward_to_gnb(dl_tunnel, tick_ms=self.tick_ms)
+                    if n3_tx > 0:
+                        service.dl_queue.queued_bytes += n3_tx
+                    service.upf_buffered_bytes = self.upf.buffered_bytes(service.session.pdu_session_id)
+                    service.n3_gtp_overhead_bytes = dl_tunnel.overhead_total_bytes
 
         channel_by_service = {}
         channel_by_link = {}
@@ -263,9 +277,15 @@ class MultiAgentRanScenario:
         drb = map_qos_flow_to_drb(qos_flow, ue_request)
         pdcp_batch = build_pdcp_batch(traffic, drb)
         is_downlink = ue_request.direction == "DL"
+        # GTP-U 隧道(UL/DL 都建立;UL 用于 N3 交付统计,DL 用于缓冲-转发)
+        tunnel = self.upf.create_tunnel(session.pdu_session_id, ue_request.direction)
         if is_downlink:
-            # 下行:数据由 DN 侧生成,入 gNB 侧 DL 队列;UL 队列为空(占位,保持结构一致)。
-            dl_queue = build_rlc_queue(pdcp_batch, drb)
+            # 下行:DN 数据经 N6 到达 UPF 缓冲(UE 挂起期间不丢);
+            # 每 tick 由 N3 流转填充 gNB 侧 dl_queue。
+            # 注意:缓冲与队列使用同一口径(pdcp_batch.output_bytes),
+            # 初始队列清空(数据全部在 UPF 缓冲),避免双倍入队。
+            self.upf.receive_from_dn(session.pdu_session_id, pdcp_batch.output_bytes)
+            dl_queue = replace(build_rlc_queue(pdcp_batch, drb), queued_bytes=0, retransmission_bytes=0)
             rlc_queue = replace(rlc_queue_placeholder(ue_request, drb))
         else:
             dl_queue = None
@@ -313,6 +333,8 @@ class MultiAgentRanScenario:
             pdcp_batch=pdcp_batch,
             rlc_queue=rlc_queue,
             dl_queue=dl_queue,
+            upf_buffered_bytes=self.upf.buffered_bytes(session.pdu_session_id),
+            n3_tunnel_id=tunnel.tunnel_id,
             status="ACTIVE",
         )
         self.service_order.append(service_instance_id)
@@ -366,7 +388,11 @@ class MultiAgentRanScenario:
         service.rlc_queue = apply_transmission_to_rlc(service.rlc_queue, transmission)
         ru_result = receive_radio(transmission)
         n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, service.session)))
-        n6 = forward_n6(forward_via_upf(n3, service.session, target=service.ue_request.target))
+        # 上行经 UPF 实体(N3 到达 → N6 交付 DN;带 GTP-U 隧道开销统计)
+        n6 = forward_n6(self.upf.forward_to_dn(n3, service.session, target=service.ue_request.target))
+        ul_tunnel = self.upf.tunnel_of(service.session.pdu_session_id, "UL")
+        if ul_tunnel is not None:
+            service.n3_gtp_overhead_bytes = ul_tunnel.overhead_total_bytes
         delivered = deliver_to_data_network(n6)
 
         counters = service.counters
@@ -467,7 +493,11 @@ class MultiAgentRanScenario:
         counters.permanently_dropped_protocol_bytes += max(0, transmission.failed_bytes)
         self._update_payload_counters(service)
 
-        if service.dl_queue.queued_bytes <= 0 and service.dl_queue.retransmission_bytes <= 0:
+        if (
+            service.dl_queue.queued_bytes <= 0
+            and service.dl_queue.retransmission_bytes <= 0
+            and self.upf.buffered_bytes(service.session.pdu_session_id) <= 0
+        ):
             unresolved_protocol_bytes = max(
                 0,
                 original_protocol_bytes
@@ -606,7 +636,11 @@ class MultiAgentRanScenario:
     def _service_state_base(self, service, tick: int) -> dict[str, object]:
         dl_remaining = None
         if service.dl_queue is not None:
-            dl_remaining = service.dl_queue.queued_bytes + service.dl_queue.retransmission_bytes
+            dl_remaining = (
+                service.dl_queue.queued_bytes
+                + service.dl_queue.retransmission_bytes
+                + service.upf_buffered_bytes
+            )
         return {
             "agent_id": service.agent_id,
             "intent_id": service.intent_id,
@@ -616,6 +650,9 @@ class MultiAgentRanScenario:
             "tick": tick,
             "direction": service.ue_request.direction,
             "dl_remaining_queue_bytes": dl_remaining,
+            "upf_buffered_bytes": service.upf_buffered_bytes,
+            "n3_tunnel_id": service.n3_tunnel_id,
+            "n3_gtp_overhead_bytes": service.n3_gtp_overhead_bytes,
             "ue_request": asdict(service.ue_request),
             "access": asdict(service.access),
             "qos_flow": asdict(service.qos_flow),
