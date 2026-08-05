@@ -1,13 +1,15 @@
-"""一键启动:预览服务器 + 模拟(单条命令)。
+"""一键启动:预览服务器 + 模拟(单条命令,服务器随模拟生死)。
 
 用法:
     python start_demo.py [--ticks 3000] [--tick-ms 200] [--agent-speed 2.0] [--port 8766]
 
 行为:
-    1. 若 8766 未被占用 → 启动独立 preview_server(no-cache,不随本命令退出);
-       已占用(已有预览服务器)→ 直接复用。
-    2. 前台运行模拟(单实例锁自动防重复)。
-    3. 模拟结束后打印页面地址;预览服务器保持运行,可再跑模拟续看。
+    1. 启动模拟子进程,拿到 PID。
+    2. 若 8766 空闲 → 启动独立 preview_server 并开启守护模式
+       (守护模拟 PID:模拟以任何形式退出,服务器自动关闭);
+       端口已被占用 → 复用现有服务器(不归本命令管理)。
+    3. 前台等待模拟结束(自然结束/Ctrl+C/崩溃均等待返回)。
+    4. 收尾:再显式终止一次本次启动的服务器(兜底),打印页面地址。
 """
 from __future__ import annotations
 
@@ -28,6 +30,23 @@ def port_in_use(port: int) -> bool:
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
+def _stop_preview(proc) -> None:
+    """终止本次启动的预览服务器(复用已有服务器时为 None,不动)。"""
+
+    if proc is None:
+        return
+    try:
+        proc.terminate()
+        proc.wait(timeout=5)
+        print("[demo] 预览服务器已关闭。")
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        print("[demo] 预览服务器已强制关闭。")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="One-command demo: preview server + simulation.")
     parser.add_argument("--ticks", type=int, default=3000)
@@ -36,7 +55,20 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8766)
     args = parser.parse_args()
 
-    # 1) 预览服务器:未占用则独立启动(不随本命令退出)
+    # 1) 先启动模拟子进程(拿到 PID,供服务器守护)
+    cmd = [
+        sys.executable, "-m", "simulation.main",
+        "-s", "bristol_topology",
+        "--agent-sim",
+        "--agents-config", "configs/agents/deterministic_three_agents_bristol.json",
+        "--ticks", str(args.ticks),
+        "--tick-ms", str(args.tick_ms),
+        "--agent-speed", str(args.agent_speed),
+    ]
+    sim_proc = subprocess.Popen(cmd, cwd=str(PROJECT_ROOT))
+    print(f"[demo] 模拟启动 (pid={sim_proc.pid}): {args.ticks} ticks × {args.tick_ms}ms(约 {args.ticks * args.tick_ms / 1000:.0f}s)")
+
+    # 2) 预览服务器:空闲则启动并守护模拟 PID;占用则复用
     proc = None
     if port_in_use(args.port):
         print(f"[demo] 端口 {args.port} 已被占用,复用现有预览服务器。")
@@ -45,7 +77,8 @@ def main() -> None:
         log_path.parent.mkdir(exist_ok=True)
         with open(log_path, "w", encoding="utf-8") as logf:
             proc = subprocess.Popen(
-                [sys.executable, str(PROJECT_ROOT / "preview_server.py"), "--port", str(args.port)],
+                [sys.executable, str(PROJECT_ROOT / "preview_server.py"),
+                 "--port", str(args.port), "--guard-pid", str(sim_proc.pid)],
                 cwd=str(PROJECT_ROOT),
                 stdout=logf,
                 stderr=logf,
@@ -59,37 +92,30 @@ def main() -> None:
             time.sleep(0.5)
         else:
             print(f"[demo] 预览服务器启动失败,请查看 {log_path}", file=sys.stderr)
-        print(f"[demo] 预览服务器已启动(pid={proc.pid}),日志: {log_path}")
+        print(f"[demo] 预览服务器已启动(pid={proc.pid}, 守护模拟 pid={sim_proc.pid}),日志: {log_path}")
 
-    # 2) 前台运行模拟;Ctrl+C 时模拟与预览服务器一起退出
-    print(f"[demo] 模拟启动: {args.ticks} ticks × {args.tick_ms}ms(约 {args.ticks * args.tick_ms / 1000:.0f}s)")
-    cmd = [
-        sys.executable, "-m", "simulation.main",
-        "-s", "bristol_topology",
-        "--agent-sim",
-        "--agents-config", "configs/agents/deterministic_three_agents_bristol.json",
-        "--ticks", str(args.ticks),
-        "--tick-ms", str(args.tick_ms),
-        "--agent-speed", str(args.agent_speed),
-    ]
-    preview_proc = proc  # 本次启动的预览服务器(复用已有服务器时为 None,不归我们管)
+    # 3) 等待模拟结束(任何退出形式:自然/Ctrl+C/强杀/崩溃)
     try:
-        result = subprocess.run(cmd, cwd=str(PROJECT_ROOT))
+        result = sim_proc.wait()
     except KeyboardInterrupt:
-        print("\n[demo] 收到 Ctrl+C:退出模拟,并关闭预览服务器。")
-        if preview_proc is not None:
-            try:
-                preview_proc.terminate()
-            except Exception:
-                pass
+        print("\n[demo] 收到 Ctrl+C:终止模拟(服务器守护将随之自动关闭)。")
+        sim_proc.terminate()
+        try:
+            sim_proc.wait(timeout=10)
+        except Exception:
+            sim_proc.kill()
+        _stop_preview(proc)
         sys.exit(130)
-    if result.returncode != 0:
-        print(f"[demo] 模拟退出码 {result.returncode}(可能已有模拟在运行,请结束后重试)", file=sys.stderr)
-        sys.exit(result.returncode)
+    if result != 0:
+        print(f"[demo] 模拟退出码 {result}(可能已有模拟在运行,请结束后重试)", file=sys.stderr)
+        _stop_preview(proc)
+        sys.exit(result)
 
-    # 3) 收尾提示
+    # 4) 收尾:服务器守护线程会自动关闭;再显式终止一次作兜底
+    time.sleep(1)
+    _stop_preview(proc)
     print(f"[demo] 模拟结束。页面: http://127.0.0.1:{args.port}/editor/live/")
-    print(f"[demo] 预览服务器仍在运行;重新运行本命令即可再跑一轮模拟。")
+    print("[demo] 预览服务器已随模拟关闭;重新运行本命令即可再跑一轮。")
 
 
 if __name__ == "__main__":
