@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from ran.contracts import ChannelState, MacAllocation, TransmissionResult
+from ran.contracts import ChannelState, GnbSite, MacAllocation, TransmissionResult, UEState
+import math
 
 
 def transmit(
@@ -9,8 +10,13 @@ def transmit(
     allocation: MacAllocation,
     channel: ChannelState,
     rlc_mode: str = "AM",
+    ue_state: UEState | None = None,
+    gnb: GnbSite | None = None,
 ) -> TransmissionResult:
-    """执行最小 PHY mock；HARQ 实现前将最终失败明确交给 RLC 或 drop。"""
+    """执行最小 PHY mock；HARQ 实现前将最终失败明确交给 RLC 或 drop。
+
+    ue_state/gnb 为 tr22068 PHR 扩展：提供时计算 UE 功率余量(power_report)。
+    """
 
     error_rate = max(allocation.expected_error_rate, channel.estimated_packet_error_rate)
     failed = int(allocation.scheduled_bytes * error_rate)
@@ -18,6 +24,12 @@ def transmit(
     harq_retx = 0
     rlc_retx = failed if rlc_mode == "AM" else 0
     dropped = failed if rlc_mode != "AM" else 0
+    power_report = 0.0
+    if ue_state is not None and gnb is not None:
+        if allocation.prbs != 0:
+            power_report = ue_state.cmax_transmit - (10 * math.log(allocation.prbs, 10) + gnb.nominal_pusch + 0.8 * channel.total_path_loss_db)
+        else:
+            power_report = ue_state.cmax_transmit + gnb.nominal_pusch + 0.8 * channel.total_path_loss_db
     return TransmissionResult(
         tick=tick,
         ue_id=allocation.ue_id,
@@ -38,4 +50,5 @@ def transmit(
         rlc_retx_bytes=rlc_retx,
         dropped_bytes=dropped,
         transmission_delay_ms=1.0,
+        power_report=power_report,
     )

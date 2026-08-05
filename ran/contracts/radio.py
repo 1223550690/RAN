@@ -7,16 +7,25 @@ from .common import Direction, Position
 
 @dataclass(slots=True)
 class GnbSite:
-    """Project implementation detail."""
+    """Project implementation detail.
 
-    gnb_id: str
-    position: Position
-    carrier_freq_mhz: float
-    bandwidth_mhz: float
-    tx_power_dbm: float
-    total_prbs: int
-    antenna_elements: int
-    mimo_layers: int
+    输入字段:
+    - 主要来自地图编辑器中的 gnb_001 element.state_details。
+
+    输出用途:
+    - ChannelModel、OFDM/PHY、scheduler 资源总量使用。
+    """
+
+    gnb_id: str  # gnb_id: 基站标识。
+    position: Position  # position: 基站在地图中的全局坐标。
+    carrier_freq_mhz: float  # carrier_freq_mhz: 载波频率。
+    bandwidth_mhz: float  # bandwidth_mhz: 带宽。
+    tx_power_dbm: float  # tx_power_dbm: 发射功率。
+    total_prbs: int  # total_prbs: 当前载波可用 PRB 总数。
+    antenna_elements: int  # antenna_elements: 天线阵元数，MVP 只用于简化增益。
+    mimo_layers: int  # mimo_layers: 最大 MIMO 层数。
+    nominal_pusch: int
+    gscn: int
 
 
 @dataclass(slots=True)
@@ -102,17 +111,18 @@ class TransmissionResult:
     gnb_id: str
     drb_id: int
     qfi: int  # qfi: QoS Flow。
-    slice_id: str
-    direction: Direction
-    attempted_bytes: int
-    successful_bytes: int
-    failed_bytes: int
-    effective_sinr_db: float
-    mcs: int
-    prbs: int
-    layers: int
-    harq_ack: bool
-    harq_retx_bytes: int
-    rlc_retx_bytes: int
-    dropped_bytes: int
-    transmission_delay_ms: float
+    slice_id: str  # slice_id: 切片标识。
+    direction: Direction  # direction: UL 或 DL。
+    attempted_bytes: int  # attempted_bytes: 尝试发送字节。
+    successful_bytes: int  # successful_bytes: 成功送达无线接收端字节。
+    failed_bytes: int  # failed_bytes: 无线失败字节。
+    effective_sinr_db: float  # effective_sinr_db: 本次有效 SINR。
+    mcs: int  # mcs: 使用 MCS。
+    prbs: int  # prbs: 使用 PRB。
+    layers: int  # layers: 使用 MIMO 层数。
+    harq_ack: bool  # harq_ack: 是否无需 HARQ 重传。
+    harq_retx_bytes: int  # harq_retx_bytes: 进入 HARQ 快速重传字节。
+    rlc_retx_bytes: int  # rlc_retx_bytes: 进入 RLC 重传字节。
+    dropped_bytes: int  # dropped_bytes: 最终丢弃字节。
+    transmission_delay_ms: float  # transmission_delay_ms: PHY/MAC 基础时延。
+    power_report: float

@@ -14,8 +14,13 @@ def build_scheduler_request(
     drbs: list[Drb],
     channel_states: list[ChannelState],
     slice_policies: list[SlicePolicy],
+    power_report: list[float] | None = None,
+    requirements: list[str] | None = None,
 ) -> SchedulerRequest:
-    """汇总所有活跃 UE/DRB，构造一次 UL SchedulerRequest。"""
+    """汇总所有活跃 UE/DRB，构造一次 UL SchedulerRequest。
+
+    power_report / requirements 为 tr22068 调度扩展字段，缺省为空列表。
+    """
 
     return SchedulerRequest(
         contract_version=CONTRACT_VERSION,
@@ -30,4 +35,6 @@ def build_scheduler_request(
         drbs=drbs,
         channel_states=channel_states,
         slice_policies=slice_policies,
+        phr=list(power_report or []),
+        requirements=list(requirements or []),
     )

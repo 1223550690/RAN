@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+
 
 from services.scene_service import SceneService
-from .engine import RanEngine
+from engine import RanEngine
 
 
 def main() -> None:
@@ -20,6 +22,7 @@ def main() -> None:
     engine = RanEngine(scene)
     if args.mode == "aggregate":
         result = engine.run_agent_upload_demo(tick=args.tick, max_ticks=args.max_ticks)
+
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 
@@ -27,9 +30,9 @@ def main() -> None:
     for offset in range(max(1, args.max_ticks)):
         state = scenario.step(args.tick + offset)
         print(json.dumps(state, ensure_ascii=False))
-        if state.get("status") == "completed":
+        if state.get("status") == "complete":
             break
 
-
+#MAKE NEW SCENARIO, MULTIPLE UPLOAD AND MULTIPLE DOWNLOAD FOR SCHEDULING TESTS
 if __name__ == "__main__":
     main()

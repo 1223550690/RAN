@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import math
 
-from ran.contracts import MacAllocation, SchedulerRequest, SchedulerResult
+from ran.contracts import (
+    ChannelState,
+    MacAllocation,
+    RlcQueue,
+    SchedulerRequest,
+    SchedulerResult,
+)
 from ran.radio.ofdm import estimate_transport_bytes
 
 
@@ -36,7 +42,7 @@ class PythonBaselineScheduler:
             if prbs <= 0:
                 continue
             cqi = channel.cqi if channel else 1
-            mcs = max(1, min(28, int(cqi * 1.8)))
+            mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
@@ -51,7 +57,7 @@ class PythonBaselineScheduler:
                     prbs=prbs,
                     mcs=mcs,
                     layers=layers,
-                    scheduled_bytes=scheduled,
+                    scheduled_bytes=scheduled, 
                     expected_error_rate=channel.estimated_packet_error_rate if channel else 0.2,
                     is_retransmission=queue.retransmission_bytes > 0,
                 )
@@ -93,3 +99,20 @@ def _build_result(
         allocations=allocations,
         debug=debug,
     )
+
+
+# ---------------------------------------------------------------------------
+# tr22068 调度算法(独立函数,可切换使用)
+# ---------------------------------------------------------------------------
+
+def sortByCQI(queues:dict[str, ChannelState]):
+    queues = list(queues.items())
+    while(True):
+        
+        check = queues
+        for i in range(len(queues) - 1):
+            for j in range(0, len(queues)-i-1):
+                if queues[j][1].cqi < queues[j + 1][1].cqi:
+                    queues[j], queues[j + 1] = queues[j + 1], queues[j]
+        if (check == queues):
+            return dict(queues)
