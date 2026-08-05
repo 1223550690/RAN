@@ -150,7 +150,7 @@ function renderMap(scene) {
       collectRooms(child, cx, cy, depth + 1);
     }
   };
-  for (const top of scene.areas) collectRooms(top, 0, 0, 0);
+  for (const top of scene.areas) collectRooms(top, top.bounds[0], top.bounds[1], 0);
   for (const { room, ox, oy } of rooms) {
     const [x0, y0, x1, y1] = room.bounds;
     parts.push(`<rect x="${x0 + ox}" y="${y0 + oy}" width="${x1 - x0}" height="${y1 - y0}" class="room" data-tip="${room.name}"></rect>`);
