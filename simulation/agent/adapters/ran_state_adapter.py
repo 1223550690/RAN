@@ -34,6 +34,7 @@ class SimulationAgentStateProvider:
                     current_room_id=snapshot.current_room_id,
                     waypoint_index=snapshot.waypoint_index,
                     waypoint_count=snapshot.waypoint_count,
+                    waypoints=[Position(x, y) for x, y in snapshot.waypoints],
                     last_transition_tick=snapshot.last_transition_tick,
                     error=snapshot.error,
                 )

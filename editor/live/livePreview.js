@@ -138,7 +138,8 @@ function renderMap(scene) {
   const collectRooms = (parent, ox, oy, depth) => {
     for (const child of parent.areas || []) {
       const cx = ox + child.bounds[0], cy = oy + child.bounds[1];
-      rooms.push({ room: child, ox: cx, oy: cy });
+      // ox/oy = 父区域全局原点(渲染时再加 child.bounds 一次,不能双重偏移)
+      rooms.push({ room: child, ox, oy });
       const [x0, y0, x1, y1] = child.bounds;
       const gx0 = x0 + cx, gy0 = y0 + cy, gx1 = x1 + cx, gy1 = y1 + cy;
       const edges = [
@@ -230,6 +231,8 @@ fetch('/editor/data/scenes/bristol_topology.json')
   .catch((err) => console.warn('场景加载失败:', err));
 
 /* ================= Banner / Agent 卡片 ================= */
+const AGENT_COLORS = ['#4A87BE', '#7D5260', '#4C9E74', '#B08A3E', '#5E7894'];
+
 function updateBanner(ran) {
   document.getElementById('st-tick').textContent = tick;
   document.getElementById('st-agents').textContent = ran.agent_count ?? 0;
@@ -240,6 +243,49 @@ function updateBanner(ran) {
   const prog = ran.progress || {};
   const ratio = prog.completion_ratio !== undefined ? prog.completion_ratio : 0;
   document.getElementById('st-delivered').textContent = Math.round(ratio * 100) + '%';
+  // 概要:每 agent 状态行 + RAN 总进度条
+  const summary = document.getElementById('banner-summary');
+  if (!summary) return;
+  const states = ran.agent_states || [];
+  const parts = states.map((a) => {
+    const wp = a.waypoint_count > 0 ? `${Math.min(a.waypoint_index + 1, a.waypoint_count)}/${a.waypoint_count}` : '';
+    return `<span class="banner-agent"><i class="dot" style="background:${AGENT_COLORS[states.indexOf(a) % AGENT_COLORS.length]}"></i>${a.agent_id} · ${a.status}${wp ? ' · wp ' + wp : ''}</span>`;
+  }).join('');
+  summary.innerHTML = `<span class="banner-ratio"><b>${Math.round(ratio * 100)}%</b></span><div class="banner-track"><div class="banner-fill" style="width:${(ratio * 100).toFixed(1)}%"></div></div>${parts}`;
+}
+
+/* 地图上的 agent 路线图层(每次 poll 更新) */
+function bindTooltip(containerSel) {
+  const panel = document.querySelector('.map-panel');
+  const tip = document.getElementById('tooltip');
+  const svg = document.getElementById('map');
+  document.querySelectorAll(containerSel + ' [data-tip]').forEach((el) => {
+    el.addEventListener('mousemove', (e) => {
+      const rect = svg.getBoundingClientRect();
+      const px = e.clientX - panel.getBoundingClientRect().left + 14;
+      const py = e.clientY - panel.getBoundingClientRect().top + 14;
+      tip.style.display = 'block';
+      tip.textContent = el.dataset.tip;
+      tip.style.left = px + 'px';
+      tip.style.top = py + 'px';
+    });
+    el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
+}
+function renderRoutes(ran) {
+  const layer = document.getElementById('route-layer');
+  if (!layer) return;
+  const states = ran.agent_states || [];
+  layer.innerHTML = states.map((a, i) => {
+    const color = AGENT_COLORS[i % AGENT_COLORS.length];
+    const wps = a.waypoints || [];
+    const pts = wps.map((p) => `${p.x},${p.y}`).join(' ');
+    const line = pts ? `<polyline points="${pts}" class="route" stroke="${color}" data-tip="${a.agent_id} 路线"></polyline>` : '';
+    const pos = a.position;
+    const dot = pos ? `<circle cx="${pos.x}" cy="${pos.y}" r="7" class="agent-dot" fill="${color}" stroke="#FFFFFF" stroke-width="2.5" data-tip="${a.agent_id} · (${Math.round(pos.x)}, ${Math.round(pos.y)})"></circle>` : '';
+    return line + dot;
+  }).join('');
+  bindTooltip('#route-layer');
 }
 
 function renderAgents() {
@@ -415,6 +461,7 @@ function poll() {
       lastRan = ran;
       aggregateTick(ran);
       updateBanner(ran);
+      renderRoutes(ran);
       renderAgents();
       updateCharts();
     })

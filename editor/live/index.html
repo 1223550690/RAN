@@ -44,6 +44,7 @@
   <div class="stat"><span data-i18n="overview.delivered">交付</span> <b id="st-delivered">0%</b></div>
   <div class="stat"><span class="status-dot running"></span><span id="st-status" data-i18n="overview.running">running</span></div>
   <div class="spacer"></div>
+  <div id="banner-summary"></div>
   <button class="m3-btn tonal" id="btn-lang">EN</button>
   <button class="m3-btn tonal" id="btn-pause" data-i18n="overview.pause">暂停</button>
   <button class="m3-btn outlined" id="btn-export" data-i18n="overview.export">导出 Logs</button>
@@ -52,6 +53,7 @@
 <div class="main">
   <section class="map-panel">
     <svg id="map" viewBox="0 0 2000 2000" preserveAspectRatio="xMidYMid meet"></svg>
+    <svg id="route-layer" viewBox="0 0 2000 2000" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="map-hint" data-i18n="map.hint">悬停查看对象信息 · 浅色缺口 = 可通行</div>
     <div id="tooltip"></div>
   </section>

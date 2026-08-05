@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from .common import Position
@@ -43,5 +43,6 @@ class AgentStateSnapshot:
     current_room_id: str | None = None  # current_room_id: 当前所在区域标识。
     waypoint_index: int = 0  # waypoint_index: 当前路径点序号。
     waypoint_count: int = 0  # waypoint_count: 当前路径点总数。
+    waypoints: list[Position] = field(default_factory=list)  # waypoints: 当前规划路径点(地图渲染用,可选)。
     last_transition_tick: int = 0  # last_transition_tick: 最近一次状态迁移的 tick。
     error: str | None = None  # error: 最近一次错误信息,无错误时为 None。
