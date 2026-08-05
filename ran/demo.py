@@ -7,7 +7,7 @@ import sys
 
 
 from services.scene_service import SceneService
-from engine import RanEngine
+from ran.engine import RanEngine
 
 
 def main() -> None:

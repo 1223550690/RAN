@@ -28,8 +28,8 @@ class UEState:
     ue_id: str  # ue_id: UE/手机标识。
     agent_id: str  # agent_id: 绑定的 Agent 标识。
     position: Position  # position: UE 当前地图坐标。
-    cmax_transmit: int#Default configured maximum transmission power in Decibels.
-    ue_pusch: int #Default values for simulation
+    cmax_transmit: int = 23  # cmax_transmit: UE 最大发射功率 dBm(tr22068 PHR 扩展,可选)。
+    ue_pusch: int = 10  # ue_pusch: PUSCH 标称参数(tr22068 扩展,可选)。
     rm_state: str = "DEREGISTERED"  # rm_state: 5GC 注册状态。
     cm_state: str = "IDLE"  # cm_state: 核心网连接管理状态。
     rrc_state: str = "IDLE"  # rrc_state: UE 与 gNB 的无线控制状态。
