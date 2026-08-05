@@ -55,6 +55,7 @@ body {
 .map-panel { grid-row: 1 / 3; background: var(--map-bg); border-radius: 12px; box-shadow: var(--shadow-1); overflow: hidden; position: relative; display: flex; min-height: 0; }
 .map-panel svg { width: 100%; height: 100%; }
 .route { fill: none; stroke-width: 3; stroke-dasharray: 6 4; opacity: .85; }
+.agent-trail { fill: none; stroke-width: 2; opacity: .35; }
 .agent-dot { pointer-events: auto; }
 /* banner 概要 */
 #banner-summary { display: flex; align-items: center; gap: 10px; font-size: 12px; overflow: hidden; white-space: nowrap; }

@@ -59,6 +59,7 @@ document.getElementById('btn-lang').addEventListener('click', toggleLang);
 /* ================= 状态 ================= */
 let paused = false;
 let lastUpdateAt = 0;
+const trails = {}; // agent 移动轨迹(页面本地累积)
 let tick = 0;
 let emptyFetches = 0;
 const MAX_POINTS = 60;
@@ -306,23 +307,41 @@ function renderRoutes(ran) {
   const map = document.getElementById('map');
   if (!map) return;
   // 清除旧路线图层(合并进主 SVG,避免独立定位 SVG 的兼容问题)
-  map.querySelectorAll('.route, .agent-dot').forEach((el) => el.remove());
+  map.querySelectorAll('.route, .agent-dot, .agent-trail').forEach((el) => el.remove());
   const states = ran.agent_states || [];
   const frag = document.createDocumentFragment();
   states.forEach((a, i) => {
     const color = AGENT_COLORS[i % AGENT_COLORS.length];
     const stColor = stateColor(a.status);
     const ns = 'http://www.w3.org/2000/svg';
+    // 轨迹:页面本地累积的移动历史(打开页面即可见"在动")
+    const pos = a.position;
+    if (pos) {
+      const trail = (trails[a.agent_id] = trails[a.agent_id] || []);
+      if (!trail.length || Math.abs(trail[trail.length - 1].x - pos.x) > 1 || Math.abs(trail[trail.length - 1].y - pos.y) > 1) {
+        trail.push({ x: pos.x, y: pos.y });
+        if (trail.length > 300) trail.shift();
+      }
+      if (trail.length > 1) {
+        const tr = document.createElementNS(ns, 'polyline');
+        tr.setAttribute('points', trail.map((p) => `${p.x},${p.y}`).join(' '));
+        tr.setAttribute('class', 'agent-trail');
+        tr.setAttribute('stroke', color);
+        tr.setAttribute('data-tip', `${a.agent_id} 移动轨迹`);
+        frag.appendChild(tr);
+      }
+    }
+    // 规划路线(waypoints 完整路径,PLANNING 完成后出现)
     const wps = a.waypoints || [];
     if (wps.length > 1) {
       const poly = document.createElementNS(ns, 'polyline');
       poly.setAttribute('points', wps.map((p) => `${p.x},${p.y}`).join(' '));
       poly.setAttribute('class', 'route');
       poly.setAttribute('stroke', color);
-      poly.setAttribute('data-tip', `${a.agent_id} 路线`);
+      poly.setAttribute('data-tip', `${a.agent_id} 规划路线`);
       frag.appendChild(poly);
     }
-    const pos = a.position;
+    // 实时位置点
     if (pos) {
       const dot = document.createElementNS(ns, 'circle');
       dot.setAttribute('cx', pos.x);
@@ -337,7 +356,6 @@ function renderRoutes(ran) {
     }
   });
   map.appendChild(frag);
-  bindTooltip('#map');
 }
 
 function renderAgents() {
@@ -513,24 +531,22 @@ function poll() {
       }
       const ran = data.ran_state || data;
       if (ran.tick === tick) return; // 无新 tick
-      try {
-        // 渲染链整体保护:任一步抛错都不推进 tick 标记,下次 poll 自动重试
-        tick = ran.tick;
-        lastRan = ran;
-        aggregateTick(ran);
-        updateBanner(ran, data.now_seconds);
-        renderRoutes(ran);
-        renderAgents();
-        updateCharts();
-        emptyFetches = 0;
-        setConnStatus(true);
-        lastUpdateAt = Date.now();
-        const lu = document.getElementById('st-last');
-        if (lu) lu.textContent = t('overview.updated') + ' ' + new Date(lastUpdateAt).toLocaleTimeString();
-      } catch (err) {
-        // 渲染异常:不提交 tick,保持旧状态,下个轮询重试(避免 tick 卡死)
-        console.warn('[preview] 渲染异常(已跳过本 tick):', err);
-      }
+      // 渲染链:单步失败不阻塞其余更新,tick 照常推进(不能因渲染问题卡停)
+      const safe = (fn, name) => {
+        try { fn(); } catch (e) { console.warn('[preview] 渲染异常(' + name + '):', e); }
+      };
+      tick = ran.tick;
+      lastRan = ran;
+      safe(() => aggregateTick(ran), 'aggregateTick');
+      safe(() => updateBanner(ran, data.now_seconds), 'updateBanner');
+      safe(() => renderRoutes(ran), 'renderRoutes');
+      safe(() => renderAgents(), 'renderAgents');
+      safe(() => updateCharts(), 'updateCharts');
+      emptyFetches = 0;
+      setConnStatus(true);
+      lastUpdateAt = Date.now();
+      const lu = document.getElementById('st-last');
+      if (lu) lu.textContent = t('overview.updated') + ' ' + new Date(lastUpdateAt).toLocaleTimeString();
     })
     .catch((err) => {
       emptyFetches++;
