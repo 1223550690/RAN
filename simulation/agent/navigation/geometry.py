@@ -68,14 +68,21 @@ def _collinear_overlap_point(a: Point, b: Point, c: Point, d: Point) -> Point | 
 def point_to_segment_distance(p: Point, start: Point, end: Point) -> float:
     """点到线段的最短距离。"""
 
+    closest = closest_point_on_segment(p, start, end)
+    return distance(p, closest)
+
+
+def closest_point_on_segment(p: Point, start: Point, end: Point) -> Point:
+    """p 在线段 start-end 上的最近点(含端点)。"""
+
     sx, sy = start
     ex, ey = end
     dx, dy = ex - sx, ey - sy
     length_sq = dx * dx + dy * dy
     if length_sq < _EPS:
-        return distance(p, start)
+        return start
     t = max(0.0, min(1.0, ((p[0] - sx) * dx + (p[1] - sy) * dy) / length_sq))
-    return distance(p, (sx + t * dx, sy + t * dy))
+    return (sx + t * dx, sy + t * dy)
 
 
 def point_in_rect(p: Point, rect: Rect, padding: float = 0.0) -> bool:

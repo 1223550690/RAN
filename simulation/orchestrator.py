@@ -37,7 +37,7 @@ class SimulationOrchestrator:
         scheduler=None,
         aliases: dict[str, str] | None = None,
         intent_profiles: dict | None = None,
-        agent_radius: float = 0.3,
+        agent_radius: float = 0.5,
         speed_m_per_tick: float = 0.5,
         same_building_only: bool = False,
         seed: int | None = None,

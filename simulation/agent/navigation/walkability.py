@@ -22,6 +22,7 @@ from .geometry import (
     _projection_interval,
     _segment_aabb,
     _subtract_intervals,
+    closest_point_on_segment,
     point_in_rect,
     point_to_segment_distance,
     segment_intersection,
@@ -225,6 +226,38 @@ class WalkabilityMap:
                 if self.point_clear(candidate):
                     return candidate
         return None
+
+    # ------------------------------------------------------------------ 推离辅助
+
+    def clearance_and_direction(self, point: Point) -> tuple[float, tuple[float, float]]:
+        """返回 point 到最近墙/障碍的距离,以及"远离最近墙"的单位方向。
+
+        距离为 0 时方向取固定轴 (1, 0)。
+        """
+
+        best_distance = float("inf")
+        best_direction = (1.0, 0.0)
+        for wall, aabb in zip(self.walls, self._wall_aabbs):
+            if not _point_in_expanded_aabb(point, aabb, best_distance):
+                continue
+            closest = closest_point_on_segment(point, wall[0], wall[1])
+            dx, dy = point[0] - closest[0], point[1] - closest[1]
+            distance = (dx * dx + dy * dy) ** 0.5
+            if distance < best_distance:
+                best_distance = distance
+                if distance > 1e-9:
+                    best_direction = (dx / distance, dy / distance)
+        for rect in self._obstacle_aabbs:
+            distance = point_to_rect_distance(point, rect)
+            if distance < best_distance:
+                best_distance = distance
+                if distance > 1e-9:
+                    dx = max(rect[0] - point[0], 0.0) + min(rect[2] - point[0], 0.0)
+                    dy = max(rect[1] - point[1], 0.0) + min(rect[3] - point[1], 0.0)
+                    norm = (dx * dx + dy * dy) ** 0.5
+                    if norm > 1e-9:
+                        best_direction = (dx / norm, dy / norm)
+        return best_distance, best_direction
 
 
 # ------------------------------------------------------------------ 距离工具

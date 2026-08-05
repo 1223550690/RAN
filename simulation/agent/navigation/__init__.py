@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from .astar import GridAstar
 from .endpoint_sampler import EndpointSampler
 from .geometry import Point, Rect
-from .path_smoothing import smooth_path
+from .path_smoothing import push_away_from_walls, smooth_path
 from .room_graph import RoomGraph
 from .route_scorer import RouteScore, score_route
 from .semantic_index import ResolvedDestination, SceneSemanticIndex
@@ -50,7 +50,7 @@ class NavigationPlanner:
         scene,
         *,
         aliases: dict[str, str] | None = None,
-        agent_radius: float = 0.3,
+        agent_radius: float = 0.5,
         seed: int = 42,
         cell_size: float = 0.25,
         max_candidates: int = 48,
@@ -63,6 +63,7 @@ class NavigationPlanner:
             self.walkability, max_candidates=max_candidates, seed=seed
         )
         self.agent_radius = agent_radius
+        self.clearance_margin = agent_radius + 0.3  # 推离目标余量(半径 + 视觉余量)
         self.cell_size = cell_size
         self.max_astar_candidates = max_astar_candidates
         self._astar: GridAstar | None = None
@@ -121,6 +122,7 @@ class NavigationPlanner:
             smoothed = smooth_path(waypoints, self.walkability)
             if len(smoothed) < 2:
                 continue
+            smoothed = push_away_from_walls(smoothed, self.walkability, target_clearance=self.clearance_margin)
             score = score_route(smoothed, self.walkability, destination)
             plan = PathPlan(
                 waypoints=tuple(smoothed),

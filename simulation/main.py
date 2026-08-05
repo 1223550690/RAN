@@ -98,7 +98,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--agent-radius",
         type=float,
-        default=0.3,
+        default=0.5,
         help="agent collision radius in meters",
     )
     parser.add_argument("--llm-endpoint", default=None, help="OpenAI-compatible endpoint base URL for auto mode")
