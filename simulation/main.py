@@ -379,7 +379,15 @@ def run_console(scene) -> None:
 
 def start_preview_server(port: int, scene, control: SimulationControl) -> None:
     handler = functools.partial(MapPreviewRequestHandler, scene=scene, control=control, directory=str(PROJECT_ROOT))
-    server = ThreadingHTTPServer(("127.0.0.1", port), handler)
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", port), handler)
+    except OSError as exc:
+        # 端口被已有预览服务器占用:不影响模拟运行(页面仍由已有服务器服务)
+        print(
+            f"[preview] 端口 {port} 已被占用(已有预览服务器?),跳过内置服务器启动: {exc}",
+            file=sys.stderr,
+        )
+        return
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     url = f"http://127.0.0.1:{port}/editor/live/"

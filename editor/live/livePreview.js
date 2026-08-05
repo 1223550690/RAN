@@ -261,10 +261,10 @@ function intentLabel(intent, svc) {
   return bytes != null ? `${label} ${fmtBytes(bytes)}` : label;
 }
 
-function updateBanner(ran) {
+function updateBanner(ran, nowSeconds) {
   document.getElementById('st-tick').textContent = tick;
   document.getElementById('st-agents').textContent = ran.agent_count ?? 0;
-  const elapsed = tick * 0.5; // tick_ms 默认 500
+  const elapsed = nowSeconds !== undefined && nowSeconds !== null ? nowSeconds : tick * 0.5;
   document.getElementById('st-time').textContent = elapsed.toFixed(1) + 's';
   const active = (ran.service_states || []).filter((s) => s.status && s.status !== 'COMPLETED' && s.status !== 'FAILED');
   document.getElementById('st-services').textContent = active.length;
@@ -509,7 +509,7 @@ function poll() {
       tick = ran.tick;
       lastRan = ran;
       aggregateTick(ran);
-      updateBanner(ran);
+      updateBanner(ran, data.now_seconds);
       renderRoutes(ran);
       renderAgents();
       updateCharts();
