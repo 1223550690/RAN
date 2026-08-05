@@ -37,6 +37,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # 1) 预览服务器:未占用则独立启动(不随本命令退出)
+    proc = None
     if port_in_use(args.port):
         print(f"[demo] 端口 {args.port} 已被占用,复用现有预览服务器。")
     else:
@@ -60,7 +61,7 @@ def main() -> None:
             print(f"[demo] 预览服务器启动失败,请查看 {log_path}", file=sys.stderr)
         print(f"[demo] 预览服务器已启动(pid={proc.pid}),日志: {log_path}")
 
-    # 2) 前台运行模拟
+    # 2) 前台运行模拟;Ctrl+C 时模拟与预览服务器一起退出
     print(f"[demo] 模拟启动: {args.ticks} ticks × {args.tick_ms}ms(约 {args.ticks * args.tick_ms / 1000:.0f}s)")
     cmd = [
         sys.executable, "-m", "simulation.main",
@@ -71,7 +72,17 @@ def main() -> None:
         "--tick-ms", str(args.tick_ms),
         "--agent-speed", str(args.agent_speed),
     ]
-    result = subprocess.run(cmd, cwd=str(PROJECT_ROOT))
+    preview_proc = proc  # 本次启动的预览服务器(复用已有服务器时为 None,不归我们管)
+    try:
+        result = subprocess.run(cmd, cwd=str(PROJECT_ROOT))
+    except KeyboardInterrupt:
+        print("\n[demo] 收到 Ctrl+C:退出模拟,并关闭预览服务器。")
+        if preview_proc is not None:
+            try:
+                preview_proc.terminate()
+            except Exception:
+                pass
+        sys.exit(130)
     if result.returncode != 0:
         print(f"[demo] 模拟退出码 {result.returncode}(可能已有模拟在运行,请结束后重试)", file=sys.stderr)
         sys.exit(result.returncode)

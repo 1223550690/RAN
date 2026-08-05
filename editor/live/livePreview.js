@@ -5,7 +5,7 @@ const I18N = {
     'overview.tick': 'tick', 'overview.agents': 'agents', 'overview.time': '用时',
     'overview.services': '活跃服务', 'overview.delivered': '交付', 'overview.running': '运行中',
     'overview.pause': '暂停', 'overview.resume': '继续', 'overview.export': '导出 Logs',
-    'overview.waiting': '等待数据…',
+    'overview.waiting': '等待数据…', 'overview.updated': '更新',
     'map.hint': '悬停查看对象信息 · 浅色缺口 = 可通行',
     'map.passable': '可通行', 'map.road': '大道', 'map.junction': '交汇', 'map.boundary': '边界',
     'chart.throughput': '系统吞吐量(UL/DL)', 'chart.prb': 'PRB 利用率', 'chart.mcs': 'MCS 分布',
@@ -23,7 +23,7 @@ const I18N = {
     'overview.tick': 'tick', 'overview.agents': 'agents', 'overview.time': 'elapsed',
     'overview.services': 'active services', 'overview.delivered': 'delivered', 'overview.running': 'running',
     'overview.pause': 'Pause', 'overview.resume': 'Resume', 'overview.export': 'Export Logs',
-    'overview.waiting': 'Waiting for data…',
+    'overview.waiting': 'Waiting for data…', 'overview.updated': 'Updated',
     'map.hint': 'Hover for details · light gap = passable',
     'map.passable': 'passable', 'map.road': 'road', 'map.junction': 'junction', 'map.boundary': 'boundary',
     'chart.throughput': 'Throughput (UL/DL)', 'chart.prb': 'PRB Utilization', 'chart.mcs': 'MCS Distribution',
@@ -56,6 +56,7 @@ document.getElementById('btn-lang').addEventListener('click', toggleLang);
 
 /* ================= 状态 ================= */
 let paused = false;
+let lastUpdateAt = 0;
 let tick = 0;
 let emptyFetches = 0;
 const MAX_POINTS = 60;
@@ -515,6 +516,9 @@ function poll() {
         updateCharts();
         emptyFetches = 0;
         setConnStatus(true);
+        lastUpdateAt = Date.now();
+        const lu = document.getElementById('st-last');
+        if (lu) lu.textContent = t('overview.updated') + ' ' + new Date(lastUpdateAt).toLocaleTimeString();
       } catch (err) {
         // 渲染异常:不提交 tick,保持旧状态,下个轮询重试(避免 tick 卡死)
         console.warn('[preview] 渲染异常(已跳过本 tick):', err);
