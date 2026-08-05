@@ -16,6 +16,7 @@ const I18N = {
     'agent.roleMap': { student: '学生', teacher: '教师', staff: '职员' },
     'agent.intentMap': { message: '发送消息', video_upload: '上传视频', video_download: '下载视频', video_call: '视频通话', file_transfer: '传输文件' },
     'chart.ul': 'UL KB/tick', 'chart.dl': 'DL KB/tick', 'chart.prbLabel': 'PRB 利用率 %',
+    'chart.waiting': '等待 agent 到达目标并提交业务…(当前为移动阶段)',
     'chart.mcsLabel': 'MCS 档位', 'chart.snrLabel': 'SINR dB', 'chart.delayLabel': '时延 ms',
   },
   en: {
@@ -34,6 +35,7 @@ const I18N = {
     'agent.roleMap': { student: 'Student', teacher: 'Teacher', staff: 'Staff' },
     'agent.intentMap': { message: 'Send message', video_upload: 'Upload video', video_download: 'Download video', video_call: 'Video call', file_transfer: 'Transfer file' },
     'chart.ul': 'UL KB/tick', 'chart.dl': 'DL KB/tick', 'chart.prbLabel': 'PRB util %',
+    'chart.waiting': 'Waiting for agents to reach targets and submit traffic… (movement phase)',
     'chart.mcsLabel': 'MCS level', 'chart.snrLabel': 'SINR dB', 'chart.delayLabel': 'Delay ms',
   },
 };
@@ -468,6 +470,12 @@ function aggregateTick(ran) {
 
 function updateCharts() {
   if (!charts.throughput) return;
+  // 空态切换:无业务数据时显示等待提示
+  const hasData = series.ul.some((v) => v > 0) || series.dl.some((v) => v > 0);
+  document.querySelectorAll('.chart-empty').forEach((el) => {
+    el.style.display = hasData ? 'none' : 'flex';
+  });
+  if (!hasData) return;
   const labels = series.ul.map((_, i) => `t${tick - series.ul.length + 1 + i}`);
   charts.throughput.data.labels = labels;
   charts.throughput.data.datasets[0].data = series.ul;
