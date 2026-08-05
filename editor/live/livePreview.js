@@ -175,7 +175,7 @@ function renderMap(scene) {
     if (shared.has(idx)) return;
     const [a, b] = e;
     const onWall = topWalls.some(({ w, ox, oy }) => collinearOverlap(
-      [w.start[0] + ox, w.start[1] + oy], [w.end[0] + ox, w.end[1] + oy], a, b));
+      [w.segment[0][0] + ox, w.segment[0][1] + oy], [w.segment[1][0] + ox, w.segment[1][1] + oy], a, b));
     if (!onWall) {
       parts.push(`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="wall-inner" data-tip="${name} · ${t('map.boundary')}"></line>`);
     }
@@ -184,7 +184,7 @@ function renderMap(scene) {
   // 顶层墙
   for (const { w, ox, oy } of topWalls) {
     const cls = w.wall_type === 'exterior' ? 'wall-exterior' : 'wall-interior';
-    parts.push(`<line x1="${w.start[0] + ox}" y1="${w.start[1] + oy}" x2="${w.end[0] + ox}" y2="${w.end[1] + oy}" class="${cls}" data-tip="${w.name} · ${w.wall_type}"></line>`);
+    parts.push(`<line x1="${w.segment[0][0] + ox}" y1="${w.segment[0][1] + oy}" x2="${w.segment[1][0] + ox}" y2="${w.segment[1][1] + oy}" class="${cls}" data-tip="${w.name} · ${w.wall_type}"></line>`);
   }
 
   // 门:区域级 portals(递归,局部坐标偏移)+ 顶层道路级 portals
