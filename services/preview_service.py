@@ -50,7 +50,7 @@ class LivePreviewService:
             try:
                 os.replace(temp_path, self.output_path)
                 return
-            except PermissionError:
+            except (PermissionError, FileNotFoundError):
                 if attempt >= self.replace_retries:
                     self.cleanup_temp_file(temp_path)
                     return
