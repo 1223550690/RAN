@@ -293,39 +293,46 @@ function chartOpts() {
     },
   };
 }
-const charts = {
-  throughput: new Chart(document.getElementById('ch-throughput'), {
+/* Chart.js 可能加载失败(CDN 不可达):图表可选,不阻塞 banner/卡片/地图 */
+const charts = {};
+function initCharts() {
+  if (!window.CHART_OK) {
+    document.querySelectorAll('.chart-card canvas').forEach((c) => { c.remove(); });
+    return;
+  }
+  charts.throughput = new Chart(document.getElementById('ch-throughput'), {
     type: 'line',
     data: { labels: [], datasets: [
       { label: '', data: [], borderColor: CHART_COLORS.primary, backgroundColor: 'rgba(74,135,190,.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2 },
       { label: '', data: [], borderColor: CHART_COLORS.tertiary, backgroundColor: 'rgba(125,140,164,.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2 },
     ] },
     options: chartOpts(),
-  }),
-  prb: new Chart(document.getElementById('ch-prb'), {
+  });
+  charts.prb = new Chart(document.getElementById('ch-prb'), {
     type: 'bar',
     data: { labels: [], datasets: [
       { label: '', data: [], backgroundColor: CHART_COLORS.primary, borderRadius: 4, borderSkipped: false },
     ] },
     options: chartOpts(),
-  }),
-  mcs: new Chart(document.getElementById('ch-mcs'), {
+  });
+  charts.mcs = new Chart(document.getElementById('ch-mcs'), {
     type: 'bar',
     data: { labels: [], datasets: [
       { label: '', data: [], backgroundColor: CHART_COLORS.secondary, borderRadius: 4, borderSkipped: false },
     ] },
     options: chartOpts(),
-  }),
-  sinr: new Chart(document.getElementById('ch-sinr'), {
+  });
+  charts.sinr = new Chart(document.getElementById('ch-sinr'), {
     type: 'line',
     data: { labels: [], datasets: [
       { label: '', data: [], borderColor: CHART_COLORS.green, tension: .35, pointRadius: 0, borderWidth: 2 },
       { label: '', data: [], borderColor: CHART_COLORS.amber, yAxisID: 'y1', tension: .35, pointRadius: 0, borderWidth: 2 },
     ] },
     options: { ...chartOpts(), scales: { ...chartOpts().scales, y1: { position: 'right', ticks: { display: false }, grid: { display: false }, border: { display: false } } } },
-  }),
-};
+  });
+}
 function updateChartLabels() {
+  if (!charts.throughput) return;
   charts.throughput.data.datasets[0].label = t('chart.ul');
   charts.throughput.data.datasets[1].label = t('chart.dl');
   charts.prb.data.datasets[0].label = t('chart.prbLabel');
@@ -362,6 +369,7 @@ function aggregateTick(ran) {
 }
 
 function updateCharts() {
+  if (!charts.throughput) return;
   const labels = series.ul.map((_, i) => `t${tick - series.ul.length + 1 + i}`);
   charts.throughput.data.labels = labels;
   charts.throughput.data.datasets[0].data = series.ul;
@@ -379,7 +387,7 @@ function poll() {
   fetch('../outputs/live_state.json', { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
-      if (!data) return;
+      if (!data) { console.warn('[preview] live_state.json 为空'); return; }
       const ran = data.ran_state || data;
       if (ran.tick === tick) return; // 无新 tick
       tick = ran.tick;
@@ -389,7 +397,7 @@ function poll() {
       renderAgents();
       updateCharts();
     })
-    .catch(() => {});
+    .catch((err) => console.warn('[preview] live_state 拉取失败:', err));
 }
 document.getElementById('btn-pause').addEventListener('click', (e) => {
   paused = !paused;
@@ -406,7 +414,12 @@ document.getElementById('btn-export').addEventListener('click', () => {
 });
 
 applyI18n();
-updateChartLabels();
 renderAgents();
+function initChartsWhenReady() {
+  if (window.CHART_OK === undefined) { setTimeout(initChartsWhenReady, 100); return; }
+  initCharts();
+  updateChartLabels();
+}
+initChartsWhenReady();
 poll();
 setInterval(() => { if (!paused) poll(); }, 500);

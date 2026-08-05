@@ -4,7 +4,33 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RAN Simulation Preview</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+  #chart-fallback { display: none; }
+</style>
+<script>
+/* Chart.js 动态加载:多 CDN 备选,失败不阻塞页面其他渲染 */
+(function () {
+  var urls = [
+    'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js',
+    'https://unpkg.com/chart.js@4/dist/chart.umd.min.js',
+    'https://cdn.bootcdn.net/ajax/libs/Chart.js/4.4.1/chart.umd.min.js',
+  ];
+  var i = 0;
+  function tryNext() {
+    if (i >= urls.length) {
+      window.CHART_OK = false;
+      document.getElementById('chart-fallback').style.display = 'block';
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = urls[i++];
+    s.onload = function () { window.CHART_OK = true; };
+    s.onerror = tryNext;
+    document.head.appendChild(s);
+  }
+  tryNext();
+})();
+</script>
 <link rel="stylesheet" href="livePreview.css">
 </head>
 <body>
