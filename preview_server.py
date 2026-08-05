@@ -40,8 +40,53 @@ def _pid_alive(pid: int) -> bool:
 class NoCacheHandler(SimpleHTTPRequestHandler):
     """带 no-store 头的静态文件服务(解决浏览器启发式缓存旧 JS 的问题)。"""
 
+    CONTROL_PATH = PROJECT_ROOT / "outputs" / "simulation_control.json"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(PROJECT_ROOT), **kwargs)
+
+    def do_POST(self) -> None:
+        # 控制 API:页面暂停按钮 → 写/删 outputs/simulation_control.json,
+        # 模拟循环每 tick 检查该文件实现真暂停
+        if self.path.split("?")[0] != "/api/simulation/control":
+            self.send_error(404, "Unknown API endpoint")
+            return
+        from urllib.parse import parse_qs, urlparse
+
+        query = parse_qs(urlparse(self.path).query)
+        action = query.get("action", [""])[0].strip().lower()
+        try:
+            if action == "toggle":
+                paused = self.CONTROL_PATH.exists()
+                self._set_paused(not paused)
+            elif action == "pause":
+                self._set_paused(True)
+            elif action == "resume":
+                self._set_paused(False)
+            else:
+                self.send_json({"ok": False, "error": "unknown action"}, status=400)
+                return
+            self.send_json({"ok": True, "paused": self.CONTROL_PATH.exists()})
+        except OSError as exc:
+            self.send_json({"ok": False, "error": str(exc)}, status=500)
+
+    def _set_paused(self, paused: bool) -> None:
+        path = self.CONTROL_PATH
+        if paused:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('{"paused": true}', encoding="utf-8")
+        else:
+            path.unlink(missing_ok=True)
+
+    def send_json(self, payload: dict, status: int = 200) -> None:
+        import json
+
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")

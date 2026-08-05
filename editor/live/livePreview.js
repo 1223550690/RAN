@@ -5,7 +5,7 @@ const I18N = {
     'overview.tick': 'tick', 'overview.agents': 'agents', 'overview.time': '用时',
     'overview.services': '活跃服务', 'overview.delivered': '交付', 'overview.running': '运行中',
     'overview.pause': '暂停', 'overview.resume': '继续', 'overview.export': '导出 Logs',
-    'overview.waiting': '等待数据…', 'overview.updated': '更新',
+    'overview.waiting': '等待数据…', 'overview.updated': '更新', 'overview.paused': '已暂停',
     'map.hint': '悬停查看对象信息 · 浅色缺口 = 可通行',
     'map.passable': '可通行', 'map.road': '大道', 'map.junction': '交汇', 'map.boundary': '边界',
     'chart.throughput': '系统吞吐量(UL/DL)', 'chart.prb': 'PRB 利用率', 'chart.mcs': 'MCS 分布',
@@ -24,7 +24,7 @@ const I18N = {
     'overview.tick': 'tick', 'overview.agents': 'agents', 'overview.time': 'elapsed',
     'overview.services': 'active services', 'overview.delivered': 'delivered', 'overview.running': 'running',
     'overview.pause': 'Pause', 'overview.resume': 'Resume', 'overview.export': 'Export Logs',
-    'overview.waiting': 'Waiting for data…', 'overview.updated': 'Updated',
+    'overview.waiting': 'Waiting for data…', 'overview.updated': 'Updated', 'overview.paused': 'Paused',
     'map.hint': 'Hover for details · light gap = passable',
     'map.passable': 'passable', 'map.road': 'road', 'map.junction': 'junction', 'map.boundary': 'boundary',
     'chart.throughput': 'Throughput (UL/DL)', 'chart.prb': 'PRB Utilization', 'chart.mcs': 'MCS Distribution',
@@ -556,10 +556,29 @@ function poll() {
       if (emptyFetches === 1) console.warn('[preview] live_state 拉取失败(服务器未启动?):', err);
     });
 }
-document.getElementById('btn-pause').addEventListener('click', (e) => {
-  paused = !paused;
-  e.currentTarget.textContent = paused ? t('overview.resume') : t('overview.pause');
-  if (!paused) poll();
+/* 暂停按钮:真暂停后台模拟(控制文件通道);服务器不支持时降级为本地冻结 */
+document.getElementById('btn-pause').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const nextPaused = !paused;
+  try {
+    const resp = await fetch('/api/simulation/control?action=toggle&ts=' + Date.now(), { method: 'POST' });
+    const data = await resp.json();
+    if (data && data.ok) {
+      // 后台真暂停/恢复:页面继续轮询(暂停时 tick 不再变化,显示最后数据)
+      paused = nextPaused;
+      btn.textContent = paused ? t('overview.resume') : t('overview.pause');
+      const st = document.getElementById('st-status');
+      if (st) st.textContent = paused ? t('overview.paused') : t('overview.running');
+      return;
+    }
+    throw new Error(data && data.error ? data.error : 'control api failed');
+  } catch (err) {
+    // 纯静态服务器(无控制 API):降级为本地冻结视图
+    paused = nextPaused;
+    btn.textContent = paused ? t('overview.resume') : t('overview.pause');
+    console.warn('[preview] 服务器不支持后台暂停,已切换为仅冻结视图:', err);
+    if (!paused) poll();
+  }
 });
 document.getElementById('btn-export').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify({ tick, series, service_states: lastRan ? lastRan.service_states : [] }, null, 2)],

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import time
+from pathlib import Path
 
 from .clock import SimulationClock
 from .state import SimulationState
@@ -210,8 +212,21 @@ class SimulationLoop:
             del self.console[:-120]
 
     def wait_if_paused(self) -> None:
-        if self.control is None:
-            return
-        while self.control.paused:
+        # 内存控制(内置服务器 -p 模式)
+        if self.control is not None:
+            while self.control.paused:
+                self.write_preview_state(now_seconds=self.state.tick * self.clock.tick_ms / 1000)
+                time.sleep(0.1)
+        # 文件控制通道(独立 preview_server 模式):outputs/simulation_control.json
+        control_file = Path("outputs") / "simulation_control.json"
+        while True:
+            try:
+                if not control_file.exists():
+                    break
+                data = json.loads(control_file.read_text(encoding="utf-8"))
+                if not data.get("paused"):
+                    break
+            except (OSError, ValueError, json.JSONDecodeError):
+                break
             self.write_preview_state(now_seconds=self.state.tick * self.clock.tick_ms / 1000)
-            time.sleep(0.1)
+            time.sleep(0.2)
