@@ -24,8 +24,8 @@ class GnbSite:
     total_prbs: int  # total_prbs: 当前载波可用 PRB 总数。
     antenna_elements: int  # antenna_elements: 天线阵元数，MVP 只用于简化增益。
     mimo_layers: int  # mimo_layers: 最大 MIMO 层数。
-    nominal_pusch: int
-    gscn: int
+    nominal_pusch: int = 0  # nominal_pusch: PUSCH 标称发射功率(tr22068 扩展,可选)。
+    gscn: int = 0  # gscn: GSCN 频点(tr22068 扩展,可选)。
 
 
 @dataclass(slots=True)
@@ -125,4 +125,4 @@ class TransmissionResult:
     rlc_retx_bytes: int  # rlc_retx_bytes: 进入 RLC 重传字节。
     dropped_bytes: int  # dropped_bytes: 最终丢弃字节。
     transmission_delay_ms: float  # transmission_delay_ms: PHY/MAC 基础时延。
-    power_report: float
+    power_report: float = 0.0  # power_report: UE 功率余量(tr22068 扩展,可选)。
