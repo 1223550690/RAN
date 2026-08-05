@@ -82,40 +82,42 @@ def _pid_creation_time(pid: int) -> int | None:
 
 
 def acquire_simulation_lock() -> None:
-    """单实例锁:已有存活模拟进程时拒绝启动,避免并发写 live_state.json。
+    """单实例锁:Windows 命名互斥体(内核级原子,强杀自动释放)。
 
-    锁文件 outputs/simulation.lock 记录 PID + 进程创建时间;
-    进程异常退出(强杀)时残留锁,下次启动按 PID 存活与创建时间自动清理,
-    并可识别 PID 复用(同一 PID 创建时间不符 = 旧锁)。
+    锁文件 outputs/simulation.lock 仅记录 PID/启动时间供诊断;
+    权威判断由命名互斥体 RAN_Simulation_Lock 完成——并发启动时
+    内核保证只有一个进程获得互斥体,进程退出(含强杀)自动释放。
     """
 
-    creation = _pid_creation_time(os.getpid())
-    if LOCK_PATH.exists():
+    import ctypes
+    from ctypes import wintypes
+
+    MUTEX_NAME = "Local\\RAN_Simulation_Lock"
+    handle = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
+    if not handle:
+        print("[lock] 创建互斥体失败,无法获取单实例锁。", file=sys.stderr)
+        raise SystemExit(1)
+    already_exists = ctypes.windll.kernel32.GetLastError() == 183  # ERROR_ALREADY_EXISTS
+    if already_exists:
+        # 有别的模拟在运行(读锁文件给出诊断信息)
         try:
             meta = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
-            pid = int(meta.get("pid", 0))
-            locked_creation = meta.get("pid_creation")
-            if pid and _pid_alive(pid):
-                # 旧格式锁(无创建时间):仅按 PID 判断;新格式:创建时间须一致
-                reused = locked_creation is not None and creation is not None and int(locked_creation) != creation
-                if not reused:
-                    print(
-                        f"[lock] 已有模拟进程运行中 (pid={pid}, started={meta.get('started_at', '?')})。\n"
-                        f"       同一时间只允许一个模拟实例;请先结束该进程,"
-                        f"或确认其已退出后删除 {LOCK_PATH} 重试。",
-                        file=sys.stderr,
-                    )
-                    raise SystemExit(1)
+            started = meta.get("started_at", "?")
         except (OSError, ValueError, json.JSONDecodeError):
-            pass
-        LOCK_PATH.unlink(missing_ok=True)  # 残留锁(持有进程已死或 PID 已复用)
+            started = "?"
+        print(
+            f"[lock] 已有模拟进程运行中 (started={started})。\n"
+            f"       同一时间只允许一个模拟实例;请先结束该进程后再启动。",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
 
+    # 持有互斥体:记录诊断信息;atexit 关闭句柄即释放互斥体
     LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
     LOCK_PATH.write_text(
         json.dumps(
             {
                 "pid": os.getpid(),
-                "pid_creation": creation,
                 "started_at": datetime.now().isoformat(timespec="seconds"),
             },
             ensure_ascii=False,
@@ -123,14 +125,15 @@ def acquire_simulation_lock() -> None:
         ),
         encoding="utf-8",
     )
+    kernel32 = ctypes.windll.kernel32
 
     def _release_lock() -> None:
+        kernel32.ReleaseMutex(handle)
+        kernel32.CloseHandle(handle)
         try:
-            meta = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
-            if int(meta.get("pid", -1)) == os.getpid():
-                LOCK_PATH.unlink(missing_ok=True)
-        except (OSError, ValueError, json.JSONDecodeError):
             LOCK_PATH.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     atexit.register(_release_lock)
 
