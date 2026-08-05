@@ -271,6 +271,268 @@ body {
   -webkit-user-select: text;
 }
 
+/* ------------------------------------------------------------------ */
+/* Simulation Overview(底部概要面板)                                    */
+/* ------------------------------------------------------------------ */
+
+.overview-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.log-surface .overview-panel {
+  height: 100%;
+}
+
+.overview-status {
+  color: #0f7a3d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.overview-status.paused {
+  color: #b26a00;
+}
+
+.overview-body {
+  min-height: 0;
+  padding: 8px 12px 4px;
+  display: grid;
+  grid-template-rows: auto auto auto;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.overview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.overview-chip {
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  padding: 1px 10px;
+  background: #f0f4f8;
+  color: #33404d;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.overview-agents {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.overview-agent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+
+.overview-agent-id {
+  font-weight: 600;
+  color: #1f2a36;
+}
+
+.overview-agent-detail {
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overview-empty {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.overview-ran-row {
+  border-top: 1px dashed var(--stroke);
+  padding: 4px 0 2px;
+  color: #33404d;
+  font-size: 12px;
+}
+
+.overview-logbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 8px;
+}
+
+.text-button {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.text-button:hover {
+  background: rgba(15, 108, 189, 0.08);
+}
+
+.hidden {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Agent 状态徽章                                                       */
+/* ------------------------------------------------------------------ */
+
+.status-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.status-walking {
+  background: #e3f0fd;
+  color: #0f5ba8;
+}
+
+.status-planning {
+  background: #fdeee0;
+  color: #a85a0f;
+}
+
+.status-network_pending {
+  background: #e6f4ea;
+  color: #1e7a3a;
+}
+
+.status-network_active {
+  background: #e9e6fd;
+  color: #5a3fc0;
+}
+
+.status-done {
+  background: #e4f5e9;
+  color: #0f7a3d;
+}
+
+.status-failed {
+  background: #fde7e7;
+  color: #b3261e;
+}
+
+.status-ready {
+  background: #f0f4f8;
+  color: #44505c;
+}
+
+.status-unknown {
+  background: #f0f0f0;
+  color: #616161;
+}
+
+/* ------------------------------------------------------------------ */
+/* Agent 卡片(右侧详情)                                                 */
+/* ------------------------------------------------------------------ */
+
+.agent-cards {
+  display: grid;
+  gap: 12px;
+}
+
+.agent-card {
+  border: 1px solid #2f3b45;
+  border-radius: 8px;
+  background: #12181e;
+  overflow: hidden;
+}
+
+.agent-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2f3b45;
+  background: #1a232c;
+}
+
+.agent-card-id {
+  font-weight: 700;
+  color: #f4f7fb;
+  font-size: 13px;
+}
+
+.agent-card-section {
+  padding: 8px 12px;
+}
+
+.agent-card-section + .agent-card-section {
+  border-top: 1px solid #232e38;
+}
+
+.agent-card-kv {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.agent-card-k {
+  flex: none;
+  width: 44px;
+  color: #8ea0af;
+}
+
+.agent-card-v {
+  color: #e8eef4;
+  overflow-wrap: anywhere;
+}
+
+.agent-card-waiting {
+  color: #7e8b96;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.progress-bar {
+  position: relative;
+  height: 16px;
+  margin-top: 6px;
+  border-radius: 4px;
+  background: #232e38;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1f7fd0, #3fa3f0);
+  border-radius: 4px;
+}
+
+.progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 60%);
+}
+
 @media (max-width: 1050px) {
   .preview-surface {
     grid-template-columns: 1fr;

@@ -33,12 +33,16 @@
         </aside>
       </section>
       <section class="log-surface">
-        <div class="runtime-panel">
+        <div class="overview-panel">
           <div class="console-header">
-            <span>Runtime Log</span>
-            <span>scrolling history</span>
+            <span>Simulation Overview</span>
+            <span id="overviewStatus" class="overview-status">running</span>
           </div>
-          <div id="runtimeLog" class="console-log runtime-log"></div>
+          <div id="overviewBody" class="overview-body"></div>
+          <div class="overview-logbar">
+            <button id="toggleLogButton" class="text-button" type="button">Expand Log</button>
+          </div>
+          <div id="runtimeLog" class="console-log runtime-log hidden"></div>
         </div>
       </section>
     </main>
