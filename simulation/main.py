@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import functools
 import json
+import os
+import sys
 import threading
 import webbrowser
+from datetime import datetime
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -21,10 +25,78 @@ from .state import SimulationState
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+LOCK_PATH = PROJECT_ROOT / "outputs" / "simulation.lock"
+
+
+def _pid_alive(pid: int) -> bool:
+    """检查 PID 是否存活(Windows 用 OpenProcess,其他平台用信号 0)。"""
+
+    if sys.platform == "win32":
+        import ctypes
+
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if handle:
+            ctypes.windll.kernel32.CloseHandle(handle)
+            return True
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def acquire_simulation_lock() -> None:
+    """单实例锁:已有存活模拟进程时拒绝启动,避免并发写 live_state.json。
+
+    锁文件 outputs/simulation.lock 记录 PID;进程异常退出时残留锁,
+    下次启动通过 PID 存活检查自动清理。
+    """
+
+    if LOCK_PATH.exists():
+        try:
+            meta = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
+            pid = int(meta.get("pid", 0))
+            if pid and _pid_alive(pid):
+                print(
+                    f"[lock] 已有模拟进程运行中 (pid={pid}, started={meta.get('started_at', '?')})。\n"
+                    f"       同一时间只允许一个模拟实例;请先结束该进程,"
+                    f"或确认其已退出后删除 {LOCK_PATH} 重试。",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1)
+        except (OSError, ValueError, json.JSONDecodeError):
+            pass
+        LOCK_PATH.unlink(missing_ok=True)  # 残留锁(持有进程已死)
+
+    LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    LOCK_PATH.write_text(
+        json.dumps(
+            {
+                "pid": os.getpid(),
+                "started_at": datetime.now().isoformat(timespec="seconds"),
+            },
+            ensure_ascii=False,
+            indent=1,
+        ),
+        encoding="utf-8",
+    )
+
+    def _release_lock() -> None:
+        try:
+            meta = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
+            if int(meta.get("pid", -1)) == os.getpid():
+                LOCK_PATH.unlink(missing_ok=True)
+        except (OSError, ValueError, json.JSONDecodeError):
+            LOCK_PATH.unlink(missing_ok=True)
+
+    atexit.register(_release_lock)
 
 
 def main() -> None:
     args = parse_args()
+    acquire_simulation_lock()
     scene_service = SceneService()
     scene = scene_service.load_scene(args.scene)
     preview_service = LivePreviewService(PROJECT_ROOT / "outputs" / "live_state.json")

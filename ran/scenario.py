@@ -296,6 +296,7 @@ class MultiAgentRanScenario:
         self.services[service_instance_id] = ServiceContext(
             service_instance_id=service_instance_id,
             intent_id=intent.intent_id,
+            intent_type=intent.service_type,
             agent_id=item.agent_id,
             ue_id=item.ue_id,
             ue_request=ue_request,
@@ -605,6 +606,7 @@ class MultiAgentRanScenario:
         return {
             "agent_id": service.agent_id,
             "intent_id": service.intent_id,
+            "intent_type": service.intent_type,
             "service_instance_id": service.service_instance_id,
             "ue_id": service.ue_id,
             "tick": tick,

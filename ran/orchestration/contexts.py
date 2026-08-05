@@ -80,6 +80,7 @@ class ServiceContext:
     pdcp_batch: PdcpBatch
     rlc_queue: RlcQueue
     dl_queue: RlcQueue | None = None  # dl_queue: 下行业务时 DN 侧队列(UL 业务为 None)。
+    intent_type: str = ""  # intent_type: 业务类型(message/video_upload/video_download 等,前端展示用)。
     status: ServiceStatus = "INITIALIZING"
     counters: ServiceCounters = field(default_factory=ServiceCounters)
     last_state: dict[str, object] | None = None

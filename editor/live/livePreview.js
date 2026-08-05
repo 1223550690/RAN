@@ -14,6 +14,7 @@ const I18N = {
     'agent.pos': '位置', 'agent.dest': '目标', 'agent.intent': '意图', 'agent.cp': '控制面',
     'agent.path': '路径', 'agent.role': '角色', 'agent.error': '错误',
     'agent.roleMap': { student: '学生', teacher: '教师', staff: '职员' },
+    'agent.intentMap': { message: '发送消息', video_upload: '上传视频', video_download: '下载视频', video_call: '视频通话', file_transfer: '传输文件' },
     'chart.ul': 'UL KB/tick', 'chart.dl': 'DL KB/tick', 'chart.prbLabel': 'PRB 利用率 %',
     'chart.mcsLabel': 'MCS 档位', 'chart.snrLabel': 'SINR dB', 'chart.delayLabel': '时延 ms',
   },
@@ -31,6 +32,7 @@ const I18N = {
     'agent.pos': 'Position', 'agent.dest': 'Target', 'agent.intent': 'Intent', 'agent.cp': 'Control plane',
     'agent.path': 'Path', 'agent.role': 'Role', 'agent.error': 'Error',
     'agent.roleMap': { student: 'Student', teacher: 'Teacher', staff: 'Staff' },
+    'agent.intentMap': { message: 'Send message', video_upload: 'Upload video', video_download: 'Download video', video_call: 'Video call', file_transfer: 'Transfer file' },
     'chart.ul': 'UL KB/tick', 'chart.dl': 'DL KB/tick', 'chart.prbLabel': 'PRB util %',
     'chart.mcsLabel': 'MCS level', 'chart.snrLabel': 'SINR dB', 'chart.delayLabel': 'Delay ms',
   },
@@ -233,6 +235,31 @@ fetch('/editor/data/scenes/bristol_topology.json')
 
 /* ================= Banner / Agent 卡片 ================= */
 const AGENT_COLORS = ['#4A87BE', '#7D5260', '#4C9E74', '#B08A3E', '#5E7894'];
+/* agent 状态 → 红黄绿(阶段色) */
+const STATE_COLORS = {
+  FAILED: '#B3261E', ERROR: '#B3261E',           // 红:失败/错误
+  READY: '#B08A3E', PLANNING: '#B08A3E', NETWORK_PENDING: '#B08A3E', WAITING: '#B08A3E',  // 黄:准备/规划/等待
+  ACTIVE: '#2E8B57', RUNNING: '#2E8B57', WALKING: '#4C9E74', NETWORK_ACTIVE: '#2E8B57',  // 绿:进行中
+  COMPLETED: '#1E6B42', DONE: '#1E6B42',         // 深绿:完成
+};
+function stateColor(status) {
+  return STATE_COLORS[String(status || '').toUpperCase()] || '#8A93A3';
+}
+function fmtBytes(n) {
+  if (n === null || n === undefined) return '-';
+  if (n >= 1073741824) return (n / 1073741824).toFixed(1) + 'GB';
+  if (n >= 1048576) return (n / 1048576).toFixed(0) + 'MB';
+  if (n >= 1024) return (n / 1024).toFixed(0) + 'KB';
+  return n + 'B';
+}
+function intentLabel(intent, svc) {
+  const map = I18N[lang]['agent.intentMap'] || {};
+  const type = (svc && svc.intent_type) || intent || '';
+  const kind = String(type).replace(/_\d+$/, '');
+  const label = map[kind] || (svc && svc.intent_type) || intent || '-';
+  const bytes = svc && svc.progress ? svc.progress.requested_bytes : null;
+  return bytes != null ? `${label} ${fmtBytes(bytes)}` : label;
+}
 
 function updateBanner(ran) {
   document.getElementById('st-tick').textContent = tick;
@@ -281,6 +308,7 @@ function renderRoutes(ran) {
   const frag = document.createDocumentFragment();
   states.forEach((a, i) => {
     const color = AGENT_COLORS[i % AGENT_COLORS.length];
+    const stColor = stateColor(a.status);
     const ns = 'http://www.w3.org/2000/svg';
     const wps = a.waypoints || [];
     if (wps.length > 1) {
@@ -298,10 +326,10 @@ function renderRoutes(ran) {
       dot.setAttribute('cy', pos.y);
       dot.setAttribute('r', '7');
       dot.setAttribute('class', 'agent-dot');
-      dot.setAttribute('fill', color);
+      dot.setAttribute('fill', stColor);
       dot.setAttribute('stroke', '#FFFFFF');
       dot.setAttribute('stroke-width', '2.5');
-      dot.setAttribute('data-tip', `${a.agent_id} · (${Math.round(pos.x)}, ${Math.round(pos.y)})`);
+      dot.setAttribute('data-tip', `${a.agent_id} · ${a.status} · (${Math.round(pos.x)}, ${Math.round(pos.y)})`);
       frag.appendChild(dot);
     }
   });
@@ -321,7 +349,7 @@ function renderAgents() {
     const svc = services.find((s) => s.agent_id === a.agent_id && s.status && s.status !== 'COMPLETED' && s.status !== 'FAILED')
       || services.find((s) => s.agent_id === a.agent_id);
     const role = String(a.agent_id).split('_')[0] || 'agent';
-    const chipCls = a.status === 'DONE' ? 'done' : a.status === 'FAILED' ? 'failed' : 'network';
+    const stColor = stateColor(a.status);
     const ratio = svc && svc.progress ? (svc.progress.completion_ratio || 0) : 0;
     const dir = svc && svc.direction === 'DL' ? ' ↓' : svc && svc.direction === 'UL' ? ' ↑' : '';
     const card = document.createElement('div');
@@ -331,18 +359,18 @@ function renderAgents() {
       <div class="head">
         <div class="avatar ${role === 'teacher' ? 'teacher' : role === 'staff' ? 'staff' : ''}">${a.agent_id[0].toUpperCase()}</div>
         <div class="name">${a.agent_id}</div>
-        <span class="state-chip ${chipCls}">${a.status || '-'}</span>
+        <span class="state-chip" style="background:${stColor}1A;color:${stColor}">${a.status || '-'}</span>
       </div>
       <div class="rows">
         <div><span class="k">${t('agent.pos')}</span> <span class="v">${pos}</span></div>
         <div><span class="k">${t('agent.dest')}</span> <span class="v">${a.target || '-'}</span></div>
-        <div><span class="k">${t('agent.intent')}</span> <span class="v">${a.intent || '-'}${dir}</span></div>
+        <div><span class="k">${t('agent.intent')}</span> <span class="v">${intentLabel(a.intent, svc)}${dir}</span></div>
         <div><span class="k">${t('agent.cp')}</span> <span class="v">${a.cm_state || '-'} · ${a.rrc_state || '-'}</span></div>
         <div><span class="k">${t('agent.path')}</span> <span class="v">${svc ? svc.service_instance_id : '-'}</span></div>
         <div><span class="k">${t('agent.role')}</span> <span class="v">${roleMap[role] || role}</span></div>
       </div>
       ${a.error ? `<div class="error-line">${t('agent.error')}: ${a.error}</div>` : ''}
-      <div class="progress-track"><div class="progress-fill" style="width:${(ratio * 100).toFixed(1)}%"></div></div>`;
+      <div class="progress-track"><div class="progress-fill" style="width:${(ratio * 100).toFixed(1)}%;background:${stColor}"></div></div>`;
     wrap.append(card);
   }
 }
