@@ -1,388 +1,412 @@
-import { ScenePreview } from "../src/scene_preview/ScenePreview.js";
-
-const canvas = document.querySelector("#sceneCanvas");
-const statusText = document.querySelector("#statusText");
-const agentSummary = document.querySelector("#agentSummary");
-const ranStatus = document.querySelector("#ranStatus");
-const ranSnapshot = document.querySelector("#ranSnapshot");
-const runtimeLog = document.querySelector("#runtimeLog");
-const coordinateText = document.querySelector("#coordinateText");
-const pauseButton = document.querySelector("#pauseButton");
-const exportButton = document.querySelector("#exportButton");
-
-const preview = new ScenePreview(canvas, {
-  onCoordinate: (coord) => {
-    coordinateText.textContent = `x ${coord.x}, y ${coord.y}`;
+/* ================= 国际化 ================= */
+const I18N = {
+  zh: {
+    'overview.title': 'Simulation Overview',
+    'overview.tick': 'tick', 'overview.agents': 'agents', 'overview.time': '用时',
+    'overview.services': '活跃服务', 'overview.delivered': '交付', 'overview.running': '运行中',
+    'overview.pause': '暂停', 'overview.resume': '继续', 'overview.export': '导出 Logs',
+    'map.hint': '悬停查看对象信息 · 浅色缺口 = 可通行',
+    'map.passable': '可通行', 'map.road': '大道', 'map.junction': '交汇', 'map.boundary': '边界',
+    'chart.throughput': '系统吞吐量(UL/DL)', 'chart.prb': 'PRB 利用率', 'chart.mcs': 'MCS 分布',
+    'chart.snr': '平均 SINR / QoS 时延',
+    'agent.waiting': '等待意图提交 / 无 RAN 服务',
+    'agent.pos': '位置', 'agent.dest': '目标', 'agent.intent': '意图', 'agent.cp': '控制面',
+    'agent.path': '路径', 'agent.role': '角色', 'agent.error': '错误',
+    'agent.roleMap': { student: '学生', teacher: '教师', staff: '职员' },
+    'chart.ul': 'UL KB/tick', 'chart.dl': 'DL KB/tick', 'chart.prbLabel': 'PRB 利用率 %',
+    'chart.mcsLabel': 'MCS 档位', 'chart.snrLabel': 'SINR dB', 'chart.delayLabel': '时延 ms',
   },
-});
-preview.setBuildingWallOverlayVisible(true);
+  en: {
+    'overview.title': 'Simulation Overview',
+    'overview.tick': 'tick', 'overview.agents': 'agents', 'overview.time': 'elapsed',
+    'overview.services': 'active services', 'overview.delivered': 'delivered', 'overview.running': 'running',
+    'overview.pause': 'Pause', 'overview.resume': 'Resume', 'overview.export': 'Export Logs',
+    'map.hint': 'Hover for details · light gap = passable',
+    'map.passable': 'passable', 'map.road': 'road', 'map.junction': 'junction', 'map.boundary': 'boundary',
+    'chart.throughput': 'Throughput (UL/DL)', 'chart.prb': 'PRB Utilization', 'chart.mcs': 'MCS Distribution',
+    'chart.snr': 'Avg SINR / QoS Delay',
+    'agent.waiting': 'Waiting for intent / no RAN service',
+    'agent.pos': 'Position', 'agent.dest': 'Target', 'agent.intent': 'Intent', 'agent.cp': 'Control plane',
+    'agent.path': 'Path', 'agent.role': 'Role', 'agent.error': 'Error',
+    'agent.roleMap': { student: 'Student', teacher: 'Teacher', staff: 'Staff' },
+    'chart.ul': 'UL KB/tick', 'chart.dl': 'DL KB/tick', 'chart.prbLabel': 'PRB util %',
+    'chart.mcsLabel': 'MCS level', 'chart.snrLabel': 'SINR dB', 'chart.delayLabel': 'Delay ms',
+  },
+};
+let lang = localStorage.getItem('preview-lang') || 'zh';
+function t(key) {
+  const v = I18N[lang][key];
+  return typeof v === 'string' ? v : key;
+}
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.getElementById('btn-lang').textContent = lang === 'zh' ? 'EN' : '中文';
+}
+function toggleLang() {
+  lang = lang === 'zh' ? 'en' : 'zh';
+  localStorage.setItem('preview-lang', lang);
+  applyI18n();
+  renderAgents(); // 卡片内嵌文案需重渲染
+}
+document.getElementById('btn-lang').addEventListener('click', toggleLang);
 
-pauseButton.addEventListener("click", () => sendControl("toggle_pause"));
-exportButton.addEventListener("click", () => sendControl("export_logs"));
+/* ================= 状态 ================= */
+let paused = false;
+let tick = 0;
+const MAX_POINTS = 60;
+const series = { ul: [], dl: [], prb: [], mcs: [], sinr: [], delay: [], delivered: [] };
+let lastRan = null;
+let serviceHistory = [];
 
-const toggleLogButton = document.querySelector("#toggleLogButton");
-toggleLogButton.addEventListener("click", () => {
-  const collapsed = runtimeLog.classList.toggle("hidden");
-  toggleLogButton.textContent = collapsed ? "Expand Log" : "Collapse Log";
-});
+/* ================= 地图渲染(编辑器场景 JSON) ================= */
+const SCENE_PATH = '../data/scenes/bristol_topology.json';
+const DOOR_KINDS = new Set(['door', 'building_entrance', 'open_passage', 'entrance']);
 
-let lastStateLines = [];
-let lastRanRenderKey = "";
-let lastLogRenderKey = "";
-let latestPaused = false;
-
-async function refresh() {
-  try {
-    const response = await fetch("../../outputs/live_state.json", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`state unavailable: ${response.status}`);
-    }
-    const state = await response.json();
-    preview.setScene(state.scene);
-    preview.setAgents(state.agents || []);
-    renderStatus(state);
-    renderConsole(state);
-  } catch {
-    statusText.textContent = "waiting for outputs/live_state.json";
-    ranStatus.textContent = "RAN input waiting";
-    ranSnapshot.replaceChildren(buildSnapshotEmpty("waiting for RAN tick state"));
-  } finally {
-    window.setTimeout(refresh, latestPaused ? 1000 : 250);
+function collinearOverlap(a, b, c, d, eps = 0.1) {
+  const cross = (b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0]);
+  if (Math.abs(cross) > eps * Math.max(1, Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]))) return false;
+  if (Math.abs(b[0] - a[0]) >= Math.abs(b[1] - a[1])) {
+    const lo1 = Math.min(a[0], b[0]), hi1 = Math.max(a[0], b[0]);
+    const lo2 = Math.min(c[0], d[0]), hi2 = Math.max(c[0], d[0]);
+    return Math.max(lo1, lo2) <= Math.min(hi1, hi2) + eps && Math.abs(a[1] - c[1]) <= eps * 2;
   }
+  const lo1 = Math.min(a[1], b[1]), hi1 = Math.max(a[1], b[1]);
+  const lo2 = Math.min(c[1], d[1]), hi2 = Math.max(c[1], d[1]);
+  return Math.max(lo1, lo2) <= Math.min(hi1, hi2) + eps && Math.abs(a[0] - c[0]) <= eps * 2;
 }
 
-function renderStatus(state) {
-  statusText.textContent = `tick ${state.tick} - ${state.scene?.name || state.scene?.node_id || "scene"}`;
-  latestPaused = Boolean(state.control_state?.paused);
-  pauseButton.textContent = latestPaused ? "Resume" : "Pause";
-  renderAgentSummary(state.agents || []);
+function edgeEndpoints(e) {
+  if ('x1' in e) return [[e.x1, e.y], [e.x2, e.y]];
+  return [[e.x, e.y1], [e.x, e.y2]];
 }
 
-function renderAgentSummary(agents) {
-  agentSummary.innerHTML = "";
-  for (const agent of agents) {
-    const badge = document.createElement("div");
-    badge.className = "agent-summary-item";
-    const color = agent.color || "#7f4ac9";
-    const activity = agent.activity_state || agent.lifecycle_status || "unknown";
-    const pos = agent.position ? `(${agent.position[0].toFixed(2)}, ${agent.position[1].toFixed(2)})` : "";
-    const target = agent.destination_id ? `→ ${agent.destination_id}` : "";
-    const progress =
-      agent.waypoint_count > 0 ? `wp ${Math.min(agent.waypoint_index + 1, agent.waypoint_count)}/${agent.waypoint_count}` : "";
-    const intent = agent.current_intent_id ? `intent ${agent.current_intent_id}` : "";
-    const error = agent.error ? `error ${agent.error}` : "";
-    const lines = [activity, pos, target, progress, intent, error].filter(Boolean);
-
-    const dot = document.createElement("span");
-    dot.className = "agent-summary-dot";
-    dot.style.background = color;
-    const text = document.createElement("span");
-    text.className = "agent-summary-text";
-    text.textContent = `${agent.agent_id}: ${lines.join(" ")}`;
-    badge.append(dot, text);
-    agentSummary.append(badge);
-  }
+function roadPath(seg) {
+  let [t1, t2] = edgeEndpoints(seg.top);
+  let [b1, b2] = edgeEndpoints(seg.bottom);
+  const horizontal = Math.abs(t2[0] - t1[0]) >= Math.abs(t2[1] - t1[1]);
+  const key = (p) => (horizontal ? p[0] : p[1]);
+  [t1, t2] = [t1, t2].sort((p, q) => key(p) - key(q));
+  [b1, b2] = [b1, b2].sort((p, q) => key(p) - key(q));
+  const side = (a, b, sign) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const len = Math.max(1e-6, Math.hypot(dx, dy));
+    const nx = -dy / len, ny = dx / len;
+    const c1 = [a[0] + dx * 0.33 + nx * sign * 12, a[1] + dy * 0.33 + ny * sign * 12];
+    const c2 = [a[0] + dx * 0.66 + nx * sign * 12, a[1] + dy * 0.66 + ny * sign * 12];
+    return `C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${b[0]},${b[1]}`;
+  };
+  return `M${t1[0]},${t1[1]} ${side(t1, b1, 1)} L${b2[0]},${b2[1]} ${side(b2, t2, 1)} L${t2[0]},${t2[1]} Z`;
 }
 
-function renderConsole(state) {
-  const requests = state.ran_requests || [];
-  const ranState = state.ran_state || {};
-  if (ranState.status) {
-    const progress = ranState.progress || {};
-    const percent = progress.completion_ratio !== undefined ? `${(progress.completion_ratio * 100).toFixed(1)}%` : "-";
-    ranStatus.textContent = `RAN ${ranState.status} ${percent}`;
-  } else {
-    ranStatus.textContent = requests.length ? `RAN requests ${requests.length}` : "RAN input disabled";
-  }
+function renderMap(scene) {
+  const svg = document.getElementById('map');
+  const parts = [];
 
-  renderOverview(state, ranState);
-  renderAgentCards(state, ranState);
-  lastStateLines = state.console || [];
-  renderRuntimeConsole(lastStateLines, state.control_state);
-}
-
-/* ------------------------------------------------------------------ */
-/* 底部概要面板:仅显示 tick / agent 数 / 各 agent 状态 / RAN 总进度       */
-/* ------------------------------------------------------------------ */
-
-function renderOverview(state, ranState) {
-  const agents = state.agents || [];
-  const overviewStatus = document.querySelector("#overviewStatus");
-  const paused = Boolean(state.control_state?.paused);
-  overviewStatus.textContent = paused ? "paused" : "running";
-  overviewStatus.classList.toggle("paused", paused);
-
-  const body = document.querySelector("#overviewBody");
-  body.innerHTML = "";
-
-  // 仿真元信息行
-  const meta = document.createElement("div");
-  meta.className = "overview-meta";
-  const sceneName = state.scene?.name || state.scene?.node_id || state.scene?.scene_id || "scene";
-  const uptime = state.uptime_seconds !== undefined ? `${state.uptime_seconds.toFixed(1)}s` : "-";
-  const items = [
-    `tick ${state.tick ?? "-"}`,
-    `agents ${agents.length}`,
-    `scene ${sceneName}`,
-    `uptime ${uptime}`,
-  ];
-  for (const item of items) {
-    const chip = document.createElement("span");
-    chip.className = "overview-chip";
-    chip.textContent = item;
-    meta.append(chip);
-  }
-  body.append(meta);
-
-  // 每 agent 一行概要
-  if (agents.length) {
-    const list = document.createElement("div");
-    list.className = "overview-agents";
-    for (const agent of agents) {
-      list.append(buildOverviewAgentRow(agent));
-    }
-    body.append(list);
-  } else {
-    const empty = document.createElement("div");
-    empty.className = "overview-empty";
-    empty.textContent = "no agents";
-    body.append(empty);
+  // 顶层区域
+  for (const area of scene.areas) {
+    const [x0, y0, x1, y1] = area.bounds;
+    const cls = area.metadata && area.metadata.space === 'indoor' ? 'area indoor' : 'area outdoor';
+    parts.push(`<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" class="${cls}" data-tip="${area.name}"></rect>`);
   }
 
-  // RAN 汇总行
-  body.append(buildOverviewRanRow(ranState));
-}
-
-function buildOverviewAgentRow(agent) {
-  const row = document.createElement("div");
-  row.className = "overview-agent-row";
-  const color = agent.color || "#7f4ac9";
-  const activity = agent.activity_state || agent.lifecycle_status || "unknown";
-  const pos = agent.position ? `(${agent.position[0].toFixed(1)}, ${agent.position[1].toFixed(1)})` : "";
-  const target = agent.destination_id ? `→ ${agent.destination_id}` : "";
-  const progress =
-    agent.waypoint_count > 0 ? `wp ${Math.min(agent.waypoint_index + 1, agent.waypoint_count)}/${agent.waypoint_count}` : "";
-  const intent = agent.current_intent_id ? `intent ${agent.current_intent_id}` : "";
-  const error = agent.error ? `error ${agent.error}` : "";
-
-  const dot = document.createElement("span");
-  dot.className = "agent-summary-dot";
-  dot.style.background = color;
-  const id = document.createElement("span");
-  id.className = "overview-agent-id";
-  id.textContent = agent.agent_id;
-  const badge = document.createElement("span");
-  badge.className = `status-badge status-${activity.toLowerCase()}`;
-  badge.textContent = activity;
-  const detail = document.createElement("span");
-  detail.className = "overview-agent-detail";
-  detail.textContent = [pos, target, progress, intent, error].filter(Boolean).join("  ");
-
-  row.append(dot, id, badge, detail);
-  return row;
-}
-
-function buildOverviewRanRow(ranState) {
-  const row = document.createElement("div");
-  row.className = "overview-ran-row";
-  const status = ranState.status || "no RAN state";
-  const progress = ranState.progress || {};
-  const delivered = progress.delivered_bytes ?? "-";
-  const requested = progress.requested_bytes ?? "-";
-  const ratio = progress.completion_ratio !== undefined ? `(${fmtPct(progress.completion_ratio)})` : "";
-  const services = Array.isArray(ranState.service_states) ? ranState.service_states.length : "-";
-  row.textContent = `RAN ${status}  services ${services}  delivered ${fmtBytes(delivered)} / ${fmtBytes(requested)} ${ratio}`;
-  return row;
-}
-
-/* ------------------------------------------------------------------ */
-/* 右侧:按 agent 分卡片(状态 + 网络详情)                                 */
-/* ------------------------------------------------------------------ */
-
-function renderAgentCards(state, ranState) {
-  const ranByAgent = {};
-  if (Array.isArray(ranState.service_states)) {
-    for (const service of ranState.service_states) {
-      ranByAgent[service.agent_id] = service;
+  // 道路(曲线侧边)
+  for (const seg of scene.roads.segments || []) {
+    parts.push(`<path d="${roadPath(seg)}" class="road" data-tip="${seg.name} · ${t('map.road')}"></path>`);
+  }
+  // junction:从顶层 portals(road_junction)segment 包围盒
+  const juncBoxes = {};
+  for (const p of scene.portals || []) {
+    if (p.kind !== 'road_junction' || !p.segment) continue;
+    for (const an of p.areas || []) {
+      if (String(an).includes('junction')) {
+        (juncBoxes[an] = juncBoxes[an] || []).push(p.segment);
+      }
     }
   }
-  const agents = state.agents || [];
-  ranSnapshot.innerHTML = "";
-  if (!agents.length) {
-    ranSnapshot.append(buildSnapshotEmpty("no agents"));
-    return;
+  for (const [name, segs] of Object.entries(juncBoxes)) {
+    const xs = segs.flatMap((s) => [s[0][0], s[1][0]]);
+    const ys = segs.flatMap((s) => [s[0][1], s[1][1]]);
+    const x0 = Math.min(...xs), y0 = Math.min(...ys);
+    parts.push(`<rect x="${x0}" y="${y0}" width="${Math.max(...xs) - x0}" height="${Math.max(...ys) - y0}" class="road-junction" data-tip="${name} · ${t('map.junction')}"></rect>`);
   }
-  const grid = document.createElement("div");
-  grid.className = "agent-cards";
-  for (const agent of agents) {
-    grid.append(buildAgentCard(agent, ranByAgent[agent.agent_id]));
+
+  // 房间(递归)+ 房间边界
+  const rooms = [];
+  const roomEdges = [];
+  const collectRooms = (parent, ox, oy, depth) => {
+    for (const child of parent.areas || []) {
+      const cx = ox + child.bounds[0], cy = oy + child.bounds[1];
+      rooms.push({ room: child, ox: cx, oy: cy });
+      const [x0, y0, x1, y1] = child.bounds;
+      const gx0 = x0 + cx, gy0 = y0 + cy, gx1 = x1 + cx, gy1 = y1 + cy;
+      const edges = [
+        [[gx0, gy0], [gx1, gy0]], [[gx1, gy0], [gx1, gy1]],
+        [[gx1, gy1], [gx0, gy1]], [[gx0, gy1], [gx0, gy0]],
+      ];
+      for (const e of edges) roomEdges.push({ e, name: child.name });
+      collectRooms(child, cx, cy, depth + 1);
+    }
+  };
+  for (const top of scene.areas) collectRooms(top, 0, 0, 0);
+  for (const { room, ox, oy } of rooms) {
+    const [x0, y0, x1, y1] = room.bounds;
+    parts.push(`<rect x="${x0 + ox}" y="${y0 + oy}" width="${x1 - x0}" height="${y1 - y0}" class="room" data-tip="${room.name}"></rect>`);
   }
-  ranSnapshot.append(grid);
-}
 
-function buildAgentCard(agent, service) {
-  const card = document.createElement("div");
-  card.className = "agent-card";
-  const color = agent.color || "#7f4ac9";
-  const activity = agent.activity_state || agent.lifecycle_status || "unknown";
-
-  // 头部
-  const head = document.createElement("div");
-  head.className = "agent-card-head";
-  const dot = document.createElement("span");
-  dot.className = "agent-summary-dot";
-  dot.style.background = color;
-  const id = document.createElement("span");
-  id.className = "agent-card-id";
-  id.textContent = agent.agent_id;
-  const badge = document.createElement("span");
-  badge.className = `status-badge status-${activity.toLowerCase()}`;
-  badge.textContent = activity;
-  head.append(dot, id, badge);
-  card.append(head);
-
-  // 状态区
-  const status = document.createElement("div");
-  status.className = "agent-card-section";
-  const pos = agent.position ? `(${agent.position[0].toFixed(1)}, ${agent.position[1].toFixed(1)})` : "-";
-  const target = agent.destination_id || "-";
-  const progress =
-    agent.waypoint_count > 0
-      ? `${Math.min(agent.waypoint_index + 1, agent.waypoint_count)}/${agent.waypoint_count}`
-      : "-";
-  const intent = agent.current_intent_id || "-";
-  appendKeyValue(status, "位置", pos);
-  appendKeyValue(status, "目标", target);
-  appendKeyValue(status, "路径", progress);
-  appendKeyValue(status, "意图", intent);
-  appendKeyValue(status, "控制面", `CM ${agent.cm_state ?? "-"} · RRC ${agent.rrc_state ?? "-"}`);
-  if (agent.error) {
-    appendKeyValue(status, "错误", agent.error);
+  // 共享边 → 门;非共享边 → 内墙
+  const shared = new Set();
+  for (let i = 0; i < roomEdges.length; i++) {
+    for (let j = i + 1; j < roomEdges.length; j++) {
+      const [a, b] = roomEdges[i].e, [c, d] = roomEdges[j].e;
+      if (collinearOverlap(a, b, c, d)) { shared.add(i); shared.add(j); }
+    }
   }
-  card.append(status);
-
-  // 网络区(RAN 服务详情)
-  const net = document.createElement("div");
-  net.className = "agent-card-section agent-card-net";
-  if (!service) {
-    const waiting = document.createElement("div");
-    waiting.className = "agent-card-waiting";
-    waiting.textContent = "等待意图提交 / 无 RAN 服务";
-    net.append(waiting);
-  } else {
-    const result = service.result || {};
-    const qos = result.qos || {};
-    const progressInfo = service.progress || {};
-    const channel = service.channel || {};
-    const allocation = service.allocation || {};
-    const transmission = service.transmission || {};
-    const qosFlow = service.qos_flow || {};
-    const drb = service.drb || {};
-    appendKeyValue(net, "服务", `${service.direction === "DL" ? "↓DL " : service.direction === "UL" ? "↑UL " : ""}${service.service_instance_id || "-"}`);
-    appendKeyValue(net, "slice", service.slice_id || result.slice_id || "-");
-    appendKeyValue(net, "qfi/drb", `${qosFlow.qfi ?? "-"} / ${drb.drb_id ?? "-"}`);
-    appendKeyValue(net, "信道", `cqi ${channel.cqi ?? "-"}  sinr ${fmt(channel.sinr_db)}dB`);
-    appendKeyValue(net, "分配", `prbs ${allocation.prbs ?? "-"}  mcs ${allocation.mcs ?? "-"}  layers ${allocation.layers ?? "-"}`);
-    appendKeyValue(net, "传输", `tx ${fmtBytes(transmission.successful_bytes ?? 0)}  fail ${fmtBytes(transmission.failed_bytes ?? 0)}`);
-    const delivered = progressInfo.delivered_bytes ?? 0;
-    const requested = progressInfo.requested_bytes ?? "-";
-    appendKeyValue(net, "交付", `${fmtBytes(delivered)} / ${fmtBytes(requested)}`);
-    const ratio = progressInfo.completion_ratio !== undefined ? progressInfo.completion_ratio : 0;
-    net.append(buildProgressBar(ratio));
+  const topWalls = [];
+  for (const area of scene.areas) {
+    const [ox, oy] = area.bounds;
+    for (const w of area.walls || []) {
+      if (w.blocks_movement !== false) topWalls.push({ w, ox, oy });
+    }
   }
-  card.append(net);
+  roomEdges.forEach(({ e, name }, idx) => {
+    if (shared.has(idx)) return;
+    const [a, b] = e;
+    const onWall = topWalls.some(({ w, ox, oy }) => collinearOverlap(
+      [w.start[0] + ox, w.start[1] + oy], [w.end[0] + ox, w.end[1] + oy], a, b));
+    if (!onWall) {
+      parts.push(`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="wall-inner" data-tip="${name} · ${t('map.boundary')}"></line>`);
+    }
+  });
 
-  return card;
-}
-
-function appendKeyValue(container, key, value) {
-  const row = document.createElement("div");
-  row.className = "agent-card-kv";
-  const k = document.createElement("span");
-  k.className = "agent-card-k";
-  k.textContent = key;
-  const v = document.createElement("span");
-  v.className = "agent-card-v";
-  v.textContent = value;
-  row.append(k, v);
-  container.append(row);
-}
-
-function buildProgressBar(ratio) {
-  const wrap = document.createElement("div");
-  wrap.className = "progress-bar";
-  const fill = document.createElement("div");
-  fill.className = "progress-fill";
-  const clamped = Math.max(0, Math.min(1, ratio));
-  fill.style.width = `${(clamped * 100).toFixed(1)}%`;
-  const label = document.createElement("span");
-  label.className = "progress-label";
-  label.textContent = fmtPct(clamped);
-  wrap.append(fill, label);
-  return wrap;
-}
-
-function fmtBytes(value) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
-  if (value >= 1024 * 1024 * 1024) return `${(value / (1024 * 1024 * 1024)).toFixed(2)}GB`;
-  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)}MB`;
-  if (value >= 1024) return `${(value / 1024).toFixed(1)}KB`;
-  return `${value}B`;
-}
-
-function buildSnapshotEmpty(text) {
-  const row = document.createElement("div");
-  row.className = "ran-snapshot-empty";
-  row.textContent = text;
-  return row;
-}
-
-function fmt(value) {
-  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(3) : "-";
-}
-
-function fmtPct(value) {
-  return typeof value === "number" && Number.isFinite(value) ? `${(value * 100).toFixed(2)}%` : "-";
-}
-
-function renderRuntimeConsole(stateLines, controlState = {}) {
-  const lastLine = stateLines[stateLines.length - 1] || "";
-  const renderKey = `${controlState?.paused ? "paused" : "running"}:${controlState?.log_count ?? stateLines.length}:${lastLine}`;
-  if (controlState?.paused && renderKey === lastLogRenderKey) {
-    return;
+  // 顶层墙
+  for (const { w, ox, oy } of topWalls) {
+    const cls = w.wall_type === 'exterior' ? 'wall-exterior' : 'wall-interior';
+    parts.push(`<line x1="${w.start[0] + ox}" y1="${w.start[1] + oy}" x2="${w.end[0] + ox}" y2="${w.end[1] + oy}" class="${cls}" data-tip="${w.name} · ${w.wall_type}"></line>`);
   }
-  lastLogRenderKey = renderKey;
-  runtimeLog.innerHTML = "";
-  for (const line of stateLines.slice(-60)) {
-    const row = document.createElement("div");
-    row.className = "console-line";
-    row.textContent = line;
-    runtimeLog.append(row);
-  }
-  runtimeLog.scrollTop = runtimeLog.scrollHeight;
-}
 
-async function sendControl(action) {
-  try {
-    const response = await fetch(`/api/simulation/control?action=${encodeURIComponent(action)}`, {
-      method: "POST",
-      cache: "no-store",
+  // 门:区域级 portals(递归,局部坐标偏移)+ 顶层道路级 portals
+  const pushDoor = (name, seg) => {
+    if (!seg) return;
+    parts.push(`<line x1="${seg[0][0]}" y1="${seg[0][1]}" x2="${seg[1][0]}" y2="${seg[1][1]}" class="door" data-tip="${name} · ${t('map.passable')}"></line>`);
+  };
+  const collectDoors = (area, ox, oy) => {
+    for (const p of area.portals || []) {
+      if (!DOOR_KINDS.has(p.kind) || p.open === false || !p.segment) continue;
+      const s = [[p.segment[0][0] + ox, p.segment[0][1] + oy], [p.segment[1][0] + ox, p.segment[1][1] + oy]];
+      pushDoor(p.name, s);
+    }
+    for (const child of area.areas || []) collectDoors(child, ox + child.bounds[0], oy + child.bounds[1]);
+  };
+  for (const top of scene.areas) collectDoors(top, top.bounds[0], top.bounds[1]);
+  for (const p of scene.portals || []) {
+    if (!DOOR_KINDS.has(p.kind) || p.open === false) continue;
+    pushDoor(p.name, p.segment);
+  }
+
+  svg.innerHTML = parts.join('\n');
+
+  // tooltip
+  const panel = document.querySelector('.map-panel');
+  const tip = document.getElementById('tooltip');
+  document.querySelectorAll('#map [data-tip]').forEach((el) => {
+    el.addEventListener('mousemove', (e) => {
+      const rect = svg.getBoundingClientRect();
+      const px = e.clientX - panel.getBoundingClientRect().left + 14;
+      const py = e.clientY - panel.getBoundingClientRect().top + 14;
+      tip.style.display = 'block';
+      tip.textContent = el.dataset.tip;
+      tip.style.left = px + 'px';
+      tip.style.top = py + 'px';
     });
-    const result = await response.json();
-    if (action === "export_logs" && result.export?.path) {
-      appendRuntimeLine(`exported logs: ${result.export.path}`);
-    }
-  } catch (error) {
-    appendRuntimeLine(`control error: ${error.message}`);
+    el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
+}
+
+fetch(SCENE_PATH)
+  .then((r) => r.json())
+  .then(renderMap)
+  .catch((err) => console.warn('场景加载失败:', err));
+
+/* ================= Banner / Agent 卡片 ================= */
+function updateBanner(ran) {
+  document.getElementById('st-tick').textContent = tick;
+  document.getElementById('st-agents').textContent = ran.agent_count ?? 0;
+  const elapsed = tick * 0.5; // tick_ms 默认 500
+  document.getElementById('st-time').textContent = elapsed.toFixed(1) + 's';
+  const active = (ran.service_states || []).filter((s) => s.status && s.status !== 'COMPLETED' && s.status !== 'FAILED');
+  document.getElementById('st-services').textContent = active.length;
+  const prog = ran.progress || {};
+  const ratio = prog.completion_ratio !== undefined ? prog.completion_ratio : 0;
+  document.getElementById('st-delivered').textContent = Math.round(ratio * 100) + '%';
+}
+
+function renderAgents() {
+  if (!lastRan) return;
+  const ran = lastRan;
+  const wrap = document.getElementById('agent-cards');
+  const states = ran.agent_states || [];
+  const services = ran.service_states || [];
+  const roleMap = t('agent.roleMap');
+  wrap.innerHTML = '';
+  for (const a of states) {
+    const svc = services.find((s) => s.agent_id === a.agent_id && s.status && s.status !== 'COMPLETED' && s.status !== 'FAILED')
+      || services.find((s) => s.agent_id === a.agent_id);
+    const role = String(a.agent_id).split('_')[0] || 'agent';
+    const chipCls = a.status === 'DONE' ? 'done' : a.status === 'FAILED' ? 'failed' : 'network';
+    const ratio = svc && svc.progress ? (svc.progress.completion_ratio || 0) : 0;
+    const dir = svc && svc.direction === 'DL' ? ' ↓' : svc && svc.direction === 'UL' ? ' ↑' : '';
+    const card = document.createElement('div');
+    card.className = 'agent-card';
+    const pos = a.position ? `(${Math.round(a.position.x)}, ${Math.round(a.position.y)})` : '-';
+    card.innerHTML = `
+      <div class="head">
+        <div class="avatar ${role === 'teacher' ? 'teacher' : role === 'staff' ? 'staff' : ''}">${a.agent_id[0].toUpperCase()}</div>
+        <div class="name">${a.agent_id}</div>
+        <span class="state-chip ${chipCls}">${a.status || '-'}</span>
+      </div>
+      <div class="rows">
+        <div><span class="k">${t('agent.pos')}</span> <span class="v">${pos}</span></div>
+        <div><span class="k">${t('agent.dest')}</span> <span class="v">${a.target || '-'}</span></div>
+        <div><span class="k">${t('agent.intent')}</span> <span class="v">${a.intent || '-'}${dir}</span></div>
+        <div><span class="k">${t('agent.cp')}</span> <span class="v">${a.cm_state || '-'} · ${a.rrc_state || '-'}</span></div>
+        <div><span class="k">${t('agent.path')}</span> <span class="v">${svc ? svc.service_instance_id : '-'}</span></div>
+        <div><span class="k">${t('agent.role')}</span> <span class="v">${roleMap[role] || role}</span></div>
+      </div>
+      ${a.error ? `<div class="error-line">${t('agent.error')}: ${a.error}</div>` : ''}
+      <div class="progress-track"><div class="progress-fill" style="width:${(ratio * 100).toFixed(1)}%"></div></div>`;
+    wrap.append(card);
   }
 }
 
-function appendRuntimeLine(text) {
-  const row = document.createElement("div");
-  row.className = "console-line";
-  row.textContent = text;
-  runtimeLog.append(row);
-  runtimeLog.scrollTop = runtimeLog.scrollHeight;
+/* ================= 图表(真实指标聚合) ================= */
+const CHART_COLORS = { primary: '#4A87BE', tertiary: '#7D8CA4', secondary: '#5E7894', green: '#4C9E74', amber: '#B08A3E' };
+function chartOpts() {
+  return {
+    responsive: true, maintainAspectRatio: false, animation: { duration: 250, easing: 'easeOutQuart' },
+    plugins: {
+      legend: { display: true, labels: { color: '#46525F', font: { size: 10 } } },
+      tooltip: { enabled: true, backgroundColor: '#1D1B20', titleColor: '#E6E0E9', bodyColor: '#E6E0E9' },
+    },
+    scales: {
+      x: { ticks: { display: false }, grid: { display: false } },
+      y: { ticks: { display: false }, grid: { color: '#E2E9F2' }, border: { display: false } },
+    },
+  };
+}
+const charts = {
+  throughput: new Chart(document.getElementById('ch-throughput'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+      { label: '', data: [], borderColor: CHART_COLORS.primary, backgroundColor: 'rgba(74,135,190,.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2 },
+      { label: '', data: [], borderColor: CHART_COLORS.tertiary, backgroundColor: 'rgba(125,140,164,.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2 },
+    ] },
+    options: chartOpts(),
+  }),
+  prb: new Chart(document.getElementById('ch-prb'), {
+    type: 'bar',
+    data: { labels: [], datasets: [
+      { label: '', data: [], backgroundColor: CHART_COLORS.primary, borderRadius: 4, borderSkipped: false },
+    ] },
+    options: chartOpts(),
+  }),
+  mcs: new Chart(document.getElementById('ch-mcs'), {
+    type: 'bar',
+    data: { labels: [], datasets: [
+      { label: '', data: [], backgroundColor: CHART_COLORS.secondary, borderRadius: 4, borderSkipped: false },
+    ] },
+    options: chartOpts(),
+  }),
+  sinr: new Chart(document.getElementById('ch-sinr'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+      { label: '', data: [], borderColor: CHART_COLORS.green, tension: .35, pointRadius: 0, borderWidth: 2 },
+      { label: '', data: [], borderColor: CHART_COLORS.amber, yAxisID: 'y1', tension: .35, pointRadius: 0, borderWidth: 2 },
+    ] },
+    options: { ...chartOpts(), scales: { ...chartOpts().scales, y1: { position: 'right', ticks: { display: false }, grid: { display: false }, border: { display: false } } } },
+  }),
+};
+function updateChartLabels() {
+  charts.throughput.data.datasets[0].label = t('chart.ul');
+  charts.throughput.data.datasets[1].label = t('chart.dl');
+  charts.prb.data.datasets[0].label = t('chart.prbLabel');
+  charts.mcs.data.datasets[0].label = t('chart.mcsLabel');
+  charts.sinr.data.datasets[0].label = t('chart.snrLabel');
+  charts.sinr.data.datasets[1].label = t('chart.delayLabel');
 }
 
-refresh();
+function aggregateTick(ran) {
+  const services = ran.service_states || [];
+  let ulBytes = 0, dlBytes = 0, prbs = 0, mcsSum = 0, sinrSum = 0, delaySum = 0, n = 0, nMcs = 0, nSinr = 0, nDelay = 0;
+  for (const s of services) {
+    const tx = s.transmission || {};
+    if (s.direction === 'DL') dlBytes += tx.successful_bytes || 0;
+    else ulBytes += tx.successful_bytes || 0;
+    const alloc = s.allocation || {};
+    prbs += alloc.prbs || 0;
+    if (alloc.mcs !== undefined) { mcsSum += alloc.mcs; nMcs++; }
+    const ch = s.channel || {};
+    if (ch.sinr_db !== undefined && ch.sinr_db !== null) { sinrSum += ch.sinr_db; nSinr++; }
+    const n3 = s.n3 || {}, n6 = s.n6 || {};
+    if (n3.n3_delay_ms !== undefined || n6.n6_delay_ms !== undefined) { delaySum += (n3.n3_delay_ms || 0) + (n6.n6_delay_ms || 0); nDelay++; }
+    n++;
+  }
+  series.ul.push(Math.round(ulBytes / 1024));
+  series.dl.push(Math.round(dlBytes / 1024));
+  series.prb.push(n > 0 ? Math.round((prbs / (106 * n)) * 100) : 0);
+  series.mcs.push(nMcs > 0 ? Math.round(mcsSum / nMcs) : 0);
+  series.sinr.push(nSinr > 0 ? +(sinrSum / nSinr).toFixed(1) : 0);
+  series.delay.push(nDelay > 0 ? +(delaySum / nDelay).toFixed(1) : 0);
+  const prog = ran.progress || {};
+  series.delivered.push(prog.completion_ratio !== undefined ? Math.round(prog.completion_ratio * 100) : 0);
+  for (const k in series) if (series[k].length > MAX_POINTS) series[k].shift();
+}
+
+function updateCharts() {
+  const labels = series.ul.map((_, i) => `t${tick - series.ul.length + 1 + i}`);
+  charts.throughput.data.labels = labels;
+  charts.throughput.data.datasets[0].data = series.ul;
+  charts.throughput.data.datasets[1].data = series.dl;
+  charts.prb.data.labels = labels; charts.prb.data.datasets[0].data = series.prb;
+  charts.mcs.data.labels = labels; charts.mcs.data.datasets[0].data = series.mcs;
+  charts.sinr.data.labels = labels;
+  charts.sinr.data.datasets[0].data = series.sinr;
+  charts.sinr.data.datasets[1].data = series.delay;
+  for (const k in charts) charts[k].update();
+}
+
+/* ================= 轮询与导出 ================= */
+function poll() {
+  fetch('../outputs/live_state.json', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data) => {
+      if (!data) return;
+      const ran = data.ran_state || data;
+      if (ran.tick === tick) return; // 无新 tick
+      tick = ran.tick;
+      lastRan = ran;
+      aggregateTick(ran);
+      updateBanner(ran);
+      renderAgents();
+      updateCharts();
+    })
+    .catch(() => {});
+}
+document.getElementById('btn-pause').addEventListener('click', (e) => {
+  paused = !paused;
+  e.currentTarget.textContent = paused ? t('overview.resume') : t('overview.pause');
+  if (!paused) poll();
+});
+document.getElementById('btn-export').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ tick, series, service_states: lastRan ? lastRan.service_states : [] }, null, 2)],
+    { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'simulation_logs.json';
+  a.click();
+});
+
+applyI18n();
+updateChartLabels();
+renderAgents();
+poll();
+setInterval(() => { if (!paused) poll(); }, 500);

@@ -1,51 +1,49 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RAN Live Preview</title>
-    <link rel="stylesheet" href="./livePreview.css">
-  </head>
-  <body>
-    <main class="live-shell">
-      <header class="live-header">
-        <div>
-          <h1>Live Preview</h1>
-          <p id="statusText">waiting for simulation state</p>
-        </div>
-        <div class="header-tools">
-          <button id="pauseButton" class="toolbar-button" type="button">Pause</button>
-          <button id="exportButton" class="toolbar-button" type="button">Export Logs</button>
-          <div id="coordinateText" class="coordinate-readout">x -, y -</div>
-          <div id="agentSummary" class="agent-summary"></div>
-        </div>
-      </header>
-      <section class="preview-surface">
-        <canvas id="sceneCanvas" width="1200" height="820"></canvas>
-        <aside class="console-panel">
-          <div class="ran-panel">
-            <div class="console-header">
-              <span>Current RAN Tick</span>
-              <span id="ranStatus">RAN input unknown</span>
-            </div>
-            <div id="ranSnapshot" class="ran-snapshot"></div>
-          </div>
-        </aside>
-      </section>
-      <section class="log-surface">
-        <div class="overview-panel">
-          <div class="console-header">
-            <span>Simulation Overview</span>
-            <span id="overviewStatus" class="overview-status">running</span>
-          </div>
-          <div id="overviewBody" class="overview-body"></div>
-          <div class="overview-logbar">
-            <button id="toggleLogButton" class="text-button" type="button">Expand Log</button>
-          </div>
-          <div id="runtimeLog" class="console-log runtime-log hidden"></div>
-        </div>
-      </section>
-    </main>
-    <script type="module" src="./livePreview.js"></script>
-  </body>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAN Simulation Preview</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="livePreview.css">
+</head>
+<body>
+
+<header class="banner">
+  <div class="title" data-i18n="overview.title">Simulation Overview</div>
+  <div class="stat"><span data-i18n="overview.tick">tick</span> <b id="st-tick">0</b></div>
+  <div class="stat"><span data-i18n="overview.agents">agents</span> <b id="st-agents">0</b></div>
+  <div class="stat"><span data-i18n="overview.time">用时</span> <b id="st-time">0.0s</b></div>
+  <div class="stat"><span data-i18n="overview.services">活跃服务</span> <b id="st-services">0</b></div>
+  <div class="stat"><span data-i18n="overview.delivered">交付</span> <b id="st-delivered">0%</b></div>
+  <div class="stat"><span class="status-dot running"></span><span id="st-status" data-i18n="overview.running">running</span></div>
+  <div class="spacer"></div>
+  <button class="m3-btn tonal" id="btn-lang">EN</button>
+  <button class="m3-btn tonal" id="btn-pause" data-i18n="overview.pause">暂停</button>
+  <button class="m3-btn outlined" id="btn-export" data-i18n="overview.export">导出 Logs</button>
+</header>
+
+<div class="main">
+  <section class="map-panel">
+    <svg id="map" viewBox="0 0 2000 2000" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="map-hint" data-i18n="map.hint">悬停查看对象信息 · 浅色缺口 = 可通行</div>
+    <div id="tooltip"></div>
+  </section>
+
+  <section class="right-top">
+    <div class="agent-cards" id="agent-cards"></div>
+  </section>
+
+  <section class="right-bottom">
+    <div class="charts">
+      <div class="chart-card"><h4 data-i18n="chart.throughput">系统吞吐量(UL/DL)</h4><canvas id="ch-throughput"></canvas></div>
+      <div class="chart-card"><h4 data-i18n="chart.prb">PRB 利用率</h4><canvas id="ch-prb"></canvas></div>
+      <div class="chart-card"><h4 data-i18n="chart.mcs">MCS 分布</h4><canvas id="ch-mcs"></canvas></div>
+      <div class="chart-card"><h4 data-i18n="chart.snr">平均 SINR / QoS 时延</h4><canvas id="ch-sinr"></canvas></div>
+    </div>
+  </section>
+</div>
+
+<script src="livePreview.js"></script>
+</body>
 </html>
