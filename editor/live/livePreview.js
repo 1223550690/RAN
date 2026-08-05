@@ -141,7 +141,8 @@ function renderMap(scene) {
       // ox/oy = 父区域全局原点(渲染时再加 child.bounds 一次,不能双重偏移)
       rooms.push({ room: child, ox, oy });
       const [x0, y0, x1, y1] = child.bounds;
-      const gx0 = x0 + cx, gy0 = y0 + cy, gx1 = x1 + cx, gy1 = y1 + cy;
+      // 全局坐标 = 父原点 + 局部 bounds(一次偏移;cx/cy 已含 child.bounds,不可再用)
+      const gx0 = ox + x0, gy0 = oy + y0, gx1 = ox + x1, gy1 = oy + y1;
       const edges = [
         [[gx0, gy0], [gx1, gy0]], [[gx1, gy0], [gx1, gy1]],
         [[gx1, gy1], [gx0, gy1]], [[gx0, gy1], [gx0, gy0]],
@@ -255,37 +256,57 @@ function updateBanner(ran) {
 }
 
 /* 地图上的 agent 路线图层(每次 poll 更新) */
-function bindTooltip(containerSel) {
+/* 地图 tooltip:事件委托,动态元素无需重复绑定 */
+function bindTooltip() {
   const panel = document.querySelector('.map-panel');
   const tip = document.getElementById('tooltip');
-  const svg = document.getElementById('map');
-  document.querySelectorAll(containerSel + ' [data-tip]').forEach((el) => {
-    el.addEventListener('mousemove', (e) => {
-      const rect = svg.getBoundingClientRect();
-      const px = e.clientX - panel.getBoundingClientRect().left + 14;
-      const py = e.clientY - panel.getBoundingClientRect().top + 14;
-      tip.style.display = 'block';
-      tip.textContent = el.dataset.tip;
-      tip.style.left = px + 'px';
-      tip.style.top = py + 'px';
-    });
-    el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  panel.addEventListener('mousemove', (e) => {
+    const el = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if (!el) { tip.style.display = 'none'; return; }
+    const px = e.clientX - panel.getBoundingClientRect().left + 14;
+    const py = e.clientY - panel.getBoundingClientRect().top + 14;
+    tip.style.display = 'block';
+    tip.textContent = el.dataset.tip;
+    tip.style.left = px + 'px';
+    tip.style.top = py + 'px';
   });
+  panel.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 }
 function renderRoutes(ran) {
-  const layer = document.getElementById('route-layer');
-  if (!layer) return;
+  const map = document.getElementById('map');
+  if (!map) return;
+  // 清除旧路线图层(合并进主 SVG,避免独立定位 SVG 的兼容问题)
+  map.querySelectorAll('.route, .agent-dot').forEach((el) => el.remove());
   const states = ran.agent_states || [];
-  layer.innerHTML = states.map((a, i) => {
+  const frag = document.createDocumentFragment();
+  states.forEach((a, i) => {
     const color = AGENT_COLORS[i % AGENT_COLORS.length];
+    const ns = 'http://www.w3.org/2000/svg';
     const wps = a.waypoints || [];
-    const pts = wps.map((p) => `${p.x},${p.y}`).join(' ');
-    const line = pts ? `<polyline points="${pts}" class="route" stroke="${color}" data-tip="${a.agent_id} 路线"></polyline>` : '';
+    if (wps.length > 1) {
+      const poly = document.createElementNS(ns, 'polyline');
+      poly.setAttribute('points', wps.map((p) => `${p.x},${p.y}`).join(' '));
+      poly.setAttribute('class', 'route');
+      poly.setAttribute('stroke', color);
+      poly.setAttribute('data-tip', `${a.agent_id} 路线`);
+      frag.appendChild(poly);
+    }
     const pos = a.position;
-    const dot = pos ? `<circle cx="${pos.x}" cy="${pos.y}" r="7" class="agent-dot" fill="${color}" stroke="#FFFFFF" stroke-width="2.5" data-tip="${a.agent_id} · (${Math.round(pos.x)}, ${Math.round(pos.y)})"></circle>` : '';
-    return line + dot;
-  }).join('');
-  bindTooltip('#route-layer');
+    if (pos) {
+      const dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', pos.x);
+      dot.setAttribute('cy', pos.y);
+      dot.setAttribute('r', '7');
+      dot.setAttribute('class', 'agent-dot');
+      dot.setAttribute('fill', color);
+      dot.setAttribute('stroke', '#FFFFFF');
+      dot.setAttribute('stroke-width', '2.5');
+      dot.setAttribute('data-tip', `${a.agent_id} · (${Math.round(pos.x)}, ${Math.round(pos.y)})`);
+      frag.appendChild(dot);
+    }
+  });
+  map.appendChild(frag);
+  bindTooltip('#map');
 }
 
 function renderAgents() {
