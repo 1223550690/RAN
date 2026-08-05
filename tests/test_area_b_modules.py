@@ -61,7 +61,7 @@ def build_request(
         dnn=dnn,
         pdu_session_type="IPv4",
         service_type=service_type,
-        size_bytes=size_bytes,
+        requested_payload_bytes=size_bytes,
         qos_hint=qos_hint or {},
     )
 

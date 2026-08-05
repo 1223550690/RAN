@@ -38,7 +38,7 @@ class TestPdcpEntityProcess:
         """per_tick_inflow_bytes splits traffic across ticks."""
         from ran.contracts import IPTrafficBatch
 
-        traffic = IPTrafficBatch("s", "a", "b", "TCP", 443, "UL", 10_000, 10_000)
+        traffic = IPTrafficBatch("s", "10.0.0.1", "10.0.0.2", "TCP", 443, "UL", 10_000, 10_000)
         entity = PdcpEntity(drb_id=3, qfi=9, slice_id="embb", per_tick_inflow_bytes=4_000)
 
         b1 = entity.process(traffic, tick=1)
@@ -82,7 +82,7 @@ class TestPdcpEntityProcess:
         )
         # 1500 bytes → 1 PDU per tick → SN advances by 1 each tick
         for tick in range(1, 10):
-            traffic = IPTrafficBatch("s", "a", "b", "TCP", 443, "UL", 1500, 1500)
+            traffic = IPTrafficBatch("s", "10.0.0.1", "10.0.0.2", "TCP", 443, "UL", 1500, 1500)
             batch = entity.process(traffic, tick=tick)
             assert batch.sn_start == (tick - 1) % 8
             assert batch.sn_end == (tick - 1) % 8
@@ -91,7 +91,7 @@ class TestPdcpEntityProcess:
         """Overhead = pdu_count * header_overhead_bytes."""
         from ran.contracts import IPTrafficBatch
 
-        traffic = IPTrafficBatch("s", "a", "b", "TCP", 443, "UL", 3000, 3000)
+        traffic = IPTrafficBatch("s", "10.0.0.1", "10.0.0.2", "TCP", 443, "UL", 3000, 3000)
         entity = PdcpEntity(drb_id=3, qfi=9, slice_id="embb", header_overhead_bytes=4)
         batch = entity.process(traffic, tick=1)
 

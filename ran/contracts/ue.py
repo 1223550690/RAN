@@ -28,8 +28,6 @@ class UEState:
 class UERequest:
     """由一个业务意图生成的 UE 网络请求。"""
 
-    intent_id: str  # intent_id: 请求对应的意图标识。
-    service_instance_id: str  # service_instance_id: 本次业务实例的全局标识。
     ue_id: str  # ue_id: 承载本次业务的 UE 标识。
     agent_id: str  # agent_id: UE 所属 Agent 标识。
     position: Position  # position: UE 当前地图坐标。
@@ -42,6 +40,14 @@ class UERequest:
     service_type: str
     requested_payload_bytes: int  # requested_payload_bytes: 应用层请求数据量。
     qos_hint: dict[str, object] = field(default_factory=dict)
+    intent_id: str = ""  # intent_id: 请求对应的意图标识(集成扩展,可选)。
+    service_instance_id: str = ""  # service_instance_id: 本次业务实例的全局标识(集成扩展,可选)。
+
+    @property
+    def size_bytes(self) -> int:
+        """兼容旧字段名 size_bytes(历史构造/读取仍在使用)。"""
+
+        return self.requested_payload_bytes
 
 
 @dataclass(slots=True)

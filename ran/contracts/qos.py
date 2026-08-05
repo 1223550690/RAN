@@ -53,8 +53,6 @@ class QoSFlow:
     can therefore contain values such as 80.
     """
 
-    ue_id: str  # ue_id: QFI 所属 UE，避免跨 UE 产生编号歧义。
-    service_instance_id: str  # service_instance_id: 当前简化模型中的业务来源。
     pdu_session_id: int
     qfi: int  # qfi: QoS Flow Identifier。
     five_qi: int
@@ -67,6 +65,8 @@ class QoSFlow:
     slice_id: str
     gbr_mbps: float | None = None
     mbr_mbps: float | None = None
+    ue_id: str = ""  # ue_id: QFI 所属 UE(集成扩展,可选)。
+    service_instance_id: str = ""  # service_instance_id: 业务来源标识(集成扩展,可选)。
 
     def __post_init__(self) -> None:
         if not 1 <= self.qfi <= 63:

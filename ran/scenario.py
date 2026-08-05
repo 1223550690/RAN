@@ -851,6 +851,8 @@ class RanUploadScenario:
             "gnb": asdict(self.gnb),
             "ue_request": asdict(self.ue_request),
             "access": asdict(self.access),
+            "session": asdict(self.session),
+            "traffic": asdict(self.traffic),
             "qos_flow": asdict(self.qos_flow),
             "drb": asdict(self.drb),
             "rlc_grant": asdict(grant_result),
