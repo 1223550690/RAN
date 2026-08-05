@@ -5,6 +5,7 @@ const I18N = {
     'overview.tick': 'tick', 'overview.agents': 'agents', 'overview.time': '用时',
     'overview.services': '活跃服务', 'overview.delivered': '交付', 'overview.running': '运行中',
     'overview.pause': '暂停', 'overview.resume': '继续', 'overview.export': '导出 Logs',
+    'overview.waiting': '等待数据…',
     'map.hint': '悬停查看对象信息 · 浅色缺口 = 可通行',
     'map.passable': '可通行', 'map.road': '大道', 'map.junction': '交汇', 'map.boundary': '边界',
     'chart.throughput': '系统吞吐量(UL/DL)', 'chart.prb': 'PRB 利用率', 'chart.mcs': 'MCS 分布',
@@ -21,6 +22,7 @@ const I18N = {
     'overview.tick': 'tick', 'overview.agents': 'agents', 'overview.time': 'elapsed',
     'overview.services': 'active services', 'overview.delivered': 'delivered', 'overview.running': 'running',
     'overview.pause': 'Pause', 'overview.resume': 'Resume', 'overview.export': 'Export Logs',
+    'overview.waiting': 'Waiting for data…',
     'map.hint': 'Hover for details · light gap = passable',
     'map.passable': 'passable', 'map.road': 'road', 'map.junction': 'junction', 'map.boundary': 'boundary',
     'chart.throughput': 'Throughput (UL/DL)', 'chart.prb': 'PRB Utilization', 'chart.mcs': 'MCS Distribution',
@@ -53,6 +55,7 @@ document.getElementById('btn-lang').addEventListener('click', toggleLang);
 /* ================= 状态 ================= */
 let paused = false;
 let tick = 0;
+let emptyFetches = 0;
 const MAX_POINTS = 60;
 const series = { ul: [], dl: [], prb: [], mcs: [], sinr: [], delay: [], delivered: [] };
 let lastRan = null;
@@ -383,11 +386,30 @@ function updateCharts() {
 }
 
 /* ================= 轮询与导出 ================= */
+function setConnStatus(ok) {
+  const el = document.getElementById('st-status');
+  const dot = el.previousElementSibling;
+  if (ok) {
+    el.textContent = t('overview.running');
+    dot.classList.add('running');
+  } else {
+    el.textContent = t('overview.waiting');
+    dot.classList.remove('running');
+  }
+}
 function poll() {
   fetch('../outputs/live_state.json', { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
-      if (!data) { console.warn('[preview] live_state.json 为空'); return; }
+      if (!data) {
+        // 模拟启动间隙 / 切换写入瞬间可能短暂 404:静默重试,不刷屏
+        emptyFetches++;
+        if (emptyFetches === 1) console.info('[preview] 等待 live_state.json(模拟启动中或文件切换间隙)');
+        setConnStatus(false);
+        return;
+      }
+      emptyFetches = 0;
+      setConnStatus(true);
       const ran = data.ran_state || data;
       if (ran.tick === tick) return; // 无新 tick
       tick = ran.tick;
@@ -397,7 +419,11 @@ function poll() {
       renderAgents();
       updateCharts();
     })
-    .catch((err) => console.warn('[preview] live_state 拉取失败:', err));
+    .catch((err) => {
+      emptyFetches++;
+      setConnStatus(false);
+      if (emptyFetches === 1) console.warn('[preview] live_state 拉取失败(服务器未启动?):', err);
+    });
 }
 document.getElementById('btn-pause').addEventListener('click', (e) => {
   paused = !paused;
