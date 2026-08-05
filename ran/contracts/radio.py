@@ -79,7 +79,6 @@ class ChannelState:
 class MacAllocation:
     """Scheduler 为一个 UE DRB 返回的 MAC 资源分配。"""
 
-    allocation_id: str  # allocation_id: 全局可追踪的分配标识。
     ue_id: str
     drb_id: int
     qfi: int  # qfi: QoS Flow。
@@ -91,6 +90,7 @@ class MacAllocation:
     scheduled_bytes: int
     expected_error_rate: float
     is_retransmission: bool = False
+    allocation_id: str = ""  # allocation_id: 全局可追踪的分配标识(可选,向后兼容旧构造)。
 
 
 @dataclass(slots=True)

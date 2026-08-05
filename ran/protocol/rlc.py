@@ -330,7 +330,7 @@ def apply_transmission_to_rlc(queue: RlcQueue, result: TransmissionResult) -> Rl
     sent_from_new_data = max(0, attempted - sent_from_retx)
     queue.queued_bytes = max(0, queue.queued_bytes - sent_from_new_data)
     if queue.rlc_mode == "AM":
-        queue.retransmission_bytes += result.rlc_retx_bytes
+        queue.retransmission_bytes += result.failed_bytes
     if queue.queued_bytes > 0 or queue.retransmission_bytes > 0:
         queue.head_of_line_delay_ms += result.transmission_delay_ms
     return queue

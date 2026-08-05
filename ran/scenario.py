@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, replace
+from typing import Any
 
 from ran.access import select_access
 from ran.contracts import CONTRACT_VERSION, AgentIntent, AgentStateSnapshot, Position, QosMetrics
@@ -17,7 +18,14 @@ from ran.orchestration import (
     UeContext,
     build_default_three_agent_definition,
 )
-from ran.protocol import apply_transmission_to_rlc, build_pdcp_batch, build_rlc_queue, map_qos_flow_to_drb
+from ran.protocol import (
+    PdcpEntity,
+    RlcEntity,
+    apply_transmission_to_rlc,
+    build_pdcp_batch,
+    build_rlc_queue,
+    map_qos_flow_to_drb,
+)
 from ran.qos import build_qos_flow
 from ran.radio import estimate_channel, load_gnb_site_from_scene, transmit
 from ran.scheduler import JavaSchedulerAdapter
@@ -709,8 +717,19 @@ class RanUploadScenario:
         self.traffic = build_ip_traffic(self.ue_request, self.session)
         self.qos_flow = build_qos_flow(self.ue_request, self.session)
         self.drb = map_qos_flow_to_drb(self.qos_flow, self.ue_request)
-        self.pdcp_batch = build_pdcp_batch(self.traffic, self.drb)
-        self.rlc_queue = build_rlc_queue(self.pdcp_batch, self.drb)
+        self.pdcp = PdcpEntity(
+            drb_id=self.drb.drb_id,
+            qfi=self.drb.qfi,
+            slice_id=self.drb.slice_id,
+        )
+        self.rlc = RlcEntity(
+            ue_id=self.drb.ue_id,
+            drb_id=self.drb.drb_id,
+            qfi=self.drb.qfi,
+            slice_id=self.drb.slice_id,
+            direction=self.drb.direction,
+            mode=self.drb.rlc_mode,
+        )
         self.slice_policies = update_slice_policies()
         self.completed = False
         self.ticks_executed = 0
@@ -720,26 +739,33 @@ class RanUploadScenario:
         self.cumulative_dropped_bytes = 0
         self.cumulative_n3_loss_bytes = 0
         self.cumulative_n6_loss_bytes = 0
-        self.last_state: dict[str, object] | None = None
+        self.last_state: dict[str, Any] | None = None
 
-    def step(self, tick: int) -> dict[str, object]:
+    def step(self, tick: int) -> dict[str, Any]:
         """Project implementation detail."""
 
         if self.completed:
             return self.snapshot(tick=tick, status="completed")
 
+        # ① PDCP inflow — generate batch from traffic, enqueue into RLC
+        batch = self.pdcp.process(self.traffic, tick=tick)
+        self.rlc.enqueue(batch)
+
+        # ② Report RLC queue state to MAC scheduler (simplified BSR)
         channel = estimate_channel(tick=tick, scene=self.scene, ue_request=self.ue_request, gnb=self.gnb)
         scheduler_request = build_scheduler_request(
             simulation_id="ran_upload_scenario",
             tick=tick,
             gnb_id=self.gnb.gnb_id,
             total_prbs=self.gnb.total_prbs,
-            rlc_queues=[self.rlc_queue],
+            rlc_queues=[self.rlc.to_queue_state()],
             qos_flows=[self.qos_flow],
             drbs=[self.drb],
             channel_states=[channel],
             slice_policies=self.slice_policies,
         )
+
+        # ③ MAC scheduling
         scheduler_result = self.scheduler.allocate(scheduler_request)
         if not scheduler_result.allocations:
             self.completed = True
@@ -750,13 +776,31 @@ class RanUploadScenario:
             self.completed = True
             return self.snapshot(tick=tick, status="zero_allocation")
 
-        transmission = transmit(tick=tick, allocation=allocation, channel=channel)
-        self.rlc_queue = apply_transmission_to_rlc(self.rlc_queue, transmission)
+        # ④ RLC segmentation/dequeue (grant phase)
+        grant_result = self.rlc.on_grant(allocation)
+
+        actual_allocation = replace(
+            allocation,
+            scheduled_bytes=grant_result.actual_sent_bytes,
+        )
+
+        # ⑤ PHY transmission
+        transmission = transmit(
+            tick=tick,
+            allocation=actual_allocation,
+            channel=channel,
+        )
+
+        # ⑥ RLC feedback (result phase)
+        self.rlc.on_transmission_result(transmission)
+
+        # downstream forwarding (unchanged)
         ru_result = receive_radio(transmission)
         n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, self.session)))
         n6 = forward_n6(forward_via_upf(n3, self.session, target=self.ue_request.target))
         delivered = deliver_to_data_network(n6)
 
+        # cumulative statistics (same accounting as before)
         self.ticks_executed += 1
         self.cumulative_attempted_bytes += transmission.attempted_bytes
         self.cumulative_successful_bytes += delivered.delivered_bytes
@@ -764,7 +808,13 @@ class RanUploadScenario:
         self.cumulative_dropped_bytes += transmission.dropped_bytes
         self.cumulative_n3_loss_bytes += n3.n3_loss_bytes
         self.cumulative_n6_loss_bytes += delivered.n6_loss_bytes
-        if self.rlc_queue.queued_bytes <= 0 and self.rlc_queue.retransmission_bytes <= 0:
+
+        # ⑦ completion check (traffic exhausted AND RLC queues empty AND no inflight)
+        if (self.traffic.remaining_bytes <= 0
+                and self.rlc.queued_bytes <= 0
+                and self.rlc.retransmission_bytes <= 0
+                and self.rlc.inflight_new_bytes <= 0
+                and self.rlc.inflight_retx_bytes <= 0):
             self.completed = True
 
         qos = calculate_qos(
@@ -784,10 +834,14 @@ class RanUploadScenario:
             delivered_bytes=min(self.traffic.total_bytes, self.cumulative_successful_bytes),
             qos=qos,
         )
+        rlc_state = self.rlc.to_queue_state()
         delivered_payload_bytes = min(self.traffic.total_bytes, self.cumulative_successful_bytes)
-        dropped_bytes = self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes
+        dropped_bytes = (self.cumulative_dropped_bytes
+                         + self.cumulative_n3_loss_bytes
+                         + self.cumulative_n6_loss_bytes
+                         + self.rlc.dropped_bytes)
         remaining_payload_bytes = max(0, self.traffic.total_bytes - delivered_payload_bytes - dropped_bytes)
-        remaining_queue_bytes = self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes
+        remaining_queue_bytes = rlc_state.queued_bytes + rlc_state.retransmission_bytes
         state = {
             "mode": "tick",
             "status": "completed" if self.completed else "running",
@@ -799,7 +853,8 @@ class RanUploadScenario:
             "access": asdict(self.access),
             "qos_flow": asdict(self.qos_flow),
             "drb": asdict(self.drb),
-            "rlc_queue_after": asdict(self.rlc_queue),
+            "rlc_grant": asdict(grant_result),
+            "rlc_queue_after": asdict(rlc_state),
             "channel": asdict(channel),
             "scheduler_request": asdict(scheduler_request),
             "scheduler_result": asdict(scheduler_result),
@@ -820,7 +875,7 @@ class RanUploadScenario:
         self.last_state = state
         return state
 
-    def snapshot(self, *, tick: int, status: str | None = None) -> dict[str, object]:
+    def snapshot(self, *, tick: int, status: str | None = None) -> dict[str, Any]:
         """Project implementation detail."""
 
         if self.last_state is not None:
@@ -828,6 +883,7 @@ class RanUploadScenario:
             state["tick"] = tick
             state["status"] = status or state.get("status", "running")
             return state
+        rlc_state = self.rlc.to_queue_state()
         return {
             "mode": "tick",
             "status": status or "initialized",
@@ -836,7 +892,7 @@ class RanUploadScenario:
             "gnb": asdict(self.gnb),
             "ue_request": asdict(self.ue_request),
             "access": asdict(self.access),
-            "rlc_queue_after": asdict(self.rlc_queue),
+            "rlc_queue_after": asdict(rlc_state),
             "progress": {
                 "requested_bytes": self.traffic.total_bytes,
                 "delivered_bytes": min(self.traffic.total_bytes, self.cumulative_successful_bytes),
@@ -848,7 +904,7 @@ class RanUploadScenario:
                     - self.cumulative_n3_loss_bytes
                     - self.cumulative_n6_loss_bytes,
                 ),
-                "remaining_queue_bytes": self.rlc_queue.queued_bytes + self.rlc_queue.retransmission_bytes,
+                "remaining_queue_bytes": rlc_state.queued_bytes + rlc_state.retransmission_bytes,
                 "completion_ratio": 0.0,
                 "remaining_ratio": 1.0,
                 "dropped_bytes": self.cumulative_dropped_bytes + self.cumulative_n3_loss_bytes + self.cumulative_n6_loss_bytes,
