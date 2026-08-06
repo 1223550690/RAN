@@ -554,70 +554,115 @@ function chartOpts() {
 }
 /* Chart.js 可能加载失败(CDN 不可达):图表可选,不阻塞 banner/卡片/地图 */
 const charts = {};
+/* 图表类型注册表(下拉切换;单 canvas 复用,避免隐藏容器 Chart.js 尺寸问题) */
+const CHART_KINDS = [
+  { id: 'throughput', zh: '系统吞吐量(UL/DL)', en: 'Throughput (UL/DL)' },
+  { id: 'prb', zh: 'PRB 利用率', en: 'PRB utilisation' },
+  { id: 'mcs', zh: 'MCS 分布', en: 'MCS distribution' },
+  { id: 'sinr', zh: '每 UE SINR(dB)', en: 'Per-UE SINR(dB)' },
+  { id: 'bler', zh: '每 UE BLER(%)', en: 'Per-UE BLER(%)' },
+  { id: 'delay', zh: '每服务端到端时延(ms)', en: 'Per-service E2E delay(ms)' },
+  { id: 'congestion', zh: '拥塞度(PRB 占用 / 队列积压)', en: 'Congestion (PRB util / queue)' },
+  { id: 'completion', zh: '服务完成进度(%)', en: 'Service completion(%)' },
+];
+let chartKind = 'throughput';
+
+function chartKindLabel(id) {
+  const k = CHART_KINDS.find((c) => c.id === id);
+  return k ? (lang === 'zh' ? k.zh : k.en) : id;
+}
+
+/* 按类型构建图表数据(labels + datasets + 可选双轴配置) */
+function buildChartData(kind) {
+  const labels = series.ul.map((_, i) => `t${tick - series.ul.length + 1 + i}`);
+  const ueIds = Object.keys(perUe).sort();
+  const svcIds = Object.keys(perSvc).sort();
+  switch (kind) {
+    case 'throughput':
+      return { type: 'line', labels, datasets: [
+        { label: t('chart.ul'), data: series.ul, borderColor: CHART_COLORS.primary, backgroundColor: 'rgba(74,135,190,.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, unit: ' KB' },
+        { label: t('chart.dl'), data: series.dl, borderColor: CHART_COLORS.tertiary, backgroundColor: 'rgba(125,140,164,.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, unit: ' KB' },
+      ] };
+    case 'prb':
+      return { type: 'bar', labels, datasets: [
+        { label: t('chart.prbLabel'), data: series.prb, backgroundColor: CHART_COLORS.primary, borderRadius: 4, borderSkipped: false, unit: ' %' },
+      ] };
+    case 'mcs':
+      return { type: 'bar', labels, datasets: [
+        { label: t('chart.mcsLabel'), data: series.mcs, backgroundColor: CHART_COLORS.secondary, borderRadius: 4, borderSkipped: false, unit: '' },
+      ] };
+    case 'sinr':
+      return { type: 'line', labels, datasets: ueIds.map((ue, i) => ({
+        label: ue, data: perUe[ue].sinr, borderColor: AGENT_COLORS[i % AGENT_COLORS.length],
+        tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' dB',
+      })) };
+    case 'bler':
+      return { type: 'line', labels, datasets: ueIds.map((ue, i) => ({
+        label: ue, data: perUe[ue].bler, borderColor: AGENT_COLORS[(i + 2) % AGENT_COLORS.length],
+        tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' %',
+      })) };
+    case 'delay':
+      return { type: 'line', labels, datasets: svcIds.map((sid, i) => ({
+        label: perSvc[sid].label || sid, data: perSvc[sid].delay,
+        borderColor: AGENT_COLORS[(i + 1) % AGENT_COLORS.length],
+        tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' ms',
+      })) };
+    case 'congestion':
+      return { type: 'line', labels, y1: true, datasets: [
+        { label: t('chart.congPrb'), data: cong.prb, borderColor: CHART_COLORS.primary, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y', unit: ' %' },
+        { label: t('chart.congQueue'), data: cong.queue, borderColor: CHART_COLORS.amber, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y1', unit: ' KB' },
+      ] };
+    case 'completion':
+      return { type: 'bar', labels: svcIds.map((sid) => perSvc[sid].label || sid), datasets: [{
+        label: t('chart.completion'), data: svcIds.map((sid) => perSvc[sid].ratio[perSvc[sid].ratio.length - 1] || 0),
+        backgroundColor: svcIds.map((_, i) => AGENT_COLORS[i % AGENT_COLORS.length] + 'CC'),
+        borderRadius: 4, borderSkipped: false, unit: ' %',
+      }] };
+    default:
+      return { type: 'line', labels, datasets: [] };
+  }
+}
+
+function chartOptionsFor(kind) {
+  const opts = chartOpts();
+  if (kind === 'congestion') {
+    opts.scales = { ...opts.scales, y1: { position: 'right', ticks: { display: false }, grid: { display: false }, border: { display: false } } };
+  }
+  return opts;
+}
+
+function rebuildMainChart() {
+  if (charts.main) { charts.main.destroy(); charts.main = null; }
+  if (!window.CHART_OK) return;
+  const data = buildChartData(chartKind);
+  charts.main = new Chart(document.getElementById('ch-main'), {
+    type: data.type,
+    data: { labels: data.labels, datasets: data.datasets },
+    options: chartOptionsFor(chartKind),
+  });
+}
+
 function initCharts() {
+  const sel = document.getElementById('chart-select');
+  if (sel) {
+    sel.innerHTML = CHART_KINDS.map((k) => `<option value="${k.id}">${lang === 'zh' ? k.zh : k.en}</option>`).join('');
+    sel.value = chartKind;
+    sel.addEventListener('change', (e) => { chartKind = e.target.value; rebuildMainChart(); });
+  }
   if (!window.CHART_OK) {
     document.querySelectorAll('.chart-card canvas').forEach((c) => { c.remove(); });
     return;
   }
-  charts.throughput = new Chart(document.getElementById('ch-throughput'), {
-    type: 'line',
-    data: { labels: [], datasets: [
-      { label: '', data: [], borderColor: CHART_COLORS.primary, backgroundColor: 'rgba(74,135,190,.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2 },
-      { label: '', data: [], borderColor: CHART_COLORS.tertiary, backgroundColor: 'rgba(125,140,164,.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2 },
-    ] },
-    options: chartOpts(),
-  });
-  charts.prb = new Chart(document.getElementById('ch-prb'), {
-    type: 'bar',
-    data: { labels: [], datasets: [
-      { label: '', data: [], backgroundColor: CHART_COLORS.primary, borderRadius: 4, borderSkipped: false },
-    ] },
-    options: chartOpts(),
-  });
-  charts.mcs = new Chart(document.getElementById('ch-mcs'), {
-    type: 'bar',
-    data: { labels: [], datasets: [
-      { label: '', data: [], backgroundColor: CHART_COLORS.secondary, borderRadius: 4, borderSkipped: false },
-    ] },
-    options: chartOpts(),
-  });
-  charts.sinr = new Chart(document.getElementById('ch-sinr'), {
-    type: 'line',
-    data: { labels: [], datasets: [] }, // 每 UE 一线(动态)
-    options: chartOpts(),
-  });
-  charts.bler = new Chart(document.getElementById('ch-bler'), {
-    type: 'line',
-    data: { labels: [], datasets: [] }, // 每 UE 一线(动态)
-    options: chartOpts(),
-  });
-  charts.delay = new Chart(document.getElementById('ch-delay'), {
-    type: 'line',
-    data: { labels: [], datasets: [] }, // 每服务一线(动态)
-    options: chartOpts(),
-  });
-  charts.congestion = new Chart(document.getElementById('ch-congestion'), {
-    type: 'line',
-    data: { labels: [], datasets: [
-      { label: '', data: [], borderColor: CHART_COLORS.primary, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y', unit: '%' },
-      { label: '', data: [], borderColor: CHART_COLORS.amber, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y1', unit: ' KB' },
-    ] },
-    options: { ...chartOpts(), scales: { ...chartOpts().scales, y1: { position: 'right', ticks: { display: false }, grid: { display: false }, border: { display: false } } } },
-  });
-  charts.completion = new Chart(document.getElementById('ch-completion'), {
-    type: 'bar',
-    data: { labels: [], datasets: [] }, // 每服务一根(动态)
-    options: chartOpts(),
-  });
+  rebuildMainChart();
 }
 function updateChartLabels() {
-  if (!charts.throughput) return;
-  charts.throughput.data.datasets[0].label = t('chart.ul');
-  charts.throughput.data.datasets[1].label = t('chart.dl');
-  charts.prb.data.datasets[0].label = t('chart.prbLabel');
-  charts.mcs.data.datasets[0].label = t('chart.mcsLabel');
-  charts.congestion.data.datasets[0].label = t('chart.congPrb');
-  charts.congestion.data.datasets[1].label = t('chart.congQueue');
+  const sel = document.getElementById('chart-select');
+  if (sel) {
+    Array.from(sel.options).forEach((opt) => { opt.textContent = chartKindLabel(opt.value); });
+  }
+  if (charts.main) charts.main.destroy();
+  charts.main = null;
+  rebuildMainChart();
 }
 
 function aggregateTick(ran) {
@@ -686,7 +731,7 @@ function aggregateTick(ran) {
 }
 
 function updateCharts() {
-  if (!charts.throughput) {
+  if (!charts.main) {
     // Chart.js(CDN)/initCharts 尚未就绪:自排队重试,避免首次 poll 早于
     // 图表初始化而被永久跳过(文件静止时 tick 不再变化,外部不会再触发)
     setTimeout(updateCharts, 300);
@@ -699,44 +744,11 @@ function updateCharts() {
     el.style.display = hasData ? 'none' : 'flex';
   });
   if (!hasData) return;
-  const labels = series.ul.map((_, i) => `t${tick - series.ul.length + 1 + i}`);
-  charts.throughput.data.labels = labels;
-  charts.throughput.data.datasets[0].data = series.ul;
-  charts.throughput.data.datasets[1].data = series.dl;
-  charts.prb.data.labels = labels; charts.prb.data.datasets[0].data = series.prb;
-  charts.mcs.data.labels = labels; charts.mcs.data.datasets[0].data = series.mcs;
-  // 每 UE 多线:动态重建 datasets(颜色按 UE 序,悬停显示 ue_id)
-  const ueIds = Object.keys(perUe).sort();
-  charts.sinr.data.labels = labels;
-  charts.sinr.data.datasets = ueIds.map((ue, i) => ({
-    label: ue, data: perUe[ue].sinr, borderColor: AGENT_COLORS[i % AGENT_COLORS.length],
-    tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' dB',
-  }));
-  charts.bler.data.labels = labels;
-  charts.bler.data.datasets = ueIds.map((ue, i) => ({
-    label: ue, data: perUe[ue].bler, borderColor: AGENT_COLORS[(i + 2) % AGENT_COLORS.length],
-    tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' %',
-  }));
-  // 每服务多线
-  const svcIds = Object.keys(perSvc).sort();
-  charts.delay.data.labels = labels;
-  charts.delay.data.datasets = svcIds.map((sid, i) => ({
-    label: perSvc[sid].label || sid, data: perSvc[sid].delay,
-    borderColor: AGENT_COLORS[(i + 1) % AGENT_COLORS.length],
-    tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' ms',
-  }));
-  // 拥塞度:PRB 占用(%)+ 队列积压(KB)+ 等待 tick
-  charts.congestion.data.labels = labels;
-  charts.congestion.data.datasets[0].data = cong.prb;
-  charts.congestion.data.datasets[1].data = cong.queue;
-  // 服务完成进度(柱状,每服务一根)
-  charts.completion.data.labels = svcIds.map((sid) => perSvc[sid].label || sid);
-  charts.completion.data.datasets = [{
-    label: t('chart.completion'), data: svcIds.map((sid) => perSvc[sid].ratio[perSvc[sid].ratio.length - 1] || 0),
-    backgroundColor: svcIds.map((_, i) => AGENT_COLORS[i % AGENT_COLORS.length] + 'CC'),
-    borderRadius: 4, borderSkipped: false, unit: ' %',
-  }];
-  for (const k in charts) charts[k].update();
+  // 单图更新:按当前下拉类型重建数据(不销毁实例,保持交互)
+  const data = buildChartData(chartKind);
+  charts.main.data.labels = data.labels;
+  charts.main.data.datasets = data.datasets;
+  charts.main.update();
 }
 
 /* ================= 轮询与导出 ================= */

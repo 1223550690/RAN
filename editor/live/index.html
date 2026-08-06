@@ -31,7 +31,7 @@
   tryNext();
 })();
 </script>
-<link rel="stylesheet" href="livePreview.css?v=20260806">
+<link rel="stylesheet" href="livePreview.css?v=20260806b">
 </head>
 <body>
 
@@ -74,18 +74,17 @@
 
   <section class="right-bottom">
     <div class="charts">
-      <div class="chart-card"><h4 data-i18n="chart.throughput">系统吞吐量(UL/DL)</h4><canvas id="ch-throughput"></canvas><div class="chart-empty" data-i18n="chart.waiting">等待 agent 到达目标并提交业务…</div></div>
-      <div class="chart-card"><h4 data-i18n="chart.prb">PRB 利用率</h4><canvas id="ch-prb"></canvas><div class="chart-empty" data-i18n="chart.waiting">等待 agent 到达目标并提交业务…</div></div>
-      <div class="chart-card"><h4 data-i18n="chart.mcs">MCS 分布</h4><canvas id="ch-mcs"></canvas><div class="chart-empty" data-i18n="chart.waiting">等待 agent 到达目标并提交业务…</div></div>
-      <div class="chart-card"><h4 data-i18n="chart.snr">每 UE SINR(dB)</h4><canvas id="ch-sinr"></canvas><div class="chart-empty" data-i18n="chart.waiting">等待 agent 到达目标并提交业务…</div></div>
-      <div class="chart-card"><h4 data-i18n="chart.bler">每 UE BLER(%)</h4><canvas id="ch-bler"></canvas><div class="chart-empty" data-i18n="chart.waiting">等待 agent 到达目标并提交业务…</div></div>
-      <div class="chart-card"><h4 data-i18n="chart.delay">每服务端到端时延(ms)</h4><canvas id="ch-delay"></canvas><div class="chart-empty" data-i18n="chart.waiting">等待 agent 到达目标并提交业务…</div></div>
-      <div class="chart-card"><h4 data-i18n="chart.congestion">拥塞度(PRB 占用 / 队列积压)</h4><canvas id="ch-congestion"></canvas><div class="chart-empty" data-i18n="chart.waiting">等待 agent 到达目标并提交业务…</div></div>
-      <div class="chart-card"><h4 data-i18n="chart.completion">服务完成进度(%)</h4><canvas id="ch-completion"></canvas><div class="chart-empty" data-i18n="chart.waiting">等待 agent 到达目标并提交业务…</div></div>
+      <div class="chart-toolbar">
+        <select id="chart-select" class="chart-select"></select>
+      </div>
+      <div class="chart-card chart-main-card">
+        <canvas id="ch-main"></canvas>
+        <div class="chart-empty" data-i18n="chart.waiting">等待 agent 到达目标并提交业务…</div>
+      </div>
     </div>
   </section>
 </div>
 
-<script src="livePreview.js?v=20260806"></script>
+<script src="livePreview.js?v=20260806b"></script>
 </body>
 </html>
