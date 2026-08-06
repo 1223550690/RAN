@@ -47,6 +47,7 @@ def load_agent_simulation_definition(path: str | Path) -> AgentSimulationDefinit
                 destination_ref=step["destination_ref"],
                 intent_type=step["intent_type"],
                 intent_parameters=dict(step.get("intent_parameters", {})),
+                stay=bool(step.get("stay", False)),
             )
             for step in steps
         )

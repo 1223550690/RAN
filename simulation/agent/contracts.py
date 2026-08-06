@@ -40,6 +40,7 @@ class AgentPlan:
     destination_ref: str  # destination_ref: 语义目标引用(完整路径/名称/ID/别名)。
     intent_type: IntentType  # intent_type: 业务意图类型。
     intent_parameters: dict = field(default_factory=dict)  # intent_parameters: 业务参数,如 size_profile / duration_seconds。
+    stay: bool = False  # stay: True=不动移动,就地在 spawn 位置提交意图(信道对比模板)。
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +60,7 @@ class AgentPlanStep:
     destination_ref: str  # destination_ref: 语义目标引用。
     intent_type: IntentType  # intent_type: 业务意图类型。
     intent_parameters: dict = field(default_factory=dict)  # intent_parameters: 业务参数。
+    stay: bool = False  # stay: True=不动移动,就地在 spawn 位置提交意图(信道对比模板)。
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,10 +136,12 @@ class AgentStateFrame:
     simulation_id: str
     tick: int
     agents: list[AgentSnapshot] = field(default_factory=list)
+    plan_summary: list[dict] = field(default_factory=list)  # plan_summary: 静态任务清单(模板模式,前端任务面板用)。
 
     def to_dict(self) -> dict:
         return {
             "simulation_id": self.simulation_id,
             "tick": self.tick,
             "agents": [agent.to_dict() for agent in self.agents],
+            "plan_summary": self.plan_summary,
         }

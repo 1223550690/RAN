@@ -1,0 +1,58 @@
+{
+ "simulation_id": "template_different_buildings_video_download",
+ "seed": 42,
+ "loop_policy": "stop",
+ "llm_mode": false,
+ "agents": [
+  {
+   "agent_id": "student_001",
+   "role": "student",
+   "spawn_position": [520.0, 300.0],
+   "ue_id": "student_001_phone"
+  },
+  {
+   "agent_id": "teacher_001",
+   "role": "teacher",
+   "spawn_position": [1000.0, 1100.0],
+   "ue_id": "teacher_001_phone"
+  },
+  {
+   "agent_id": "staff_001",
+   "role": "staff",
+   "spawn_position": [1400.0, 1500.0],
+   "ue_id": "staff_001_phone"
+  }
+ ],
+ "plans": {
+  "student_001": [
+   {
+    "destination_ref": "Block 09 / Student Union / Food Service South",
+    "intent_type": "video_download",
+    "intent_parameters": {
+     "size_profile": "medium"
+    },
+    "stay": true
+   }
+  ],
+  "teacher_001": [
+   {
+    "destination_ref": "Physics Central Tower / Computer Lab",
+    "intent_type": "video_download",
+    "intent_parameters": {
+     "size_profile": "medium"
+    },
+    "stay": true
+   }
+  ],
+  "staff_001": [
+   {
+    "destination_ref": "Open Field",
+    "intent_type": "video_download",
+    "intent_parameters": {
+     "size_profile": "medium"
+    },
+    "stay": true
+   }
+  ]
+ }
+}

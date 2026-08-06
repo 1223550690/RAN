@@ -110,16 +110,26 @@ class AgentRuntime:
             self._handle_plan_failure(error or "invalid plan", tick)
             return
 
+        self.current_plan = plan
+        self._plan_retries = 0
+
+        if plan.stay:
+            # 不动移动模板:就地在 spawn 位置提交意图,直接跳过 WALKING。
+            self.waypoints = []
+            self.waypoint_index = 0
+            self.destination_id = plan.destination_ref or "stay_at_spawn"
+            self.state_machine.transition("plan_ready", tick)
+            self.state_machine.transition("arrived", tick)
+            return
+
         result = self.navigation.plan_path(self.position, plan.destination_ref)
         if not result.ok:
             self._handle_plan_failure(result.error or "navigation failed", tick)
             return
 
-        self.current_plan = plan
         self.waypoints = list(result.plan.waypoints)
         self.waypoint_index = 0
         self.destination_id = plan.destination_ref
-        self._plan_retries = 0
         self.state_machine.transition("plan_ready", tick)
 
     def _handle_plan_failure(self, error: str, tick: int) -> None:

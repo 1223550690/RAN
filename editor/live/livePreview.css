@@ -110,6 +110,23 @@ body {
 }
 /* ============ Agent 卡片 ============ */
 .agent-cards { display: flex; flex-direction: column; gap: 10px; }
+
+/* 任务面板(右上 state 栏):模板模式显示简要任务列表与进度 */
+.task-panel { background: var(--surface); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow-1); margin-bottom: 10px; }
+.task-panel h4 { margin: 0 0 10px; font-size: 13px; font-weight: 500; color: var(--on-surface); }
+.task-group { margin-bottom: 10px; }
+.task-group:last-child { margin-bottom: 0; }
+.task-group .tg-head { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--on-surface-variant); margin-bottom: 4px; }
+.task-group .tg-head .avatar { width: 22px; height: 22px; font-size: 11px; }
+.task-row { display: flex; align-items: center; gap: 8px; font-size: 11px; padding: 2px 0 2px 28px; color: var(--on-surface); }
+.task-row .t-icon { width: 14px; text-align: center; flex-shrink: 0; }
+.task-row .t-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-row .t-bar { width: 56px; height: 6px; border-radius: 3px; background: var(--sc-highest); overflow: hidden; flex-shrink: 0; }
+.task-row .t-fill { height: 100%; border-radius: 3px; background: var(--primary); transition: width 0.25s ease; }
+.task-row .t-fill.done { background: #4C9E74; }
+.task-row .t-pct { width: 34px; text-align: right; color: var(--on-surface-variant); flex-shrink: 0; }
+.task-row.pending .t-name { color: var(--on-surface-variant); }
+.task-row.pending .t-fill { background: var(--sc-highest); }
 .agent-card { background: var(--surface); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow-1); }
 .agent-card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--primary-container); color: var(--on-primary-container); display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px; flex-shrink: 0; }

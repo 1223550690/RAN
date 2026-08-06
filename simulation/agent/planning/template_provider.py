@@ -31,4 +31,5 @@ class TemplatePlanProvider:
             destination_ref=step.destination_ref,
             intent_type=step.intent_type,
             intent_parameters=dict(step.intent_parameters),
+            stay=step.stay,
         )

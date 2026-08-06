@@ -27,6 +27,14 @@ from .agent.planning import AgentPlanProvider
 TERMINAL_SERVICE_STATUSES = {"COMPLETED", "FAILED"}
 
 
+def _intent_direction(intent_type: str) -> str:
+    """意图类型 → 传输方向(下行类返回 DL,其余 UL)。"""
+
+    if intent_type in ("video_download", "file_download", "web_browse", "game_download"):
+        return "DL"
+    return "UL"
+
+
 class SimulationOrchestrator:
     def __init__(
         self,
@@ -87,7 +95,30 @@ class SimulationOrchestrator:
         self._notify_terminal_services(tick)
         self.registry.step(tick)
         self.ran_state = self.scenario.step(tick)
-        return self.registry.snapshot_frame(tick)
+        frame = self.registry.snapshot_frame(tick)
+        frame.plan_summary = self._build_plan_summary()
+        return frame
+
+    def _build_plan_summary(self) -> list[dict]:
+        """静态任务清单(模板模式):每 agent 的有序任务(类型/方向/序号/总数)。
+
+        前端任务面板以此渲染任务列表,动态进度由 ran_state.service_states 对齐。
+        """
+
+        summary: list[dict] = []
+        for agent_id, steps in (self.agent_definition.plans or {}).items():
+            total = len(steps)
+            for index, step in enumerate(steps):
+                summary.append(
+                    {
+                        "agent_id": agent_id,
+                        "intent_type": step.intent_type,
+                        "direction": _intent_direction(step.intent_type),
+                        "index": index,
+                        "total": total,
+                    }
+                )
+        return summary
 
     def _notify_terminal_services(self, tick: int) -> None:
         """检测 RAN 业务进入终态,通知对应 Agent 回到 PLANNING。"""

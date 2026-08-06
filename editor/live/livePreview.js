@@ -16,6 +16,8 @@ const I18N = {
     'agent.path': '路径', 'agent.role': '角色', 'agent.error': '错误',
     'agent.roleMap': { student: '学生', teacher: '教师', staff: '职员' },
     'agent.intentMap': { message: '发送消息', video_upload: '上传视频', video_download: '下载视频', video_call: '视频通话', file_transfer: '传输文件' },
+    'task.panel': '任务列表',
+    'task.pending': '待执行',
     'chart.ul': 'UL KB/tick', 'chart.dl': 'DL KB/tick', 'chart.prbLabel': 'PRB 利用率 %',
     'chart.waiting': '等待 agent 到达目标并提交业务…(当前为移动阶段)',
     'chart.mcsLabel': 'MCS 档位', 'chart.snrLabel': 'SINR dB', 'chart.delayLabel': '时延 ms',
@@ -35,6 +37,8 @@ const I18N = {
     'agent.path': 'Path', 'agent.role': 'Role', 'agent.error': 'Error',
     'agent.roleMap': { student: 'Student', teacher: 'Teacher', staff: 'Staff' },
     'agent.intentMap': { message: 'Send message', video_upload: 'Upload video', video_download: 'Download video', video_call: 'Video call', file_transfer: 'Transfer file' },
+    'task.panel': 'Task list',
+    'task.pending': 'Pending',
     'chart.ul': 'UL KB/tick', 'chart.dl': 'DL KB/tick', 'chart.prbLabel': 'PRB util %',
     'chart.waiting': 'Waiting for agents to reach targets and submit traffic… (movement phase)',
     'chart.mcsLabel': 'MCS level', 'chart.snrLabel': 'SINR dB', 'chart.delayLabel': 'Delay ms',
@@ -474,6 +478,45 @@ function renderAgents() {
   }
 }
 
+/* 任务面板(右上 state 栏):模板模式的简要任务列表 + 实时进度。
+   plan_summary = 静态任务清单(agent_id/intent_type/direction/index/total);
+   动态进度按提交顺序与 ran_state.service_states 对齐。 */
+function renderTaskPanel(planSummary, ran) {
+  const panel = document.getElementById('task-panel');
+  const list = document.getElementById('task-list');
+  if (!panel || !list) return;
+  if (!planSummary || !planSummary.length) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  const services = ran.service_states || [];
+  const byAgent = {};
+  for (const p of planSummary) (byAgent[p.agent_id] || (byAgent[p.agent_id] = [])).push(p);
+  const labels = (I18N[lang]['agent.intentMap'] || {});
+  const pendingLabel = I18N[lang]['task.pending'] || '待执行';
+  let html = '';
+  for (const [agentId, tasks] of Object.entries(byAgent)) {
+    const svcs = services.filter((s) => s.agent_id === agentId);
+    html += `<div class="task-group"><div class="tg-head"><div class="avatar">${String(agentId)[0].toUpperCase()}</div>${agentId}</div>`;
+    tasks.forEach((task, idx) => {
+      const svc = svcs[idx]; // 提交顺序对齐
+      const kind = String(task.intent_type).replace(/_\d+$/, '');
+      const label = labels[kind] || task.intent_type;
+      const icon = task.direction === 'DL' ? '↓' : '↑';
+      const multi = tasks.length > 1 ? ` ${idx + 1}/${tasks.length}` : '';
+      let pct = 0, cls = 'pending', barCls = '';
+      if (svc) {
+        const ratio = svc.progress && svc.progress.completion_ratio != null ? svc.progress.completion_ratio : 0;
+        pct = Math.round(ratio * 100);
+        if (svc.status === 'COMPLETED') { pct = 100; barCls = 'done'; cls = ''; }
+        else if (svc.status === 'ACTIVE' || svc.status === 'WAITING_FOR_ALLOCATION') cls = '';
+      }
+      const pctText = cls === 'pending' ? pendingLabel : pct + '%';
+      html += `<div class="task-row ${cls}"><span class="t-icon">${icon}</span><span class="t-name">${label}${multi}</span><div class="t-bar"><div class="t-fill ${barCls}" style="width:${pct}%"></div></div><span class="t-pct">${pctText}</span></div>`;
+    });
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
 /* ================= 图表(真实指标聚合) ================= */
 const CHART_COLORS = { primary: '#4A87BE', tertiary: '#7D8CA4', secondary: '#5E7894', green: '#4C9E74', amber: '#B08A3E' };
 function chartOpts() {
@@ -641,6 +684,7 @@ function poll() {
       safe(() => updateBanner(ran, data.now_seconds), 'updateBanner');
       safe(() => renderRoutes(ran), 'renderRoutes');
       safe(() => renderAgents(), 'renderAgents');
+      safe(() => renderTaskPanel(data.plan_summary || [], ran), 'renderTaskPanel');
       safe(() => updateCharts(), 'updateCharts');
       emptyFetches = 0;
       setConnStatus(true);

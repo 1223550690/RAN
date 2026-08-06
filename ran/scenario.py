@@ -371,7 +371,10 @@ class MultiAgentRanScenario:
         traffic = build_ip_traffic(ue_request, session)
         qos_flow = build_qos_flow(ue_request, session)
         drb = map_qos_flow_to_drb(qos_flow, ue_request)
-        pdcp_batch = build_pdcp_batch(traffic, drb)
+        # 函数式批仅作口径/统计;实体管道从原 traffic 每 tick 消费。
+        # 用副本构建批,避免消耗 traffic.remaining_bytes 导致 UL 实体
+        # inflow 无数据(实体切换遗留:UL 队列恒空、永不获调度)。
+        pdcp_batch = build_pdcp_batch(replace(traffic), drb)
         is_downlink = ue_request.direction == "DL"
         # xizhe 实体管道(PDCP/RLC 实体;函数式 build_* 保留为兼容口径)
         pdcp_entity = PdcpEntity(

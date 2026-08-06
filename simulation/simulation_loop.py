@@ -58,6 +58,7 @@ class SimulationLoop:
                 ran_state=self.ran_state,
                 control_state=self.control.snapshot() if self.control is not None else {},
                 console=self.console,
+                plan_summary=self.agent_frame.plan_summary if self.agent_frame is not None else [],
             )
 
     def format_tick(self) -> str:
