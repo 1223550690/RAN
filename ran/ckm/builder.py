@@ -88,10 +88,18 @@ class CkmConfig:
 
 
 def _building_bounds(scene) -> list[tuple[float, float, float, float]]:
-    """顶层建筑区域 bounds(全局坐标)。"""
+    """顶层 indoor 建筑区域 bounds(全局坐标)。
+
+    只保留 metadata.space == indoor 的区域——绿地/球场/网络站点等
+    outdoor 区域不是建筑,不能进"室内细网格"(曾导致户外点被当作
+    indoor 采样,receiver_space 与实际传播几何矛盾)。
+    """
 
     bounds = []
     for area in getattr(scene, "areas", []):
+        meta = getattr(area, "metadata", {}) or {}
+        if str(meta.get("space", "")).lower() != "indoor":
+            continue
         b = getattr(area, "bounds", None)
         if b is None:
             continue
@@ -119,7 +127,9 @@ def _sample_grid_points(
     points: list[dict] = []
 
     def in_building(x: float, y: float) -> bool:
-        return any(b[0] <= x <= b[2] and b[1] <= y <= b[3] for b in bounds)
+        # 半开区间:右/上边界点算户外(避免 bounds 边界带出现覆盖空洞:
+        # 户外点被当室内跳过、室内网格又到不了边界 → 25m 降采样空洞)
+        return any(b[0] <= x < b[2] and b[1] <= y < b[3] for b in bounds)
 
     # 户外粗网格(跳过建筑内部);从地图原点 0 覆盖到 2000(viewBox 边界),
     # 保证全图无白条(此前范围止于 bounds±margin,左上与右/下边缘缺失)。
@@ -192,8 +202,12 @@ def _compute_point_batch(payload):
     return results
 
 
-def _write_heatmap(ckm: HybridCkm, scene_id: str, scale_m: float = 25.0) -> None:
-    """写轻量热力图文件(25m 降采样,前端叠加用;室内细网格优先)。"""
+def _write_heatmap(ckm: HybridCkm, scene_id: str, scale_m: float = 25.0, output_dir=None) -> None:
+    """写轻量热力图文件(25m 降采样,前端叠加用;室内细网格优先)。
+
+    坐标输出标准网格原点(key×scale,非覆盖点的原始采样坐标)——保证
+    相邻色块连续铺设(点间距恒等于 scale,前端按固定尺寸绘制无缝)。
+    """
 
     grid: dict[tuple[int, int], HybridCKMCell] = {}
     for cell in ckm.cells:
@@ -202,18 +216,18 @@ def _write_heatmap(ckm: HybridCkm, scene_id: str, scale_m: float = 25.0) -> None
         grid[key] = cell
     points = [
         {
-            "x": round(cell.x_map, 1),
-            "y": round(cell.y_map, 1),
+            "x": float(key[0] * scale_m),
+            "y": float(key[1] * scale_m),
             "rsrp": round(cell.predicted_rsrp_dbm, 2),
         }
-        for cell in grid.values()
+        for key, cell in grid.items()
     ]
     try:
         import json
 
         from ran.ckm.ckm import CKM_CACHE_DIR
 
-        path = CKM_CACHE_DIR / f"ckm_heatmap_{scene_id}.json"
+        path = (output_dir or CKM_CACHE_DIR) / f"ckm_heatmap_{scene_id}.json"
         path.write_text(json.dumps({"scene_id": scene_id, "grid_scale_m": scale_m, "points": points}), encoding="utf-8")
     except OSError:
         pass
@@ -225,7 +239,7 @@ def build_hybrid_ckm(
     gnb,
     policy,
     ckm_config: CkmConfig | None = None,
-    calibration_version: str = "ckm-v5",
+    calibration_version: str = "ckm-v6",
 ) -> HybridCkm | None:
     """构建(或从缓存加载)混合 CKM;失败返回 None(调用方回退 shadow)。"""
 
@@ -401,13 +415,17 @@ def build_hybrid_ckm(
                 best_beam_rsrp = selection.effective_received_power_dbm
                 beam_margin = selection.beam_margin_db
 
+        # receiver_space 以传播几何的权威分类为准(采样标记只用于选择网格密度)
+        receiver_space = str(getattr(geometry, "receiver_space", "") or "").lower()
+        if receiver_space not in ("indoor", "outdoor"):
+            receiver_space = "indoor" if point["indoor"] else "outdoor"
         cells.append(
             HybridCKMCell(
-                grid_x=round(point["x"] / (indoor_scale if point["indoor"] else grid_scale)),
-                grid_y=round(point["y"] / (indoor_scale if point["indoor"] else grid_scale)),
+                grid_x=round(point["x"] / (indoor_scale if receiver_space == "indoor" else grid_scale)),
+                grid_y=round(point["y"] / (indoor_scale if receiver_space == "indoor" else grid_scale)),
                 x_map=point["x"],
                 y_map=point["y"],
-                receiver_space="indoor" if point["indoor"] else "outdoor",
+                receiver_space=receiver_space,
                 receiver_building_id=geometry.receiver_building_id,
                 link_type=geometry.link_type,
                 los_state=geometry.los_state,

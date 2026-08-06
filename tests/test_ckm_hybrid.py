@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from pathlib import Path as _Path
 from pathlib import Path
 
 from ran.ckm.beam import BeamConfig, beam_gain_db, default_codebook, select_best_beam
@@ -229,6 +230,88 @@ class CkmTests(unittest.TestCase):
 
         ckm = build_hybrid_ckm(scene=scene, gnb=gnb, policy=policy, ckm_config=CkmConfig(enabled=False))
         self.assertIsNone(ckm)
+
+    def test_green_space_queries_as_outdoor(self) -> None:
+        """绿地(Royal Fort North Green 等)不得被当作 indoor 建筑采样。"""
+
+        scene = build_scene("bristol_topology")
+        gnb = load_gnb_site_from_scene(scene)
+        policy = load_channel_model_policy("bristol_topology")
+        from ran.ckm import CkmConfig, build_hybrid_ckm
+        from ran.ckm.builder import _building_bounds
+
+        bounds = _building_bounds(scene)
+        # 绿地 bounds 不得出现在建筑列表
+        green = None
+        for area in scene.areas:
+            meta = getattr(area, "metadata", {}) or {}
+            if area.node_id == "royal_fort_north_green":
+                green = area.bounds
+        self.assertIsNotNone(green)
+        for b in bounds:
+            self.assertFalse(b[0] <= green[0] and green[2] <= b[2] and b[1] <= green[1] and green[3] <= b[3])
+
+        config = CkmConfig(
+            grid_scale_m=200.0,
+            indoor_refine_scale_m=100.0,
+            cache_enabled=False,
+            reference_count=5,
+            reference_seed=7,
+            target_build_seconds=60.0,
+        )
+        ckm = build_hybrid_ckm(scene=scene, gnb=gnb, policy=policy, ckm_config=config)
+        self.assertIsNotNone(ckm)
+        assert ckm is not None
+        # 绿地中心查询必须是 outdoor
+        cell = ckm.query(500.0, 800.0)
+        self.assertIsNotNone(cell)
+        assert cell is not None
+        self.assertEqual(cell.receiver_space, "outdoor")
+
+    def test_heatmap_grid_is_continuous(self) -> None:
+        """热力图色块必须连续铺设(相邻 key 间距恒等于 scale,无透明缝隙)。"""
+
+        scene = build_scene("bristol_topology")
+        gnb = load_gnb_site_from_scene(scene)
+        policy = load_channel_model_policy("bristol_topology")
+        from ran.ckm import CkmConfig, build_hybrid_ckm
+        from ran.ckm.builder import _write_heatmap
+        import tempfile
+
+        config = CkmConfig(
+            grid_scale_m=20.0,
+            indoor_refine_scale_m=10.0,
+            cache_enabled=False,
+            reference_count=5,
+            reference_seed=7,
+            target_build_seconds=120.0,
+        )
+        ckm = build_hybrid_ckm(scene=scene, gnb=gnb, policy=policy, ckm_config=config)
+        self.assertIsNotNone(ckm)
+        assert ckm is not None
+        with tempfile.TemporaryDirectory() as directory:
+            import json as _json
+
+            _write_heatmap(ckm, "bristol_topology", scale_m=25.0, output_dir=_Path(directory))
+            data = _json.loads((_Path(directory) / "ckm_heatmap_bristol_topology.json").read_text(encoding="utf-8"))
+            points = sorted(data["points"], key=lambda p: (p["y"], p["x"]))
+            # 所有点必须落在 25m 格原点上
+            for p in points:
+                self.assertAlmostEqual(p["x"] % 25.0, 0.0, places=6)
+                self.assertAlmostEqual(p["y"] % 25.0, 0.0, places=6)
+            # 按行检查 x 方向 key 连续(无空 key → 前端固定尺寸绘制无缝)
+            by_row: dict[float, list[float]] = {}
+            for p in points:
+                by_row.setdefault(p["y"], []).append(p["x"])
+            for y, xs in by_row.items():
+                xs = sorted(xs)
+                keys = [int(round(x / 25.0)) for x in xs]
+                self.assertEqual(len(keys), len(set(keys)), f"行 y={y} 存在重复 key")
+                self.assertEqual(
+                    max(keys) - min(keys) + 1,
+                    len(keys),
+                    f"行 y={y} 存在空 key(渲染缝隙): keys={keys}",
+                )
 
 
 if __name__ == "__main__":

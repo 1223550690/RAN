@@ -69,10 +69,10 @@ class HybridCkm:
     def query(self, x_map: float, y_map: float) -> HybridCKMCell | None:
         """最近网格单元查询(O(1));建筑内命中细网格,户外命中粗网格。"""
 
-        # 先判建筑内(粗查)
+        # 先判建筑内(粗查);半开区间与采样一致(边界点算户外,避免空洞)
         in_building = False
         for bx0, by0, bx1, by1 in self._building_bounds:
-            if bx0 <= x_map <= bx1 and by0 <= y_map <= by1:
+            if bx0 <= x_map < bx1 and by0 <= y_map < by1:
                 in_building = True
                 break
         key = (
