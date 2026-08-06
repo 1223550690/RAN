@@ -214,7 +214,11 @@ function renderMap(scene) {
     pushDoor(p.name, p.segment);
   }
 
+  // 重建地图内容;热力图 <image> 是独立子元素,清空后需重挂
   svg.innerHTML = parts.join('\n');
+  if (heatmapImage) {
+    svg.appendChild(heatmapImage); // 最后追加:保持在最上层(半透明叠加)
+  }
 
   // tooltip
   const panel = document.querySelector('.map-panel');
@@ -289,33 +293,56 @@ function updateBanner(ran, nowSeconds) {
 
 /* 地图上的 agent 路线图层(每次 poll 更新) */
 /* ================= CKM 热力图叠加 ================= */
+/* 离屏 Canvas 绘制 → dataURL → SVG <image> 子元素:
+   热力图与建筑/墙/道路共用 SVG viewBox 变换(xMidYMid meet 等比+居中),
+   任何浏览器缩放/窗口尺寸下天然对齐,无需手动计算偏移。 */
+let heatmapImage = null;
 function rsrpColor(rsrp, lo, hi) {
   // 自适应色阶:lo(红)→ hi(绿),数据范围归一化
   const t = hi > lo ? Math.max(0, Math.min(1, (rsrp - lo) / (hi - lo))) : 0.5;
   return `hsl(${(t * 120).toFixed(0)}, 75%, 45%)`;
 }
+function ensureHeatmapImage() {
+  if (heatmapImage) return heatmapImage;
+  const svg = document.getElementById('map');
+  if (!svg) return null;
+  heatmapImage = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+  heatmapImage.setAttribute('id', 'heatmap-img');
+  heatmapImage.setAttribute('x', '0');
+  heatmapImage.setAttribute('y', '0');
+  heatmapImage.setAttribute('width', '2000');
+  heatmapImage.setAttribute('height', '2000');
+  heatmapImage.setAttribute('preserveAspectRatio', 'none'); // 2000x2000 与 viewBox 一致,无变形
+  heatmapImage.style.pointerEvents = 'none';
+  svg.appendChild(heatmapImage); // 最后追加:绘制在地图内容之上(半透明)
+  return heatmapImage;
+}
 function loadHeatmap() {
-  const canvas = document.getElementById('heatmap');
-  if (!canvas) return;
   fetch('/outputs/ckm_heatmap_bristol_topology.json?ts=' + Date.now(), { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
       if (!data || !Array.isArray(data.points) || !data.points.length) return;
+      const img = ensureHeatmapImage();
+      if (!img) return;
       // 自适应色阶:按数据实际分布取 2%~98% 分位(抗离群点)
       const vals = data.points.map((p) => p.rsrp).sort((a, b) => a - b);
       const q = (k) => vals[Math.min(vals.length - 1, Math.floor(k * (vals.length - 1)))];
       const lo = q(0.02), hi = q(0.98);
+      // 离屏 Canvas 2000x2000(与地图坐标 1:1)
+      const canvas = document.createElement('canvas');
+      canvas.width = 2000;
+      canvas.height = 2000;
       const ctx = canvas.getContext('2d');
-      const W = canvas.width, H = canvas.height;
-      ctx.clearRect(0, 0, W, H);
       const scale = data.grid_scale_m || 25;
       for (const p of data.points) {
         ctx.fillStyle = rsrpColor(p.rsrp, lo, hi);
-        const px = (p.x / 2000) * W, py = (p.y / 2000) * H;
-        const sz = Math.max(2, (scale / 2000) * W);
-        ctx.fillRect(px, py, sz, sz);
+        ctx.fillRect(p.x, p.y, scale, scale);
       }
-      canvas.classList.add('visible');
+      img.setAttribute('href', canvas.toDataURL('image/png'));
+      img.setAttribute('xlink:href', img.getAttribute('href')); // 兼容旧浏览器
+      // 保险:若已被 renderMap 重建清出 DOM,重挂(保持最上层)
+      if (!img.isConnected) document.getElementById('map')?.appendChild(img);
+      img.classList.add('visible');
       const legend = document.querySelector('.heatmap-legend');
       if (legend) {
         legend.querySelector('.labels span:first-child').textContent = lo.toFixed(0) + ' dBm';
@@ -326,14 +353,15 @@ function loadHeatmap() {
     .catch(() => {});
 }
 function toggleHeatmap(show) {
-  const canvas = document.getElementById('heatmap');
-  if (!canvas) return;
-  canvas.classList.toggle('visible', show);
+  const img = ensureHeatmapImage();
+  if (!img) return;
+  img.classList.toggle('visible', show);
   document.querySelector('.heatmap-legend')?.classList.toggle('visible', show);
   localStorage.setItem('preview-heatmap', show ? '1' : '0');
 }
 document.getElementById('btn-heatmap')?.addEventListener('click', (e) => {
-  const on = !document.getElementById('heatmap').classList.contains('visible');
+  const img = ensureHeatmapImage();
+  const on = img ? !img.classList.contains('visible') : true;
   toggleHeatmap(on);
 });
 
