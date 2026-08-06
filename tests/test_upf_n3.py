@@ -10,52 +10,52 @@ from ran.contracts import N3ForwardingResult, PduSession
 class UpfTunnelTests(unittest.TestCase):
     def test_create_tunnel_unique_teid_and_idempotent(self) -> None:
         upf = Upf()
-        t1 = upf.create_tunnel(1, "DL")
-        t2 = upf.create_tunnel(2, "DL")
-        t3 = upf.create_tunnel(1, "UL")
-        self.assertEqual(t1.tunnel_id, "dl_1")
-        self.assertEqual(t2.tunnel_id, "dl_2")
-        self.assertEqual(t3.tunnel_id, "ul_1")
+        t1 = upf.create_tunnel("ue_a", 1, "DL")
+        t2 = upf.create_tunnel("ue_a", 2, "DL")
+        t3 = upf.create_tunnel("ue_a", 1, "UL")
+        self.assertEqual(t1.tunnel_id, "dl_ue_a_1")
+        self.assertEqual(t2.tunnel_id, "dl_ue_a_2")
+        self.assertEqual(t3.tunnel_id, "ul_ue_a_1")
         self.assertNotEqual(t1.teid, t2.teid)
         self.assertNotEqual(t1.teid, t3.teid)
         # 幂等:同一 session+方向复用隧道
-        self.assertIs(upf.create_tunnel(1, "DL"), t1)
+        self.assertIs(upf.create_tunnel("ue_a", 1, "DL"), t1)
 
     def test_receive_from_dn_buffers(self) -> None:
         upf = Upf()
-        upf.receive_from_dn(7, 1000)
-        self.assertEqual(upf.buffered_bytes(7), 1000)
-        upf.receive_from_dn(7, 500)
-        self.assertEqual(upf.buffered_bytes(7), 1500)
+        upf.receive_from_dn("ue_a", 7, 1000)
+        self.assertEqual(upf.buffered_bytes("ue_a", 7), 1000)
+        upf.receive_from_dn("ue_a", 7, 500)
+        self.assertEqual(upf.buffered_bytes("ue_a", 7), 1500)
 
     def test_forward_to_gnb_consumes_buffer_and_counts_overhead(self) -> None:
         upf = Upf()
-        upf.receive_from_dn(7, 10000)
-        tunnel = upf.create_tunnel(7, "DL")
+        upf.receive_from_dn("ue_a", 7, 10000)
+        tunnel = upf.create_tunnel("ue_a", 7, "DL")
         tx = upf.forward_to_gnb(tunnel)
         self.assertEqual(tx, 10000)  # 瞬时到达
-        self.assertEqual(upf.buffered_bytes(7), 0)
+        self.assertEqual(upf.buffered_bytes("ue_a", 7), 0)
         # 开销:10000/1500 → 7 包 × 36 = 252
         self.assertEqual(tunnel.overhead_total_bytes, 7 * 36)
 
     def test_forward_to_gnb_n3_bandwidth_limits(self) -> None:
         upf = Upf(n3_bandwidth_mbps=1.0)  # 1 Mbps = 125 KB/s;tick_ms=200 → 25KB/tick
-        upf.receive_from_dn(7, 100_000)
-        tunnel = upf.create_tunnel(7, "DL")
+        upf.receive_from_dn("ue_a", 7, 100_000)
+        tunnel = upf.create_tunnel("ue_a", 7, "DL")
         tx1 = upf.forward_to_gnb(tunnel, tick_ms=200.0)
         self.assertEqual(tx1, 25_000)
-        self.assertEqual(upf.buffered_bytes(7), 75_000)
+        self.assertEqual(upf.buffered_bytes("ue_a", 7), 75_000)
         tx2 = upf.forward_to_gnb(tunnel, tick_ms=200.0)
         self.assertEqual(tx2, 25_000)
-        self.assertEqual(upf.buffered_bytes(7), 50_000)
+        self.assertEqual(upf.buffered_bytes("ue_a", 7), 50_000)
 
     def test_max_bytes_caps_transfer(self) -> None:
         upf = Upf()
-        upf.receive_from_dn(7, 5000)
-        tunnel = upf.create_tunnel(7, "DL")
+        upf.receive_from_dn("ue_a", 7, 5000)
+        tunnel = upf.create_tunnel("ue_a", 7, "DL")
         tx = upf.forward_to_gnb(tunnel, max_bytes=2000)
         self.assertEqual(tx, 2000)
-        self.assertEqual(upf.buffered_bytes(7), 3000)
+        self.assertEqual(upf.buffered_bytes("ue_a", 7), 3000)
 
     def _session(self) -> PduSession:
         return PduSession(
@@ -71,8 +71,8 @@ class UpfTunnelTests(unittest.TestCase):
 
     def test_forward_to_dn_via_tunnel(self) -> None:
         upf = Upf()
-        tunnel = upf.create_tunnel(3, "UL")
         session = self._session()
+        tunnel = upf.create_tunnel(session.ue_id, 3, "UL")
         n3 = N3ForwardingResult(
             tunnel_id=tunnel.tunnel_id,
             teid=tunnel.teid,
@@ -93,7 +93,7 @@ class UpfTunnelTests(unittest.TestCase):
     def test_module_function_compat(self) -> None:
         session = self._session()
         n3 = N3ForwardingResult(
-            tunnel_id="ul_1",
+            tunnel_id="ul_ue_b_3",
             teid=1,
             ue_id="ue_1",
             pdu_session_id=1,

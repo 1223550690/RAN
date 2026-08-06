@@ -62,7 +62,7 @@ DEFAULT_ENDPOINTS: tuple[EndpointProfile, ...] = (
         ip="10.20.1.10",
         protocol="TCP",
         port=443,
-        service_types=frozenset({"web", "file_upload", "file_download"}),
+        service_types=frozenset({"web", "file_upload", "file_download", "web_browse"}),
     ),
     EndpointProfile(
         target="gaming_server",
@@ -70,7 +70,7 @@ DEFAULT_ENDPOINTS: tuple[EndpointProfile, ...] = (
         ip="10.20.2.20",
         protocol="UDP",
         port=3074,
-        service_types=frozenset({"game"}),
+        service_types=frozenset({"game", "gaming"}),
     ),
     EndpointProfile(
         target="message_server",

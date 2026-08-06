@@ -50,6 +50,22 @@ DEFAULT_INTENT_PROFILES: dict = {
         "action": "send_message",
         "direction": "UL",
     },
+    "web_browse": {
+        "size_profiles": {"small": 2 * 1024 * 1024, "medium": 10 * 1024 * 1024, "large": 50 * 1024 * 1024},
+        "target": "web_server",
+        "content_type": "web",
+        "action": "browse",
+        "direction": "DL",
+        "qos_hint": {"latency_budget_ms": 500, "reliability": "normal", "throughput_preference": "low"},
+    },
+    "gaming": {
+        "size_profiles": {"small": 5 * 1024 * 1024, "medium": 20 * 1024 * 1024, "large": 100 * 1024 * 1024},
+        "target": "gaming_server",
+        "content_type": "game",
+        "action": "play",
+        "direction": "DL",
+        "qos_hint": {"latency_budget_ms": 80, "reliability": "high", "throughput_preference": "high"},
+    },
 }
 
 

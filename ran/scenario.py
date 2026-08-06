@@ -62,11 +62,13 @@ class MultiAgentRanScenario:
         agent_state_provider: AgentStateProvider | None = None,
         tick_ms: float = 1000.0,
         n3_bandwidth_mbps: float | None = None,
+        max_waiting_ticks: int = 600,
     ) -> None:
         
         self.scene = scene
         self.scheduler = scheduler or JavaSchedulerAdapter()
         self.tick_ms = float(tick_ms)
+        self.max_waiting_ticks = int(max_waiting_ticks)
         self.definition = definition or build_default_three_agent_definition()
         self.simulation_id = self.definition.simulation_id
         self.agent_count = self.definition.agent_count
@@ -153,7 +155,7 @@ class MultiAgentRanScenario:
         # 放在调度之前,保证本次调度窗口能看到已到达 gNB 的下行数据。
         for service in active_services:
             if service.dl_queue is not None:
-                dl_tunnel = self.upf.tunnel_of(service.session.pdu_session_id, "DL")
+                dl_tunnel = self.upf.tunnel_of(service.ue_id, service.session.pdu_session_id, "DL")
                 if dl_tunnel is not None:
                     n3_tx = self.upf.forward_to_gnb(dl_tunnel, tick_ms=self.tick_ms)
                     if n3_tx > 0:
@@ -161,7 +163,7 @@ class MultiAgentRanScenario:
                             service.rlc.enqueue_bytes(n3_tx)
                         else:
                             service.dl_queue.queued_bytes += n3_tx
-                    service.upf_buffered_bytes = self.upf.buffered_bytes(service.session.pdu_session_id)
+                    service.upf_buffered_bytes = self.upf.buffered_bytes(service.ue_id, service.session.pdu_session_id)
                     service.n3_gtp_overhead_bytes = dl_tunnel.overhead_total_bytes
 
         # UL inflow:实体管道 PDCP→RLC 入队(调度前,本 tick 新数据可见)
@@ -213,9 +215,16 @@ class MultiAgentRanScenario:
             )
             channel = channel_by_service[service.service_instance_id]
             if allocation is None or allocation.scheduled_bytes <= 0:
+                service.waiting_ticks += 1
+                if service.waiting_ticks >= self.max_waiting_ticks:
+                    # 服务失败判定(0608 需求):长期无分配(信道过差/资源饿死)→ FAILED
+                    service.status = "FAILED"
+                    service_states.append(self._build_waiting_service_state(service, channel, tick))
+                    continue
                 service.status = "WAITING_FOR_ALLOCATION"
                 service_states.append(self._build_waiting_service_state(service, channel, tick))
                 continue
+            service.waiting_ticks = 0  # 获得分配,清零等待计数
 
             # 最小 RLC grant mock:当前仅按队列字节截断;后续替换为真实 segment 列表。
             if service.rlc is not None:
@@ -391,13 +400,13 @@ class MultiAgentRanScenario:
             mode=drb.rlc_mode,
         )
         # GTP-U 隧道(UL/DL 都建立;UL 用于 N3 交付统计,DL 用于缓冲-转发)
-        tunnel = self.upf.create_tunnel(session.pdu_session_id, ue_request.direction)
+        tunnel = self.upf.create_tunnel(ue_state.ue_id, session.pdu_session_id, ue_request.direction)
         if is_downlink:
             # 下行:DN 数据经 N6 到达 UPF 缓冲(UE 挂起期间不丢);
             # 每 tick 由 N3 流转填充 gNB 侧 RLC 队列(实体 enqueue_bytes)。
             # 注意:缓冲与队列使用同一口径(pdcp_batch.output_bytes),
             # 初始队列清空(数据全部在 UPF 缓冲),避免双倍入队。
-            self.upf.receive_from_dn(session.pdu_session_id, pdcp_batch.output_bytes)
+            self.upf.receive_from_dn(ue_state.ue_id, session.pdu_session_id, pdcp_batch.output_bytes)
             dl_queue = replace(build_rlc_queue(pdcp_batch, drb), queued_bytes=0, retransmission_bytes=0)
             rlc_queue = replace(rlc_queue_placeholder(ue_request, drb))
         else:
@@ -448,7 +457,7 @@ class MultiAgentRanScenario:
             pdcp_batch=pdcp_batch,
             rlc_queue=rlc_queue,
             dl_queue=dl_queue,
-            upf_buffered_bytes=self.upf.buffered_bytes(session.pdu_session_id),
+            upf_buffered_bytes=self.upf.buffered_bytes(ue_state.ue_id, session.pdu_session_id),
             n3_tunnel_id=tunnel.tunnel_id,
             status="ACTIVE",
         )
@@ -509,7 +518,7 @@ class MultiAgentRanScenario:
         n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, service.session)))
         # 上行经 UPF 实体(N3 到达 → N6 交付 DN;带 GTP-U 隧道开销统计)
         n6 = forward_n6(self.upf.forward_to_dn(n3, service.session, target=service.ue_request.target))
-        ul_tunnel = self.upf.tunnel_of(service.session.pdu_session_id, "UL")
+        ul_tunnel = self.upf.tunnel_of(service.ue_id, service.session.pdu_session_id, "UL")
         if ul_tunnel is not None:
             service.n3_gtp_overhead_bytes = ul_tunnel.overhead_total_bytes
         delivered = deliver_to_data_network(n6)
@@ -618,7 +627,7 @@ class MultiAgentRanScenario:
 
         if (
             self._queue_drained(service)
-            and self.upf.buffered_bytes(service.session.pdu_session_id) <= 0
+            and self.upf.buffered_bytes(service.ue_id, service.session.pdu_session_id) <= 0
         ):
             unresolved_protocol_bytes = max(
                 0,
@@ -782,6 +791,7 @@ class MultiAgentRanScenario:
             "tick": tick,
             "direction": service.ue_request.direction,
             "dl_remaining_queue_bytes": dl_remaining,
+            "waiting_ticks": service.waiting_ticks,
             "upf_buffered_bytes": service.upf_buffered_bytes,
             "n3_tunnel_id": service.n3_tunnel_id,
             "n3_gtp_overhead_bytes": service.n3_gtp_overhead_bytes,
@@ -801,6 +811,27 @@ class MultiAgentRanScenario:
                 snapshot["rrc_state"] = ue_context.state.rrc_state
                 break
         return snapshot
+
+    def _congestion_metrics(self, service_states: list[dict[str, object]]) -> dict[str, object]:
+        """拥塞度指标(0608 需求:网络拥塞判断):
+        prb_ratio=本 tick PRB 占用率;queue_bytes=活跃队列积压总量。"""
+
+        total_prbs = float(getattr(self.gnb, "total_prbs", 106) or 106)
+        allocated = 0
+        queue_bytes = 0
+        waiting = 0
+        for state in service_states:
+            allocation = state.get("allocation") or {}
+            allocated += int(allocation.get("prbs", 0) or 0)
+            rlc = state.get("rlc_queue_after") or {}
+            queue_bytes += int(rlc.get("queued_bytes", 0) or 0) + int(rlc.get("retransmission_bytes", 0) or 0)
+            waiting += int(state.get("waiting_ticks", 0) or 0)
+        return {
+            "prb_ratio": round(min(1.0, allocated / total_prbs), 4) if total_prbs else 0.0,
+            "queue_bytes": queue_bytes,
+            "waiting_ticks": waiting,
+            "active_services": len(service_states),
+        }
 
     def _compose_state(
         self,
@@ -829,6 +860,7 @@ class MultiAgentRanScenario:
             "scheduler_request": scheduler_request,
             "scheduler_result": scheduler_result,
             "slice_usage": slice_usage,
+            "congestion": self._congestion_metrics(service_states),
             "progress": progress,
             # 兼容旧预览：只映射首个 Service，后续前端应读取 service_states。
             "result": primary.get("result", {}),

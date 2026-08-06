@@ -21,6 +21,9 @@ const I18N = {
     'chart.ul': 'UL KB/tick', 'chart.dl': 'DL KB/tick', 'chart.prbLabel': 'PRB 利用率 %',
     'chart.waiting': '等待 agent 到达目标并提交业务…(当前为移动阶段)',
     'chart.mcsLabel': 'MCS 档位', 'chart.snrLabel': 'SINR dB', 'chart.delayLabel': '时延 ms',
+    'chart.snr': '每 UE SINR(dB)', 'chart.bler': '每 UE BLER(%)',
+    'chart.delay': '每服务端到端时延(ms)', 'chart.congestion': '拥塞度(PRB 占用 / 队列积压)',
+    'chart.congPrb': 'PRB 占用 %', 'chart.congQueue': '队列积压 KB', 'chart.completion': '服务完成进度(%)',
   },
   en: {
     'overview.title': 'Simulation Overview',
@@ -42,6 +45,9 @@ const I18N = {
     'chart.ul': 'UL KB/tick', 'chart.dl': 'DL KB/tick', 'chart.prbLabel': 'PRB util %',
     'chart.waiting': 'Waiting for agents to reach targets and submit traffic… (movement phase)',
     'chart.mcsLabel': 'MCS level', 'chart.snrLabel': 'SINR dB', 'chart.delayLabel': 'Delay ms',
+    'chart.snr': 'Per-UE SINR(dB)', 'chart.bler': 'Per-UE BLER(%)',
+    'chart.delay': 'Per-service E2E delay(ms)', 'chart.congestion': 'Congestion (PRB util / queue)',
+    'chart.congPrb': 'PRB util %', 'chart.congQueue': 'Queue backlog KB', 'chart.completion': 'Service completion(%)',
   },
 };
 let lang = localStorage.getItem('preview-lang') || 'zh';
@@ -65,10 +71,14 @@ document.getElementById('btn-lang').addEventListener('click', toggleLang);
 let paused = false;
 let lastUpdateAt = 0;
 const trails = {}; // agent 移动轨迹(页面本地累积)
-let tick = 0;
+let tick = -1; // 初始 -1:保证首次 poll(文件 tick 0 或 80)必然通过 early-return 守卫并渲染
 let emptyFetches = 0;
 const MAX_POINTS = 60;
 const series = { ul: [], dl: [], prb: [], mcs: [], sinr: [], delay: [], delivered: [] };
+/* 每 UE / 每服务动态序列(多线图数据源) */
+const perUe = {};   // { ue_id: { sinr: [...], bler: [...] } }
+const perSvc = {};  // { service_instance_id: { delay: [...], ratio: [...] } }
+const cong = { prb: [], queue: [], waiting: [] };
 let lastRan = null;
 let serviceHistory = [];
 
@@ -524,7 +534,17 @@ function chartOpts() {
     responsive: true, maintainAspectRatio: false, animation: { duration: 250, easing: 'easeOutQuart' },
     plugins: {
       legend: { display: true, labels: { color: '#46525F', font: { size: 10 } } },
-      tooltip: { enabled: true, backgroundColor: '#1D1B20', titleColor: '#E6E0E9', bodyColor: '#E6E0E9' },
+      tooltip: {
+        enabled: true, backgroundColor: '#1D1B20', titleColor: '#E6E0E9', bodyColor: '#E6E0E9',
+        callbacks: {
+          // 悬停显示:数据集名(UE/服务/方向)+ 数值 + 单位
+          label: (ctx) => {
+            const ds = ctx.dataset || {};
+            const v = ctx.parsed && ctx.parsed.y !== undefined && ctx.parsed.y !== null ? ctx.parsed.y : '-';
+            return `${ds.label || ''}: ${v}${ds.unit || ''}`;
+          },
+        },
+      },
     },
     scales: {
       x: { ticks: { display: false }, grid: { display: false } },
@@ -563,11 +583,31 @@ function initCharts() {
   });
   charts.sinr = new Chart(document.getElementById('ch-sinr'), {
     type: 'line',
+    data: { labels: [], datasets: [] }, // 每 UE 一线(动态)
+    options: chartOpts(),
+  });
+  charts.bler = new Chart(document.getElementById('ch-bler'), {
+    type: 'line',
+    data: { labels: [], datasets: [] }, // 每 UE 一线(动态)
+    options: chartOpts(),
+  });
+  charts.delay = new Chart(document.getElementById('ch-delay'), {
+    type: 'line',
+    data: { labels: [], datasets: [] }, // 每服务一线(动态)
+    options: chartOpts(),
+  });
+  charts.congestion = new Chart(document.getElementById('ch-congestion'), {
+    type: 'line',
     data: { labels: [], datasets: [
-      { label: '', data: [], borderColor: CHART_COLORS.green, tension: .35, pointRadius: 0, borderWidth: 2 },
-      { label: '', data: [], borderColor: CHART_COLORS.amber, yAxisID: 'y1', tension: .35, pointRadius: 0, borderWidth: 2 },
+      { label: '', data: [], borderColor: CHART_COLORS.primary, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y', unit: '%' },
+      { label: '', data: [], borderColor: CHART_COLORS.amber, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y1', unit: ' KB' },
     ] },
     options: { ...chartOpts(), scales: { ...chartOpts().scales, y1: { position: 'right', ticks: { display: false }, grid: { display: false }, border: { display: false } } } },
+  });
+  charts.completion = new Chart(document.getElementById('ch-completion'), {
+    type: 'bar',
+    data: { labels: [], datasets: [] }, // 每服务一根(动态)
+    options: chartOpts(),
   });
 }
 function updateChartLabels() {
@@ -576,8 +616,8 @@ function updateChartLabels() {
   charts.throughput.data.datasets[1].label = t('chart.dl');
   charts.prb.data.datasets[0].label = t('chart.prbLabel');
   charts.mcs.data.datasets[0].label = t('chart.mcsLabel');
-  charts.sinr.data.datasets[0].label = t('chart.snrLabel');
-  charts.sinr.data.datasets[1].label = t('chart.delayLabel');
+  charts.congestion.data.datasets[0].label = t('chart.congPrb');
+  charts.congestion.data.datasets[1].label = t('chart.congQueue');
 }
 
 function aggregateTick(ran) {
@@ -604,13 +644,57 @@ function aggregateTick(ran) {
   series.delay.push(nDelay > 0 ? +(delaySum / nDelay).toFixed(1) : 0);
   const prog = ran.progress || {};
   series.delivered.push(prog.completion_ratio !== undefined ? Math.round(prog.completion_ratio * 100) : 0);
+
+  // ---- 每 UE / 每服务动态序列(多线图) ----
+  const seenUe = new Set(), seenSvc = new Set();
+  for (const s of services) {
+    const tx = s.transmission || {}, ch = s.channel || {}, n3 = s.n3 || {}, n6 = s.n6 || {};
+    const ue = s.ue_id || s.agent_id || 'ue';
+    seenUe.add(ue);
+    if (!perUe[ue]) perUe[ue] = { sinr: [], bler: [] };
+    perUe[ue].sinr.push(ch.sinr_db !== undefined && ch.sinr_db !== null ? +ch.sinr_db.toFixed(1) : null);
+    const attempted = tx.attempted_bytes || 0, failed = tx.failed_bytes || 0;
+    perUe[ue].bler.push(attempted > 0 ? +((failed / attempted) * 100).toFixed(2) : null);
+    const sid = s.service_instance_id || s.intent_id || `${ue}_svc`;
+    seenSvc.add(sid);
+    if (!perSvc[sid]) perSvc[sid] = { delay: [], ratio: [], label: `${ue} ${s.direction || ''}` };
+    const delayMs = (n3.n3_delay_ms || 0) + (n6.n6_delay_ms || 0);
+    perSvc[sid].delay.push(delayMs > 0 ? +delayMs.toFixed(2) : null);
+    const ratio = s.progress && s.progress.completion_ratio != null ? s.progress.completion_ratio : 0;
+    perSvc[sid].ratio.push(Math.round(ratio * 100));
+  }
+  // 未出现的新 UE/服务补齐 null(保持线长一致);已消失的删除
+  for (const ue of Object.keys(perUe)) {
+    if (perUe[ue].sinr.length < series.ul.length) { perUe[ue].sinr.push(null); perUe[ue].bler.push(null); }
+    if (!seenUe.has(ue)) delete perUe[ue];
+  }
+  for (const sid of Object.keys(perSvc)) {
+    if (perSvc[sid].delay.length < series.ul.length) { perSvc[sid].delay.push(null); perSvc[sid].ratio.push(null); }
+    if (!seenSvc.has(sid)) delete perSvc[sid];
+  }
+  for (const k of Object.keys(perUe)) for (const f of ['sinr', 'bler']) if (perUe[k][f].length > MAX_POINTS) perUe[k][f].shift();
+  for (const k of Object.keys(perSvc)) for (const f of ['delay', 'ratio']) if (perSvc[k][f].length > MAX_POINTS) perSvc[k][f].shift();
+
+  // ---- 拥塞度(顶层) ----
+  const c = ran.congestion || {};
+  cong.prb.push(c.prb_ratio !== undefined ? Math.round(c.prb_ratio * 100) : 0);
+  cong.queue.push(c.queue_bytes !== undefined ? Math.round(c.queue_bytes / 1024) : 0); // KB
+  cong.waiting.push(c.waiting_ticks || 0);
+
   for (const k in series) if (series[k].length > MAX_POINTS) series[k].shift();
+  for (const k in cong) if (cong[k].length > MAX_POINTS) cong[k].shift();
 }
 
 function updateCharts() {
-  if (!charts.throughput) return;
-  // 空态切换:无业务数据时显示等待提示
-  const hasData = series.ul.some((v) => v > 0) || series.dl.some((v) => v > 0);
+  if (!charts.throughput) {
+    // Chart.js(CDN)/initCharts 尚未就绪:自排队重试,避免首次 poll 早于
+    // 图表初始化而被永久跳过(文件静止时 tick 不再变化,外部不会再触发)
+    setTimeout(updateCharts, 300);
+    return;
+  }
+  // 空态切换:无业务数据时显示等待提示(系列长度>0 即渲染,避免首次 poll
+  // 数据为 0 时被守卫拦下、文件静止后永不重绘)
+  const hasData = series.ul.length > 0 || series.dl.length > 0;
   document.querySelectorAll('.chart-empty').forEach((el) => {
     el.style.display = hasData ? 'none' : 'flex';
   });
@@ -621,9 +705,37 @@ function updateCharts() {
   charts.throughput.data.datasets[1].data = series.dl;
   charts.prb.data.labels = labels; charts.prb.data.datasets[0].data = series.prb;
   charts.mcs.data.labels = labels; charts.mcs.data.datasets[0].data = series.mcs;
+  // 每 UE 多线:动态重建 datasets(颜色按 UE 序,悬停显示 ue_id)
+  const ueIds = Object.keys(perUe).sort();
   charts.sinr.data.labels = labels;
-  charts.sinr.data.datasets[0].data = series.sinr;
-  charts.sinr.data.datasets[1].data = series.delay;
+  charts.sinr.data.datasets = ueIds.map((ue, i) => ({
+    label: ue, data: perUe[ue].sinr, borderColor: AGENT_COLORS[i % AGENT_COLORS.length],
+    tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' dB',
+  }));
+  charts.bler.data.labels = labels;
+  charts.bler.data.datasets = ueIds.map((ue, i) => ({
+    label: ue, data: perUe[ue].bler, borderColor: AGENT_COLORS[(i + 2) % AGENT_COLORS.length],
+    tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' %',
+  }));
+  // 每服务多线
+  const svcIds = Object.keys(perSvc).sort();
+  charts.delay.data.labels = labels;
+  charts.delay.data.datasets = svcIds.map((sid, i) => ({
+    label: perSvc[sid].label || sid, data: perSvc[sid].delay,
+    borderColor: AGENT_COLORS[(i + 1) % AGENT_COLORS.length],
+    tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' ms',
+  }));
+  // 拥塞度:PRB 占用(%)+ 队列积压(KB)+ 等待 tick
+  charts.congestion.data.labels = labels;
+  charts.congestion.data.datasets[0].data = cong.prb;
+  charts.congestion.data.datasets[1].data = cong.queue;
+  // 服务完成进度(柱状,每服务一根)
+  charts.completion.data.labels = svcIds.map((sid) => perSvc[sid].label || sid);
+  charts.completion.data.datasets = [{
+    label: t('chart.completion'), data: svcIds.map((sid) => perSvc[sid].ratio[perSvc[sid].ratio.length - 1] || 0),
+    backgroundColor: svcIds.map((_, i) => AGENT_COLORS[i % AGENT_COLORS.length] + 'CC'),
+    borderRadius: 4, borderSkipped: false, unit: ' %',
+  }];
   for (const k in charts) charts[k].update();
 }
 

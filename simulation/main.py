@@ -197,6 +197,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="N3 backhaul bandwidth in Mbps (None = instantaneous, radio remains the bottleneck)",
     )
+    parser.add_argument(
+        "--max-waiting-ticks",
+        type=int,
+        default=600,
+        help="service failure threshold: ticks without allocation before marking FAILED (0 = disabled)",
+    )
     parser.add_argument("--console", action="store_true", help="open an interactive map query console")
     parser.add_argument("--ran-mvp", action="store_true", help="run the default three-agent RAN scenario")
     parser.add_argument(
@@ -283,6 +289,7 @@ def run_agent_sim_tick(
         same_building_only=args.llm_same_building,
         tick_ms=args.tick_ms,
         n3_bandwidth_mbps=args.n3_bandwidth_mbps,
+        max_waiting_ticks=args.max_waiting_ticks,
     )
     state = SimulationState(scene=scene)
     loop = SimulationLoop(

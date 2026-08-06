@@ -50,6 +50,7 @@ class SimulationOrchestrator:
         same_building_only: bool = False,
         tick_ms: float = 1000.0,
         n3_bandwidth_mbps: float | None = None,
+        max_waiting_ticks: int = 600,
         seed: int | None = None,
     ) -> None:
         self.scene = scene
@@ -82,6 +83,7 @@ class SimulationOrchestrator:
             agent_state_provider=SimulationAgentStateProvider(self.registry),
             tick_ms=tick_ms,
             n3_bandwidth_mbps=n3_bandwidth_mbps,
+            max_waiting_ticks=max_waiting_ticks,
         )
         # 3) 建意图网关并挂载回 registry。
         self.gateway = RanIntentGateway(self.scenario, intent_profiles=intent_profiles)

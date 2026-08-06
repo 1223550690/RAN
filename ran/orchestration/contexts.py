@@ -87,5 +87,6 @@ class ServiceContext:
     n3_tunnel_id: str | None = None  # n3_tunnel_id: GTP-U 隧道 id(dl_{session}/ul_{session})。
     n3_gtp_overhead_bytes: int = 0  # n3_gtp_overhead_bytes: 累计 GTP-U 封装开销(统计)。
     status: ServiceStatus = "INITIALIZING"
+    waiting_ticks: int = 0  # waiting_ticks: 累计等待分配 tick 数(拥塞/失败判定辅助)。
     counters: ServiceCounters = field(default_factory=ServiceCounters)
     last_state: dict[str, object] | None = None

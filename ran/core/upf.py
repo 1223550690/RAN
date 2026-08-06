@@ -24,12 +24,13 @@ MTU_BYTES = 1500
 
 @dataclass(slots=True)
 class GtpTunnel:
-    """一条 GTP-U 隧道(承载一个 PDU Session 的一个方向)。"""
+    """一条 GTP-U 隧道(单一 (UE, PDU Session, 方向) 组合)。"""
 
-    tunnel_id: str  # tunnel_id: "dl_{pdu_session_id}" / "ul_{pdu_session_id}"。
-    teid: int  # teid: 隧道端点标识(分配器保证唯一)。
-    direction: str  # direction: UL / DL。
+    tunnel_id: str  # tunnel_id: "{direction}_{ue_id}_{pdu_session_id}"。
+    teid: int
+    direction: str
     pdu_session_id: int
+    ue_id: str = ""  # ue_id: 隧道所属 UE(多 UE 隔离 key)。
     peer_address: str = "gnb"  # peer_address: 对端(仿真符号地址)。
     gtp_overhead_bytes: int = GTP_OVERHEAD_BYTES  # gtp_overhead_bytes: 每包 GTP-U 开销。
     overhead_total_bytes: int = 0  # overhead_total_bytes: 累计开销(统计用)。
@@ -40,16 +41,21 @@ class Upf:
 
     def __init__(self, *, n3_bandwidth_mbps: float | None = None) -> None:
         self.tunnels: dict[str, GtpTunnel] = {}
-        self.buffers: dict[str, int] = {}  # pdu_session_id -> UPF 侧 DL 缓冲字节
+        self.buffers: dict[str, int] = {}  # (ue_id, pdu_session_id) -> UPF 侧 DL 缓冲字节
         self._next_teid = 1000
         self.n3_bandwidth_mbps = n3_bandwidth_mbps  # None=瞬时到达
 
     # ---------------------------------------------------------------- 隧道
 
-    def create_tunnel(self, pdu_session_id: int, direction: str) -> GtpTunnel:
-        """为 PDU Session 的一个方向建立 GTP-U 隧道。"""
+    def create_tunnel(self, ue_id: str, pdu_session_id: int, direction: str) -> GtpTunnel:
+        """为 (UE, PDU Session, 方向) 建立 GTP-U 隧道。
 
-        tunnel_id = f"{direction.lower()}_{pdu_session_id}"
+        注意:key 必须含 ue_id——多 UE 场景下各 UE 的 pdu_session_id
+        均从 1 起分配,仅用 session id 会导致隧道/缓冲相互覆盖
+        (模板二三个 video_download 同时跑时数据混入同一队列)。
+        """
+
+        tunnel_id = self._tunnel_key(ue_id, pdu_session_id, direction)
         if tunnel_id in self.tunnels:
             return self.tunnels[tunnel_id]
         teid = self._next_teid
@@ -59,22 +65,28 @@ class Upf:
             teid=teid,
             direction=direction.upper(),
             pdu_session_id=pdu_session_id,
+            ue_id=ue_id,
         )
         self.tunnels[tunnel_id] = tunnel
         return tunnel
 
-    def tunnel_of(self, pdu_session_id: int, direction: str) -> GtpTunnel | None:
-        return self.tunnels.get(f"{direction.lower()}_{pdu_session_id}")
+    @staticmethod
+    def _tunnel_key(ue_id: str, pdu_session_id: int, direction: str) -> str:
+        return f"{direction.lower()}_{ue_id}_{pdu_session_id}"
+
+    def tunnel_of(self, ue_id: str, pdu_session_id: int, direction: str) -> GtpTunnel | None:
+        return self.tunnels.get(self._tunnel_key(ue_id, pdu_session_id, direction))
 
     # ---------------------------------------------------------------- N6 / N3
 
-    def receive_from_dn(self, pdu_session_id: int, bytes_total: int) -> None:
+    def receive_from_dn(self, ue_id: str, pdu_session_id: int, bytes_total: int) -> None:
         """N6:DN 数据到达 → 进入 UPF 缓冲(下行;UE 挂起期间数据不丢)。"""
 
-        self.buffers[str(pdu_session_id)] = self.buffers.get(str(pdu_session_id), 0) + bytes_total
+        key = f"{ue_id}:{pdu_session_id}"
+        self.buffers[key] = self.buffers.get(key, 0) + bytes_total
 
-    def buffered_bytes(self, pdu_session_id: int) -> int:
-        return self.buffers.get(str(pdu_session_id), 0)
+    def buffered_bytes(self, ue_id: str, pdu_session_id: int) -> int:
+        return self.buffers.get(f"{ue_id}:{pdu_session_id}", 0)
 
     def forward_to_gnb(
         self,
@@ -85,8 +97,8 @@ class Upf:
     ) -> int:
         """N3:UPF 缓冲 → gNB(下行)。返回实际转发业务字节;受 N3 带宽与缓冲量约束。"""
 
-        session_id = str(tunnel.pdu_session_id)
-        available = self.buffers.get(session_id, 0)
+        key = f"{tunnel.ue_id}:{tunnel.pdu_session_id}"
+        available = self.buffers.get(key, 0)
         if available <= 0:
             return 0
         limit = max_bytes if max_bytes is not None else available
@@ -94,7 +106,7 @@ class Upf:
             capacity = int(self.n3_bandwidth_mbps * 1_000_000 / 8 * tick_ms / 1000)
             limit = min(limit, capacity)
         tx = min(available, limit)
-        self.buffers[session_id] = available - tx
+        self.buffers[key] = available - tx
         # GTP-U 开销统计:按 MTU 估算包数
         packets = (tx + MTU_BYTES - 1) // MTU_BYTES
         tunnel.overhead_total_bytes += packets * tunnel.gtp_overhead_bytes
@@ -109,7 +121,7 @@ class Upf:
     ) -> N6DeliveryResult:
         """N3 到达 UPF(上行)→ N6 交付 DN。走隧道实例(存在时),语义同模块函数。"""
 
-        tunnel = self.tunnel_of(session.pdu_session_id, "UL")
+        tunnel = self.tunnel_of(session.ue_id, session.pdu_session_id, "UL")
         if tunnel is not None:
             packets = (n3_result.forwarded_bytes + MTU_BYTES - 1) // MTU_BYTES
             tunnel.overhead_total_bytes += packets * tunnel.gtp_overhead_bytes
