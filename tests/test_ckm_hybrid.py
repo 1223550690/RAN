@@ -9,7 +9,7 @@ from pathlib import Path
 from ran.ckm.beam import BeamConfig, beam_gain_db, default_codebook, select_best_beam
 from ran.ckm.calibration import apply_calibration, feature_vector, fit_calibration
 from ran.ckm.ckm import HybridCkm, HybridCKMCell, compute_version_key
-from ran.ckm.residual import IdwResidualModel, ResidualPoint
+from ran.ckm.residual import GaussianProcessResidualModel, IdwResidualModel, ResidualPoint
 from ran.radio.channel_policy import MODE_HYBRID, load_channel_model_policy
 from ran.radio.topology_adapter import load_gnb_site_from_scene
 from structure.scene_registry import build_scene
@@ -82,6 +82,43 @@ class ResidualTests(unittest.TestCase):
         self.assertEqual(pred.residual_mean_db, 0.0)
         self.assertEqual(pred.residual_std_db, 6.0)
         self.assertEqual(pred.supporting_measurement_count, 0)
+
+
+class GaussianProcessResidualTests(unittest.TestCase):
+    def test_gp_interpolates_at_reference_points(self) -> None:
+        points = [
+            ResidualPoint(0.0, 0.0, 2.0),
+            ResidualPoint(10.0, 0.0, -1.0),
+            ResidualPoint(5.0, 5.0, 0.5),
+        ]
+        model = GaussianProcessResidualModel(points, noise_std_db=1e-6, signal_std_db=4.0)
+        near = model.predict(0.0, 0.0)
+        self.assertAlmostEqual(near.residual_mean_db, 2.0, delta=0.3)
+        self.assertLess(near.residual_std_db, 0.5)
+
+    def test_gp_uncertainty_grows_with_distance(self) -> None:
+        points = [ResidualPoint(0.0, 0.0, 1.0), ResidualPoint(10.0, 0.0, -1.0)]
+        model = GaussianProcessResidualModel(points, length_scale_m=30.0, signal_std_db=5.0, noise_std_db=0.5)
+        near = model.predict(2.0, 0.0)
+        far = model.predict(200.0, 200.0)
+        self.assertGreater(far.residual_std_db, near.residual_std_db)
+
+    def test_gp_empty_model_falls_back(self) -> None:
+        model = GaussianProcessResidualModel([], prior_std_db=6.0)
+        pred = model.predict(1.0, 1.0)
+        self.assertEqual(pred.residual_mean_db, 0.0)
+        self.assertEqual(pred.residual_std_db, 6.0)
+
+    def test_gp_cholesky_solve_recovers_known_system(self) -> None:
+        from ran.ckm.residual import _cholesky, _solve_cholesky
+
+        # 3x3 SPD 系统:A x = b,解 x = [1, 2, 3]
+        a = [[4.0, 1.0, 0.0], [1.0, 3.0, 1.0], [0.0, 1.0, 2.0]]
+        b = [1.0 * 4 + 2.0 * 1, 1.0 * 1 + 2.0 * 3 + 3.0 * 1, 2.0 * 1 + 3.0 * 2]
+        lower = _cholesky(a)
+        x = _solve_cholesky(lower, b)
+        for got, expected in zip(x, [1.0, 2.0, 3.0]):
+            self.assertAlmostEqual(got, expected, places=8)
 
 
 class BeamTests(unittest.TestCase):

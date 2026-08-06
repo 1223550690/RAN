@@ -16,7 +16,7 @@ from ran.ckm.ckm import (
     scene_structure_hash,
 )
 from ran.ckm.reference import build_reference_measurements
-from ran.ckm.residual import IdwResidualModel, ResidualPoint
+from ran.ckm.residual import GaussianProcessResidualModel, IdwResidualModel, ResidualPoint
 from ran.radio.channel_pipeline import evaluate_channel_path_loss
 from ran.radio.geometry import PropagationGeometry, analyze_propagation_geometry, coordinate_view_from_calibration
 
@@ -36,6 +36,10 @@ class CkmConfig:
     residual_max_neighbors: int = 8
     residual_prior_std_db: float = 6.0
     residual_reference_distance_m: float = 50.0
+    residual_method: str = "gp"  # residual_method: "gp"(Matérn 3/2 Kriging,默认)/ "idw"。
+    residual_length_scale_m: float = 50.0
+    residual_signal_std_db: float = 6.0
+    residual_noise_std_db: float = 1.0
     beam_enabled: bool = True
     beam_codebook: list[BeamConfig] = field(default_factory=default_codebook)
     nlos_gain_cap_db: float | None = -3.0
@@ -70,6 +74,10 @@ class CkmConfig:
             residual_max_neighbors=int(data.get("residual", {}).get("max_neighbors", 8)),
             residual_prior_std_db=float(data.get("residual", {}).get("prior_std_db", 6.0)),
             residual_reference_distance_m=float(data.get("residual", {}).get("reference_distance_m", 50.0)),
+            residual_method=str(data.get("residual", {}).get("method", "gp")),
+            residual_length_scale_m=float(data.get("residual", {}).get("length_scale_m", 50.0)),
+            residual_signal_std_db=float(data.get("residual", {}).get("signal_std_db", 6.0)),
+            residual_noise_std_db=float(data.get("residual", {}).get("noise_std_db", 1.0)),
             beam_enabled=bool(beam_data.get("enabled", True)),
             beam_codebook=codebook,
             nlos_gain_cap_db=(
@@ -215,7 +223,7 @@ def build_hybrid_ckm(
     gnb,
     policy,
     ckm_config: CkmConfig | None = None,
-    calibration_version: str = "ckm-v2",
+    calibration_version: str = "ckm-v3",
 ) -> HybridCkm | None:
     """构建(或从缓存加载)混合 CKM;失败返回 None(调用方回退 shadow)。"""
 
@@ -341,13 +349,22 @@ def build_hybrid_ckm(
         ridge_lambda=ckm_config.ridge_lambda,
         model_version=calibration_version,
     )
-    residual_model = IdwResidualModel(
-        residual_points,
-        power=ckm_config.residual_power,
-        max_neighbors=ckm_config.residual_max_neighbors,
-        prior_std_db=ckm_config.residual_prior_std_db,
-        reference_distance_m=ckm_config.residual_reference_distance_m,
-    )
+    if ckm_config.residual_method == "idw":
+        residual_model = IdwResidualModel(
+            residual_points,
+            power=ckm_config.residual_power,
+            max_neighbors=ckm_config.residual_max_neighbors,
+            prior_std_db=ckm_config.residual_prior_std_db,
+            reference_distance_m=ckm_config.residual_reference_distance_m,
+        )
+    else:
+        residual_model = GaussianProcessResidualModel(
+            residual_points,
+            length_scale_m=ckm_config.residual_length_scale_m,
+            signal_std_db=ckm_config.residual_signal_std_db,
+            noise_std_db=ckm_config.residual_noise_std_db,
+            prior_std_db=ckm_config.residual_prior_std_db,
+        )
 
     # cells 转换(快:IDW 残差 + 校准 + beam;候选点已采样完毕,转换不设时限)
     cells: list[HybridCKMCell] = []
