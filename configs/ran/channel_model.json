@@ -35,6 +35,56 @@
             "penetration_model": "low_loss",
             "source": "simulation_assumption",
             "status": "assumed"
+          },
+          "block_11_research": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "block_12_library": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "wills_physics_laboratory": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "physics_central_tower": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "physics_west_annex": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "block_07_east_building": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "student_housing_east": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "residential_long_block": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "ensuite_residence": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "coliving_space": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
           }
         }
       },

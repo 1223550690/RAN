@@ -23,6 +23,12 @@
 
 ## 2026-08-05
 
+- 基于 `editor/data/scenes/bristol_topology.json` 与原始俯瞰图生成屋顶移除式 2.5D 地图背景。
+- 保持正交俯视构图，强化建筑内外墙、门洞、入口和环境光遮蔽；修正 Royal Fort 三块开放绿地被误渲染为围墙的问题。
+- 新增 `outputs/scene_bristol_bg_2000_2p5d.png`，未覆盖原图，尚未接入模拟预览页面。
+
+## 2026-08-05
+
 - 实现 Agent 状态生成完整链路(LLM/模板 → 语义解析 → 导航 → 移动 → 意图提交 → RAN → 完成事件 → 再规划)。
 - 新增 `simulation/agent/` 子系统与 `simulation/orchestrator.py`;`ran/scenario.py` 增加 `submit_intent()` 运行中提交意图;合同与 schema 按默认字段向后兼容扩展。
 - 已授权执行验证:模板模式端到端闭环通过(tick 52 全部 Agent DONE、业务全 COMPLETED、字节守恒)。
@@ -50,3 +56,10 @@
     区域优先、层级最浅优先、唯一命中采用);同建筑过滤大小写;`by_name` 补注册完整
     层级路径;DeepSeek `response_format=json_object` 要求 prompt 含 "json"(已满足)。
   - 失败重试验证:偶发失败 1 次后 LLM 重新决策自动恢复。
+
+## 2026-08-06 (续二)
+
+- 五成员分支合并完成(zhiqian/3gpp、haoyu_amf、xizhe_pdcp/rlc、boyu/area-b、tr22068/scheduling-tests),集成分支 `integration/merge` 已推送 GitHub。
+- 集成适配:恢复 RanUploadScenario 兼容层、兼容层升级 xizhe 实体管道、boyu 合同校验适配(可选字段原则)、tr22068 调度算法 + PHR 向后兼容合入。
+- 合并后验证:unittest 131/131、pytest 89/89、Bristol Agent 闭环正常。
+- 文档:`integration_branch_overview_zh.md`(集成分支总览)、`tr22068_merge_report_zh.md`(tr22068 合并报告)。

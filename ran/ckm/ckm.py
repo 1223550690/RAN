@@ -132,9 +132,17 @@ def cache_path(scene_id: str) -> Path:
     return CKM_CACHE_DIR / f"ckm_cache_{scene_id}.json"
 
 
-def compute_version_key(*, scene_id: str, gnb, calibration_version: str, reference_count: int, seed: int) -> str:
-    """版本键:场景结构/gNB/校准/参考/码本任一变化 → 重建。"""
+def compute_version_key(
+    *,
+    scene_id: str,
+    gnb,
+    calibration_version: str,
+    reference_count: int,
+    seed: int,
+    policy_hash: str = "",
+) -> str:
+    """版本键:场景结构/gNB/校准/参考/码本/信道策略(含 O2I profile)任一变化 → 重建。"""
 
     scene_repr = f"{scene_id}:{gnb.gnb_id}:{gnb.position.x:.1f}:{gnb.position.y:.1f}:{gnb.carrier_freq_mhz}:{gnb.tx_power_dbm}"
-    raw = f"{scene_repr}|{calibration_version}|ref{reference_count}|seed{seed}"
+    raw = f"{scene_repr}|{calibration_version}|ref{reference_count}|seed{seed}|policy:{policy_hash}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]

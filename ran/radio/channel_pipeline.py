@@ -261,7 +261,9 @@ def _evaluated(
     ue_height=None,
     penetration_profile=None,
 ) -> ChannelPathLossEvaluation:
-    active = policy.mode == MODE_3GPP_PREFERRED
+    # 选择 3GPP 评估值作为运行值:3gpp_preferred 与 hybrid 均以 3GPP 为先验;
+    # shadow 模式保留 legacy 为运行值(仅评估,用于对照)。
+    active = policy.mode in (MODE_3GPP_PREFERRED, MODE_HYBRID)
     return ChannelPathLossEvaluation(
         mode=policy.mode,
         selected_model=model if active else MODE_LEGACY,

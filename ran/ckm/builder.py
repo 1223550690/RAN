@@ -1,6 +1,7 @@
 """混合 CKM 构建器(环节四~八组装):启动时一次生成,缓存复用。"""
 from __future__ import annotations
 
+import hashlib
 import math
 import time
 from dataclasses import dataclass, field
@@ -213,7 +214,7 @@ def build_hybrid_ckm(
     gnb,
     policy,
     ckm_config: CkmConfig | None = None,
-    calibration_version: str = "ckm-v1",
+    calibration_version: str = "ckm-v2",
 ) -> HybridCkm | None:
     """构建(或从缓存加载)混合 CKM;失败返回 None(调用方回退 shadow)。"""
 
@@ -222,6 +223,7 @@ def build_hybrid_ckm(
     if not ckm_config.enabled:
         return None
     scene_id = str(getattr(scene, "node_id", ""))
+    policy_hash = hashlib.sha256(str(sorted(policy.o2i_profiles.keys())).encode()).hexdigest()[:8]
 
     version_key = compute_version_key(
         scene_id=scene_id,
@@ -229,6 +231,7 @@ def build_hybrid_ckm(
         calibration_version=calibration_version,
         reference_count=ckm_config.reference_count,
         seed=ckm_config.reference_seed,
+        policy_hash=policy_hash,
     )
     # 缓存命中
     if ckm_config.cache_enabled:

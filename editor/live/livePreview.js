@@ -289,9 +289,9 @@ function updateBanner(ran, nowSeconds) {
 
 /* 地图上的 agent 路线图层(每次 poll 更新) */
 /* ================= CKM 热力图叠加 ================= */
-function rsrpColor(rsrp) {
-  // -130dBm(红)→ -60dBm(绿),HSL 线性插值
-  const t = Math.max(0, Math.min(1, (rsrp - (-130)) / (-60 - (-130))));
+function rsrpColor(rsrp, lo, hi) {
+  // 自适应色阶:lo(红)→ hi(绿),数据范围归一化
+  const t = hi > lo ? Math.max(0, Math.min(1, (rsrp - lo) / (hi - lo))) : 0.5;
   return `hsl(${(t * 120).toFixed(0)}, 75%, 45%)`;
 }
 function loadHeatmap() {
@@ -301,18 +301,27 @@ function loadHeatmap() {
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
       if (!data || !Array.isArray(data.points) || !data.points.length) return;
+      // 自适应色阶:按数据实际分布取 2%~98% 分位(抗离群点)
+      const vals = data.points.map((p) => p.rsrp).sort((a, b) => a - b);
+      const q = (k) => vals[Math.min(vals.length - 1, Math.floor(k * (vals.length - 1)))];
+      const lo = q(0.02), hi = q(0.98);
       const ctx = canvas.getContext('2d');
       const W = canvas.width, H = canvas.height;
       ctx.clearRect(0, 0, W, H);
       const scale = data.grid_scale_m || 25;
       for (const p of data.points) {
-        ctx.fillStyle = rsrpColor(p.rsrp);
+        ctx.fillStyle = rsrpColor(p.rsrp, lo, hi);
         const px = (p.x / 2000) * W, py = (p.y / 2000) * H;
         const sz = Math.max(2, (scale / 2000) * W);
         ctx.fillRect(px, py, sz, sz);
       }
       canvas.classList.add('visible');
-      document.querySelector('.heatmap-legend')?.classList.add('visible');
+      const legend = document.querySelector('.heatmap-legend');
+      if (legend) {
+        legend.querySelector('.labels span:first-child').textContent = lo.toFixed(0) + ' dBm';
+        legend.querySelector('.labels span:last-child').textContent = hi.toFixed(0) + ' dBm';
+        legend.classList.add('visible');
+      }
     })
     .catch(() => {});
 }

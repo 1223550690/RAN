@@ -93,8 +93,9 @@ class ChannelRuntimePipelineTests(unittest.TestCase):
             policy=policy,
         )
 
-        self.assertEqual(result.selected_model, MODE_LEGACY)
-        self.assertEqual(result.selected_total_path_loss_db, legacy_loss)
+        # hybrid 模式:3GPP 评估值即运行值(不再保留 legacy 为运行值)
+        self.assertEqual(result.selected_model, "3gpp_o2i")
+        self.assertAlmostEqual(result.selected_total_path_loss_db, 108.5172986450)
         self.assertEqual(result.evaluated_model, "3gpp_o2i")
         self.assertAlmostEqual(result.evaluated_total_path_loss_db, 108.5172986450)
         self.assertTrue(result.is_extrapolated)
@@ -202,9 +203,10 @@ class ChannelRuntimePipelineTests(unittest.TestCase):
             gnb=self.gnb,
         )
 
+        # hybrid 模式(无 CKM 时回退 pipeline):运行值选择 3GPP 评估值
         self.assertEqual(channel.channel_model_mode, MODE_HYBRID)
-        self.assertEqual(channel.path_loss_model, MODE_LEGACY)
-        self.assertAlmostEqual(channel.total_path_loss_db, 130.05980565039312)
+        self.assertEqual(channel.path_loss_model, "3gpp_o2i")
+        self.assertAlmostEqual(channel.total_path_loss_db, 108.5172986450)
         self.assertEqual(channel.evaluated_path_loss_model, "3gpp_o2i")
         self.assertAlmostEqual(channel.evaluated_total_path_loss_db, 108.5172986450)
         self.assertEqual(channel.link_type, "outdoor_to_indoor")

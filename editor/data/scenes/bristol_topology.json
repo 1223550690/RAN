@@ -4096,7 +4096,7 @@
               80
             ],
             [
-              198,
+              78,
               80
             ]
           ],
@@ -4293,7 +4293,9 @@
           259,
           360
         ],
-        "area_colors": {}
+        "area_colors": {
+          "block_11_research_open_space": "#eadb96"
+        }
       }
     },
     {
