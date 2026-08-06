@@ -50,7 +50,7 @@ const I18N = {
     'chart.congPrb': 'PRB util %', 'chart.congQueue': 'Queue backlog KB', 'chart.completion': 'Service completion(%)',
   },
 };
-let lang = localStorage.getItem('preview-lang') || 'zh';
+let lang = localStorage.getItem('preview-lang') || 'en'; // 默认英文(用户指定)
 function t(key) {
   const v = I18N[lang][key];
   return typeof v === 'string' ? v : key;
@@ -64,6 +64,7 @@ function toggleLang() {
   localStorage.setItem('preview-lang', lang);
   applyI18n();
   renderAgents(); // 卡片内嵌文案需重渲染
+  updateChartLabels(); // 下拉选项 + 图表 label 双语切换
 }
 document.getElementById('btn-lang').addEventListener('click', toggleLang);
 
@@ -531,7 +532,10 @@ function renderTaskPanel(planSummary, ran) {
 const CHART_COLORS = { primary: '#4A87BE', tertiary: '#7D8CA4', secondary: '#5E7894', green: '#4C9E74', amber: '#B08A3E' };
 function chartOpts() {
   return {
-    responsive: true, maintainAspectRatio: false, animation: { duration: 250, easing: 'easeOutQuart' },
+    responsive: true, maintainAspectRatio: false,
+    // 实时监控:关闭动画——每 tick 数据更新时不重放入场动画(曲线收回展开
+    // 的根因之一),曲线平滑右移
+    animation: false,
     plugins: {
       legend: { display: true, labels: { color: '#46525F', font: { size: 10 } } },
       tooltip: {
@@ -572,54 +576,56 @@ function chartKindLabel(id) {
   return k ? (lang === 'zh' ? k.zh : k.en) : id;
 }
 
-/* 按类型构建图表数据(labels + datasets + 可选双轴配置) */
+/* 按类型构建图表数据(labels + datasets + 身份 keys + 可选双轴配置)。
+   keys:数据集身份标识(如 UE 列表/方向列表)——keys 不变时 updateCharts
+   原地更新(保 dataset 引用,不重放入场动画);变化时重建。 */
 function buildChartData(kind) {
   const labels = series.ul.map((_, i) => `t${tick - series.ul.length + 1 + i}`);
   const ueIds = Object.keys(perUe).sort();
   const svcIds = Object.keys(perSvc).sort();
   switch (kind) {
     case 'throughput':
-      return { type: 'line', labels, datasets: [
+      return { type: 'line', keys: ['UL', 'DL'], labels, datasets: [
         { label: t('chart.ul'), data: series.ul, borderColor: CHART_COLORS.primary, backgroundColor: 'rgba(74,135,190,.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, unit: ' KB' },
         { label: t('chart.dl'), data: series.dl, borderColor: CHART_COLORS.tertiary, backgroundColor: 'rgba(125,140,164,.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, unit: ' KB' },
       ] };
     case 'prb':
-      return { type: 'bar', labels, datasets: [
+      return { type: 'bar', keys: ['PRB'], labels, datasets: [
         { label: t('chart.prbLabel'), data: series.prb, backgroundColor: CHART_COLORS.primary, borderRadius: 4, borderSkipped: false, unit: ' %' },
       ] };
     case 'mcs':
-      return { type: 'bar', labels, datasets: [
+      return { type: 'bar', keys: ['MCS'], labels, datasets: [
         { label: t('chart.mcsLabel'), data: series.mcs, backgroundColor: CHART_COLORS.secondary, borderRadius: 4, borderSkipped: false, unit: '' },
       ] };
     case 'sinr':
-      return { type: 'line', labels, datasets: ueIds.map((ue, i) => ({
+      return { type: 'line', keys: ueIds, labels, datasets: ueIds.map((ue, i) => ({
         label: ue, data: perUe[ue].sinr, borderColor: AGENT_COLORS[i % AGENT_COLORS.length],
         tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' dB',
       })) };
     case 'bler':
-      return { type: 'line', labels, datasets: ueIds.map((ue, i) => ({
+      return { type: 'line', keys: ueIds, labels, datasets: ueIds.map((ue, i) => ({
         label: ue, data: perUe[ue].bler, borderColor: AGENT_COLORS[(i + 2) % AGENT_COLORS.length],
         tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' %',
       })) };
     case 'delay':
-      return { type: 'line', labels, datasets: svcIds.map((sid, i) => ({
+      return { type: 'line', keys: svcIds, labels, datasets: svcIds.map((sid, i) => ({
         label: perSvc[sid].label || sid, data: perSvc[sid].delay,
         borderColor: AGENT_COLORS[(i + 1) % AGENT_COLORS.length],
         tension: .35, pointRadius: 0, borderWidth: 2, spanGaps: true, unit: ' ms',
       })) };
     case 'congestion':
-      return { type: 'line', labels, y1: true, datasets: [
+      return { type: 'line', keys: ['PRB%', 'QUEUE'], labels, y1: true, datasets: [
         { label: t('chart.congPrb'), data: cong.prb, borderColor: CHART_COLORS.primary, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y', unit: ' %' },
         { label: t('chart.congQueue'), data: cong.queue, borderColor: CHART_COLORS.amber, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y1', unit: ' KB' },
       ] };
     case 'completion':
-      return { type: 'bar', labels: svcIds.map((sid) => perSvc[sid].label || sid), datasets: [{
+      return { type: 'bar', keys: svcIds, labels: svcIds.map((sid) => perSvc[sid].label || sid), datasets: [{
         label: t('chart.completion'), data: svcIds.map((sid) => perSvc[sid].ratio[perSvc[sid].ratio.length - 1] || 0),
         backgroundColor: svcIds.map((_, i) => AGENT_COLORS[i % AGENT_COLORS.length] + 'CC'),
         borderRadius: 4, borderSkipped: false, unit: ' %',
       }] };
     default:
-      return { type: 'line', labels, datasets: [] };
+      return { type: 'line', keys: [], labels, datasets: [] };
   }
 }
 
@@ -640,6 +646,7 @@ function rebuildMainChart() {
     data: { labels: data.labels, datasets: data.datasets },
     options: chartOptionsFor(chartKind),
   });
+  charts.main._keys = data.keys; // 数据集身份标识(原地更新判定)
 }
 
 function initCharts() {
@@ -744,10 +751,16 @@ function updateCharts() {
     el.style.display = hasData ? 'none' : 'flex';
   });
   if (!hasData) return;
-  // 单图更新:按当前下拉类型重建数据(不销毁实例,保持交互)
+  // 单图更新:keys 不变 → 原地更新(保 dataset 引用,曲线平滑右移,
+  // 不重放入场动画);keys 变化(UE/服务增删、切换类型)→ 重建
   const data = buildChartData(chartKind);
+  const sameKeys = charts.main._keys && data.keys.length === charts.main._keys.length
+    && data.keys.every((k, i) => k === charts.main._keys[i]);
+  if (!sameKeys) { rebuildMainChart(); return; }
   charts.main.data.labels = data.labels;
-  charts.main.data.datasets = data.datasets;
+  for (let i = 0; i < data.datasets.length; i++) {
+    charts.main.data.datasets[i].data = data.datasets[i].data;
+  }
   charts.main.update();
 }
 
