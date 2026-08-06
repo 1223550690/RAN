@@ -12,7 +12,9 @@ SUPPORTED_SCHEMA_VERSION = "1"
 MODE_LEGACY = "legacy"
 MODE_SHADOW = "shadow"
 MODE_3GPP_PREFERRED = "3gpp_preferred"
-SUPPORTED_MODES = {MODE_LEGACY, MODE_SHADOW, MODE_3GPP_PREFERRED}
+MODE_HYBRID = "hybrid"
+SUPPORTED_MODES = {MODE_LEGACY, MODE_SHADOW, MODE_3GPP_PREFERRED, MODE_HYBRID}
+SUPPORTED_FALLBACKS = {MODE_LEGACY, MODE_SHADOW}
 
 
 class ChannelModelConfigError(ValueError):
@@ -48,14 +50,19 @@ class ChannelModelPolicy:
     o2i_profiles: dict[str, O2IBuildingProfile] = field(default_factory=dict)
     penetration_residual_db: float = 0.0
     unconfigured_building_policy: str = "legacy_fallback"
+    ckm_config: dict | None = None  # ckm_config: 混合 CKM 配置(hybrid mode 使用)。
 
     @property
     def allow_extrapolation(self) -> bool:
-        if self.mode == MODE_SHADOW:
+        if self.mode in (MODE_SHADOW, MODE_HYBRID):
             return self.allow_extrapolation_in_shadow
         if self.mode == MODE_3GPP_PREFERRED:
             return self.allow_extrapolation_when_active
         return False
+
+    @property
+    def is_hybrid(self) -> bool:
+        return self.mode == MODE_HYBRID
 
 
 def load_channel_model_policy(
@@ -95,8 +102,10 @@ def load_channel_model_policy(
             f"Unsupported channel-model mode {mode!r}; expected one of {sorted(SUPPORTED_MODES)}."
         )
     fallback_model = str(scene_data.get("fallback_model", MODE_LEGACY))
-    if fallback_model != MODE_LEGACY:
-        raise ChannelModelConfigError("Only the legacy fallback model is currently supported.")
+    if fallback_model not in SUPPORTED_FALLBACKS:
+        raise ChannelModelConfigError(
+            f"Unsupported fallback_model {fallback_model!r}; expected one of {sorted(SUPPORTED_FALLBACKS)}."
+        )
 
     height_reference = _nonempty_string(
         scene_data.get("height_reference", "local_ground"),
@@ -161,6 +170,7 @@ def load_channel_model_policy(
         o2i_profiles=profiles,
         penetration_residual_db=residual,
         unconfigured_building_policy=unconfigured_building_policy,
+        ckm_config=(scene_data.get("ckm") if isinstance(scene_data.get("ckm"), dict) else None),
     )
 
 

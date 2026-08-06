@@ -76,6 +76,7 @@ class MultiAgentRanScenario:
         self.amf = Amf()
         self.upf = Upf(n3_bandwidth_mbps=n3_bandwidth_mbps)
         self.slice_policies = update_slice_policies()
+        self._ensure_hybrid_ckm()
         self.agents: dict[str, AgentContext] = {}
         self.intents: dict[str, IntentContext] = {}
         self.ues: dict[str, UeContext] = {}
@@ -87,6 +88,46 @@ class MultiAgentRanScenario:
 
         initial_states = self._read_agent_states(tick=0)
         self._build_contexts(initial_states)
+
+    def _ensure_hybrid_ckm(self) -> None:
+        """hybrid 信道模式:模拟启动时构建(或加载缓存)混合 CKM 并挂到 scene。
+
+        构建失败/关闭时 scene.ckm 保持 None,estimate_channel 自动回退。
+        环境变量 RAN_DISABLE_CKM=1 可跳过构建(测试环境用)。
+        """
+
+        import os
+
+        if os.environ.get("RAN_DISABLE_CKM") == "1":
+            return
+        try:
+            from ran.radio.channel_policy import load_channel_model_policy
+
+            policy = load_channel_model_policy(str(getattr(self.scene, "node_id", "")))
+        except Exception:
+            policy = None
+        if policy is None or not policy.is_hybrid:
+            return
+        try:
+            from ran.ckm import CkmConfig, build_hybrid_ckm
+
+            config = CkmConfig.from_dict(policy.ckm_config)
+            ckm = build_hybrid_ckm(
+                scene=self.scene,
+                gnb=self.gnb,
+                policy=policy,
+                ckm_config=config,
+            )
+            if ckm is not None:
+                self.scene.ckm = ckm
+                print(
+                    f"[ckm] hybrid CKM 就绪: cells={len(ckm.cells)} "
+                    f"refs={ckm.model_metadata.get('reference_count')} "
+                    f"build={ckm.model_metadata.get('build_seconds')}s",
+                    flush=True,
+                )
+        except Exception as exc:  # CKM 失败不阻塞模拟(回退 shadow)
+            print(f"[ckm] 混合 CKM 构建失败,回退 shadow: {exc}", file=sys.stderr, flush=True)
 
     def step(self, tick: int) -> dict[str, object]:
         """推进一个 tick：汇总所有活跃队列，调度一次，再逐业务执行。"""

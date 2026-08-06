@@ -7,6 +7,7 @@ const I18N = {
     'overview.pause': '暂停', 'overview.resume': '继续', 'overview.export': '导出 Logs',
     'overview.waiting': '等待数据…', 'overview.updated': '更新', 'overview.paused': '已暂停',
     'map.hint': '悬停查看对象信息 · 浅色缺口 = 可通行',
+    'map.heatmap': '信道热力图',
     'map.passable': '可通行', 'map.road': '大道', 'map.junction': '交汇', 'map.boundary': '边界',
     'chart.throughput': '系统吞吐量(UL/DL)', 'chart.prb': 'PRB 利用率', 'chart.mcs': 'MCS 分布',
     'chart.snr': '平均 SINR / QoS 时延',
@@ -287,6 +288,46 @@ function updateBanner(ran, nowSeconds) {
 }
 
 /* 地图上的 agent 路线图层(每次 poll 更新) */
+/* ================= CKM 热力图叠加 ================= */
+function rsrpColor(rsrp) {
+  // -130dBm(红)→ -60dBm(绿),HSL 线性插值
+  const t = Math.max(0, Math.min(1, (rsrp - (-130)) / (-60 - (-130))));
+  return `hsl(${(t * 120).toFixed(0)}, 75%, 45%)`;
+}
+function loadHeatmap() {
+  const canvas = document.getElementById('heatmap');
+  if (!canvas) return;
+  fetch('/outputs/ckm_heatmap_bristol_topology.json?ts=' + Date.now(), { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data) => {
+      if (!data || !Array.isArray(data.points) || !data.points.length) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+      const scale = data.grid_scale_m || 25;
+      for (const p of data.points) {
+        ctx.fillStyle = rsrpColor(p.rsrp);
+        const px = (p.x / 2000) * W, py = (p.y / 2000) * H;
+        const sz = Math.max(2, (scale / 2000) * W);
+        ctx.fillRect(px, py, sz, sz);
+      }
+      canvas.classList.add('visible');
+      document.querySelector('.heatmap-legend')?.classList.add('visible');
+    })
+    .catch(() => {});
+}
+function toggleHeatmap(show) {
+  const canvas = document.getElementById('heatmap');
+  if (!canvas) return;
+  canvas.classList.toggle('visible', show);
+  document.querySelector('.heatmap-legend')?.classList.toggle('visible', show);
+  localStorage.setItem('preview-heatmap', show ? '1' : '0');
+}
+document.getElementById('btn-heatmap')?.addEventListener('click', (e) => {
+  const on = !document.getElementById('heatmap').classList.contains('visible');
+  toggleHeatmap(on);
+});
+
 /* 地图 tooltip:事件委托,动态元素无需重复绑定 */
 function bindTooltip() {
   const panel = document.querySelector('.map-panel');
@@ -617,6 +658,8 @@ function initChartsWhenReady() {
   updateChartLabels();
 }
 initChartsWhenReady();
+loadHeatmap();
+toggleHeatmap(localStorage.getItem('preview-heatmap') !== '0');
 poll();
 setInterval(() => { if (!paused) poll(); }, 500);
 // 后台标签页 setInterval 会被浏览器节流:切回前台立即拉一次,不等下一个周期

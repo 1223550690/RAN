@@ -46,6 +46,7 @@
   <div class="stat"><span class="status-dot running"></span><span id="st-status" data-i18n="overview.running">running</span></div>
   <div class="spacer"></div>
   <div id="banner-summary"></div>
+  <button class="m3-btn tonal" id="btn-heatmap" data-i18n="map.heatmap">信道热力图</button>
   <button class="m3-btn tonal" id="btn-lang">EN</button>
   <button class="m3-btn tonal" id="btn-pause" data-i18n="overview.pause">暂停</button>
   <button class="m3-btn outlined" id="btn-export" data-i18n="overview.export">导出 Logs</button>
@@ -54,7 +55,13 @@
 <div class="main">
   <section class="map-panel">
     <svg id="map" viewBox="0 0 2000 2000" preserveAspectRatio="xMidYMid meet"></svg>
+    <canvas id="heatmap" width="1000" height="1000"></canvas>
     <div class="map-hint" data-i18n="map.hint">悬停查看对象信息 · 浅色缺口 = 可通行</div>
+    <div class="heatmap-legend">
+      <span data-i18n="map.heatmap">信道热力图</span>
+      <div class="bar"></div>
+      <div class="labels"><span>-130 dBm</span><span>-60 dBm</span></div>
+    </div>
     <div id="tooltip"></div>
   </section>
 

@@ -32,6 +32,16 @@ def estimate_channel(*, tick: int, scene, ue_request: UERequest, gnb: GnbSite) -
     )
     scene_id = str(getattr(scene, "node_id", ""))
     policy = load_channel_model_policy(scene_id)
+    hybrid_state = _estimate_hybrid_channel(
+        tick=tick,
+        scene=scene,
+        ue_request=ue_request,
+        gnb=gnb,
+        policy=policy,
+        distance=distance,
+    )
+    if hybrid_state is not None:
+        return hybrid_state
     path_loss_evaluation = evaluate_channel_path_loss(
         scene=scene,
         receiver_position=ue_pos,
@@ -120,6 +130,121 @@ def estimate_channel(*, tick: int, scene, ue_request: UERequest, gnb: GnbSite) -
 
 def _distance(a: Position, b: Position) -> float:
     return ((a.x - b.x) ** 2 + (a.y - b.y) ** 2) ** 0.5
+
+
+def _estimate_hybrid_channel(
+    *,
+    tick: int,
+    scene,
+    ue_request: UERequest,
+    gnb: GnbSite,
+    policy,
+    distance: float,
+) -> ChannelState | None:
+    """hybrid 模式:CKM 查询 + Beam 选择。
+
+    返回 None 表示 CKM 不可用(模式未开/未构建/查询失败),由调用方回退。
+    """
+
+    if not getattr(policy, "is_hybrid", False):
+        return None
+    ckm = getattr(scene, "ckm", None)
+    if ckm is None:
+        return None
+    cell = ckm.query(ue_request.position.x, ue_request.position.y)
+    if cell is None:
+        return None
+
+    # Beam 选择(实时方位角;NLOS 受增益上限约束)
+    beam_gain = 0.0
+    beam_id = None
+    beam_azimuth = None
+    margin = None
+    ckm_config = getattr(policy, "ckm_config", None) or {}
+    beam_cfg = ckm_config.get("beam") or {}
+    if beam_cfg.get("enabled", True):
+        try:
+            from ran.ckm.beam import BeamConfig, default_codebook, select_best_beam
+
+            raw_codebook = beam_cfg.get("codebook") or []
+            if raw_codebook:
+                codebook = [
+                    BeamConfig(
+                        beam_id=str(b.get("beam_id")),
+                        azimuth_deg=float(b.get("azimuth_deg", 0.0)),
+                        beamwidth_deg=float(b.get("beamwidth_deg", 45.0)),
+                        max_gain_dbi=float(b.get("max_gain_dbi", 12.0)),
+                        side_lobe_level_db=float(b.get("side_lobe_level_db", 25.0)),
+                    )
+                    for b in raw_codebook
+                ]
+            else:
+                codebook = default_codebook()
+            nlos_cap = float(beam_cfg["nlos_gain_cap_db"]) if beam_cfg.get("nlos_gain_cap_db") is not None else -3.0
+            selection = select_best_beam(
+                gnb=gnb,
+                ue_x=ue_request.position.x,
+                ue_y=ue_request.position.y,
+                los_state=cell.los_state,
+                codebook=codebook,
+                nlos_gain_cap_db=nlos_cap,
+                tx_power_dbm=gnb.tx_power_dbm,
+                path_loss_db=cell.hybrid_path_loss_db,
+            )
+            if selection is not None:
+                beam_gain = selection.beam_gain_db
+                beam_id = selection.beam_id
+                beam_azimuth = selection.beam_azimuth_deg
+                margin = selection.beam_margin_db
+        except Exception:
+            beam_gain = 0.0
+
+    received_power = gnb.tx_power_dbm + beam_gain - cell.hybrid_path_loss_db
+    noise_floor = -94.0
+    sinr = received_power - noise_floor
+    cqi = _sinr_to_cqi(sinr)
+    per = _cqi_to_error_rate(cqi)
+
+    return ChannelState(
+        tick=tick,
+        ue_id=ue_request.ue_id,
+        gnb_id=gnb.gnb_id,
+        direction=ue_request.direction,
+        distance_m=distance,
+        ue_area_id=cell.receiver_building_id,
+        ue_space_type=cell.receiver_space,
+        walls_crossed=list(cell.exterior_walls_crossed) + list(cell.interior_walls_crossed),
+        wall_loss_db=0.0,
+        total_path_loss_db=cell.hybrid_path_loss_db,
+        received_power_dbm=received_power,
+        sinr_db=sinr,
+        cqi=cqi,
+        estimated_packet_error_rate=per,
+        channel_model_mode="hybrid",
+        path_loss_model="hybrid_ckm",
+        path_loss_formula_id="hybrid_physical_calibrated_residual",
+        evaluated_path_loss_model="hybrid_ckm",
+        evaluated_total_path_loss_db=cell.hybrid_path_loss_db,
+        evaluated_formula_id="hybrid_ckm",
+        link_type=cell.link_type,
+        los_state=cell.los_state,
+        map_distance_units=distance,
+        distance_2d_m=cell.distance_2d_m,
+        distance_3d_m=cell.distance_3d_m,
+        outdoor_distance_m=cell.outdoor_distance_m,
+        indoor_distance_m=cell.indoor_distance_m,
+        effective_walls_crossed=list(cell.exterior_walls_crossed) + list(cell.interior_walls_crossed),
+        portals_crossed=list(cell.portals_crossed),
+        shadow_fading_std_db=cell.shadow_std_db,
+        prediction_std_db=cell.prediction_std_db,
+        beam_id=beam_id,
+        beam_gain_db=beam_gain,
+        beam_azimuth_deg=beam_azimuth,
+        beam_margin_db=margin,
+        is_extrapolated=False,
+        calibration_id="hybrid_ckm",
+        calibration_status="confirmed",
+    )
 
 
 def _sinr_to_cqi(sinr_db: float) -> int:

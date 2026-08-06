@@ -65,6 +65,11 @@ class ChannelState:
     indoor_loss_db: float | None = None
     shadow_fading_std_db: float | None = None
     penetration_loss_std_db: float | None = None
+    prediction_std_db: float | None = None  # prediction_std_db: 混合 CKM 预测不确定度(hybrid 模式)。
+    beam_id: str | None = None  # beam_id: 选中的 Beam(hybrid 模式)。
+    beam_gain_db: float = 0.0  # beam_gain_db: Beam 方向增益(hybrid 模式)。
+    beam_azimuth_deg: float | None = None  # beam_azimuth_deg: 选中 Beam 方位角。
+    beam_margin_db: float | None = None  # beam_margin_db: 第一/第二 Beam 增益差。
     is_extrapolated: bool = False
     path_loss_warnings: list[str] = field(default_factory=list)
     fallback_reason: str | None = None

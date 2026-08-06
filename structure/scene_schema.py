@@ -294,6 +294,7 @@ class Home:
     road_intersections: list[RoadIntersection | dict] = field(default_factory=list)
     rendering: dict = field(default_factory=dict)
     areas: list[Area] = field(default_factory=list)
+    ckm: object | None = None  # ckm: 混合 CKM(hybrid 信道模式运行时挂载,可选)。
 
     def add(self, area: Area) -> None:
         self.areas.append(area)

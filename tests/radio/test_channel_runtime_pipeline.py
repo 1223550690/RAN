@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import os
+
+# 测试环境:跳过 CKM 构建(hybrid 模式的场景构造不再做全网格扫描)
+os.environ.setdefault("RAN_DISABLE_CKM", "1")
+
 from dataclasses import replace
 import json
 from pathlib import Path
@@ -11,6 +16,7 @@ from ran.radio.channel import estimate_channel
 from ran.radio.channel_pipeline import evaluate_channel_path_loss
 from ran.radio.channel_policy import (
     MODE_3GPP_PREFERRED,
+    MODE_HYBRID,
     MODE_LEGACY,
     MODE_SHADOW,
     ChannelModelConfigError,
@@ -25,7 +31,7 @@ class ChannelModelPolicyTests(unittest.TestCase):
     def test_bristol_runtime_presets_are_explicit(self) -> None:
         policy = load_channel_model_policy("bristol_topology")
 
-        self.assertEqual(policy.mode, MODE_SHADOW)
+        self.assertEqual(policy.mode, MODE_HYBRID)
         self.assertEqual(policy.gnb_heights["gnb_001"].height_m, 10.0)
         self.assertEqual(policy.gnb_heights["gnb_001"].status, "assumed")
         assert policy.default_ue_height is not None
@@ -196,7 +202,7 @@ class ChannelRuntimePipelineTests(unittest.TestCase):
             gnb=self.gnb,
         )
 
-        self.assertEqual(channel.channel_model_mode, MODE_SHADOW)
+        self.assertEqual(channel.channel_model_mode, MODE_HYBRID)
         self.assertEqual(channel.path_loss_model, MODE_LEGACY)
         self.assertAlmostEqual(channel.total_path_loss_db, 130.05980565039312)
         self.assertEqual(channel.evaluated_path_loss_model, "3gpp_o2i")

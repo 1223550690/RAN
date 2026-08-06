@@ -420,5 +420,5 @@ class MapService:
         if isinstance(item, dict):
             return item.get(field_name)
         if is_dataclass(item):
-            return asdict(item).get(field_name)
+            return getattr(item, field_name, None)
         return getattr(item, field_name, None)

@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from ran.contracts import GnbSite, Position
 from ran.radio.channel_policy import (
     MODE_3GPP_PREFERRED,
+    MODE_HYBRID,
     MODE_LEGACY,
+    MODE_SHADOW,
     ChannelModelPolicy,
 )
 from ran.radio.coordinate_calibration import load_coordinate_calibration
@@ -71,8 +73,12 @@ def evaluate_channel_path_loss(
     gnb: GnbSite,
     legacy_total_path_loss_db: float,
     policy: ChannelModelPolicy,
+    geometry=None,
 ) -> ChannelPathLossEvaluation:
-    """Evaluate Calibration -> Geometry -> 3GPP with a legacy-safe selection."""
+    """Evaluate Calibration -> Geometry -> 3GPP with a legacy-safe selection.
+
+    geometry: 可选——调用方已算好传播几何时复用(避免重复计算,CKM 批量构建用)。
+    """
 
     if policy.mode == MODE_LEGACY:
         return _legacy_evaluation(
@@ -109,7 +115,7 @@ def evaluate_channel_path_loss(
     if (
         calibration.status == "provisional"
         and not policy.allow_provisional_calibration_in_shadow
-        and policy.mode != MODE_3GPP_PREFERRED
+        and policy.mode not in (MODE_3GPP_PREFERRED, MODE_SHADOW, MODE_HYBRID)
     ):
         return _legacy_evaluation(
             policy=policy,
@@ -139,12 +145,13 @@ def evaluate_channel_path_loss(
         gnb_height_m=gnb_height.height_m,
         ue_height_m=ue_height_m,
     )
-    geometry = analyze_propagation_geometry(
-        scene=scene,
-        receiver_position=receiver_position,
-        gnb=gnb,
-        coordinate_view=coordinate_view,
-    )
+    if geometry is None:
+        geometry = analyze_propagation_geometry(
+            scene=scene,
+            receiver_position=receiver_position,
+            gnb=gnb,
+            coordinate_view=coordinate_view,
+        )
 
     try:
         if geometry.link_type == LINK_OUTDOOR_TO_INDOOR:
