@@ -30,12 +30,14 @@ class LivePreviewService:
         ran_state: dict | None = None,
         control_state: dict | None = None,
         console: list[str] | None = None,
+        plan_summary: list[dict] | None = None,
     ) -> None:
         payload = {
             "tick": tick,
             "now_seconds": now_seconds,
             "scene": scene.to_dict(),
             "agents": [agent.to_dict() for agent in agents or []],
+            "plan_summary": list(plan_summary or []),
             "ran_requests": list(ran_requests or []),
             "ran_state": dict(ran_state or {}),
             "control_state": dict(control_state or {}),
@@ -50,7 +52,7 @@ class LivePreviewService:
             try:
                 os.replace(temp_path, self.output_path)
                 return
-            except PermissionError:
+            except (PermissionError, FileNotFoundError):
                 if attempt >= self.replace_retries:
                     self.cleanup_temp_file(temp_path)
                     return

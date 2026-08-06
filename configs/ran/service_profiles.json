@@ -1,30 +1,139 @@
 {
-  "description": "Default MVP mapping from service type to QoS and slice. The current code also contains an equivalent fixed table and can later be changed to read this configuration.",
-  "video_upload": {
-    "qfi": 9,
-    "five_qi": 9,
-    "priority": 5,
-    "packet_delay_budget_ms": 300,
-    "packet_error_rate": 0.000001,
-    "resource_type": "non_gbr",
-    "slice_id": "embb"
-  },
-  "game": {
-    "qfi": 80,
-    "five_qi": 80,
-    "priority": 2,
-    "packet_delay_budget_ms": 50,
-    "packet_error_rate": 0.001,
-    "resource_type": "non_gbr",
-    "slice_id": "urllc"
-  },
-  "message": {
-    "qfi": 9,
-    "five_qi": 9,
-    "priority": 7,
-    "packet_delay_budget_ms": 500,
-    "packet_error_rate": 0.000001,
-    "resource_type": "non_gbr",
-    "slice_id": "mmtc"
+  "description": "Service classification inputs. QFI identifies a flow (1-63); 5QI selects its QoS characteristics.",
+  "profiles": {
+    "default": {
+      "qfi": 9,
+      "five_qi": 9,
+      "priority": 9,
+      "packet_delay_budget_ms": 300,
+      "packet_error_rate": 1e-06,
+      "resource_type": "non_gbr",
+      "slice_id": "embb"
+    },
+    "video_upload": {
+      "qfi": 9,
+      "five_qi": 9,
+      "priority": 5,
+      "packet_delay_budget_ms": 300,
+      "packet_error_rate": 1e-06,
+      "resource_type": "non_gbr",
+      "slice_id": "embb"
+    },
+    "video_stream": {
+      "qfi": 8,
+      "five_qi": 6,
+      "priority": 6,
+      "packet_delay_budget_ms": 300,
+      "packet_error_rate": 1e-06,
+      "resource_type": "non_gbr",
+      "slice_id": "embb"
+    },
+    "web": {
+      "qfi": 9,
+      "five_qi": 9,
+      "priority": 7,
+      "packet_delay_budget_ms": 300,
+      "packet_error_rate": 1e-06,
+      "resource_type": "non_gbr",
+      "slice_id": "embb"
+    },
+    "file_upload": {
+      "qfi": 9,
+      "five_qi": 9,
+      "priority": 8,
+      "packet_delay_budget_ms": 500,
+      "packet_error_rate": 1e-06,
+      "resource_type": "non_gbr",
+      "slice_id": "embb"
+    },
+    "file_download": {
+      "qfi": 9,
+      "five_qi": 9,
+      "priority": 8,
+      "packet_delay_budget_ms": 500,
+      "packet_error_rate": 1e-06,
+      "resource_type": "non_gbr",
+      "slice_id": "embb"
+    },
+    "game": {
+      "qfi": 7,
+      "five_qi": 80,
+      "priority": 2,
+      "packet_delay_budget_ms": 50,
+      "packet_error_rate": 0.001,
+      "resource_type": "non_gbr",
+      "slice_id": "urllc"
+    },
+    "video_call": {
+      "qfi": 2,
+      "five_qi": 2,
+      "priority": 2,
+      "packet_delay_budget_ms": 150,
+      "packet_error_rate": 0.001,
+      "resource_type": "gbr",
+      "slice_id": "urllc",
+      "gbr_mbps": 2,
+      "mbr_mbps": 5
+    },
+    "voice_call": {
+      "qfi": 1,
+      "five_qi": 1,
+      "priority": 1,
+      "packet_delay_budget_ms": 100,
+      "packet_error_rate": 0.01,
+      "resource_type": "gbr",
+      "slice_id": "urllc",
+      "gbr_mbps": 0.064,
+      "mbr_mbps": 0.128
+    },
+    "live_video": {
+      "qfi": 3,
+      "five_qi": 3,
+      "priority": 3,
+      "packet_delay_budget_ms": 50,
+      "packet_error_rate": 0.001,
+      "resource_type": "gbr",
+      "slice_id": "urllc",
+      "gbr_mbps": 5,
+      "mbr_mbps": 20
+    },
+    "message": {
+      "qfi": 6,
+      "five_qi": 9,
+      "priority": 7,
+      "packet_delay_budget_ms": 500,
+      "packet_error_rate": 1e-06,
+      "resource_type": "non_gbr",
+      "slice_id": "mmtc"
+    },
+    "telemetry": {
+      "qfi": 5,
+      "five_qi": 9,
+      "priority": 8,
+      "packet_delay_budget_ms": 1000,
+      "packet_error_rate": 1e-06,
+      "resource_type": "non_gbr",
+      "slice_id": "mmtc"
+    },
+    "control": {
+      "qfi": 4,
+      "five_qi": 82,
+      "priority": 1,
+      "packet_delay_budget_ms": 10,
+      "packet_error_rate": 1e-05,
+      "resource_type": "delay_critical_gbr",
+      "slice_id": "urllc",
+      "gbr_mbps": 0.1,
+      "mbr_mbps": 1
+    },
+    "voice_upload": {
+      "qfi": 7,
+      "five_qi": 7,
+      "priority": 3,
+      "packet_delay_budget_ms": 100,
+      "packet_error_rate": 0.001,
+      "resource_type": "non_gbr",
+      "slice_id": "urllc"
+    }
   }
 }

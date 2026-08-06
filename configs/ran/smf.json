@@ -1,0 +1,27 @@
+{
+  "description": "SMF and UPF selection for the deterministic MVP core network.",
+  "smf_id": "smf_001",
+  "upfs": [
+    {
+      "dnn": "internet",
+      "upf_id": "internet_upf",
+      "ipv4_pool": "10.20.0.0/24",
+      "gateway": "10.20.0.1",
+      "allowed_slices": ["embb", "urllc", "mmtc"]
+    },
+    {
+      "dnn": "campus",
+      "upf_id": "campus_upf",
+      "ipv4_pool": "10.30.0.0/24",
+      "gateway": "10.30.0.1",
+      "allowed_slices": ["embb", "urllc", "mmtc"]
+    },
+    {
+      "dnn": "ims",
+      "upf_id": "ims_upf",
+      "ipv4_pool": "10.40.0.0/24",
+      "gateway": "10.40.0.1",
+      "allowed_slices": ["embb", "urllc"]
+    }
+  ]
+}

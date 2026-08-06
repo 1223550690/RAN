@@ -23,6 +23,8 @@ def load_gnb_site_from_scene(scene) -> GnbSite:
         total_prbs=106,
         antenna_elements=16,
         mimo_layers=2,
+        nominal_pusch = -80,
+        gscn = 0,
     )
 
 
@@ -37,4 +39,6 @@ def _site_from_element(element) -> GnbSite:
         total_prbs=int(details.get("total_prbs", 106)),
         antenna_elements=int(details.get("antenna_elements", 16)),
         mimo_layers=int(details.get("mimo_layers", 2)),
+        nominal_pusch=int(details.get("nominal_pusch",-80)),
+        gscn=int(details.get("gscn",0)),
     )

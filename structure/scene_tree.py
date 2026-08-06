@@ -107,6 +107,7 @@ def build_portal(item: dict) -> Portal:
         wall_id=item.get("wall_id"),
         width_m=item.get("width_m"),
         open=item.get("open", True),
+        channel_id=item.get("channel_id"),
     )
 
 

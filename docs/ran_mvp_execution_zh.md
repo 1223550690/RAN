@@ -1,22 +1,24 @@
-# RAN MVP 执行逻辑说明
+# 多 Agent RAN 基线执行逻辑说明
 
-本文说明当前 RAN MVP 如何从固定测试场景执行到 Data Network，并标明每一步对应的代码文件。当前目标是提供一条可运行、可预览、可替换 scheduler 的最小链路；各模块内部算法仍保持最小实现，后续可以由组员逐步替换。
+本文说明当前 RAN 基线如何从固定规模的多 Agent 测试场景执行到 Data Network，并标明每一步对应的代码文件。合同、身份和守恒规则以 `docs/integration/frozen_contracts_v1_zh.md` 为准。以下协议链对每个 `ServiceContext` 分别执行，各模块内部算法仍保持最小实现。
 
 ## 1. 测试背景
 
 - 地图：`bristol_topology`
-- Agent：`student_a`
-- Agent 位置：学生生活动中心附近，地图坐标 `(520, 430)`
-- UE：`student_a_phone`
+- 场景建立时固定三个 Agent，运行期间不可隐式增删。
+- `student_a/student_a_phone`：上传 100 MiB 视频到 `youtube_server`。
+- `student_b/student_b_phone`：发送 4 KiB 即时消息到 `chat_server`。
+- `student_c/student_c_phone`：上传 1 MiB 语音片段到 `voice_server`。
 - 接入方式：`selected_access="5g"`，`access_type="3gpp"`
-- 业务：通过手机 5G 上传 100MB 视频到 `youtube_server`
 - DNN：`internet`
 - 单基站：`gnb_001`
 - 基站初始位置：大地图左上角，地图坐标约 `(90, 90)`
 
 对应代码：
 
-- 场景固定参数：`ran/scenario.py`
+- 默认场景参数：`ran/orchestration/definitions.py`
+- Agent 状态 mock：`ran/orchestration/agent_state.py`
+- 多 Agent 编排：`ran/scenario.py`
 - 地图加载：`services/scene_service.py`
 - 基站从地图读取：`ran/radio/topology_adapter.py`
 - 地图数据：`editor/data/scenes/bristol_topology.json`
@@ -37,9 +39,9 @@ simulation/main.py
 -> SceneService.load_scene()
 -> start_preview_server()
 -> run_ran_mvp_tick()
--> RanEngine.build_upload_scenario()
+-> RanEngine.build_scenario()
 -> SimulationLoop.run()
--> RanUploadScenario.step()
+-> MultiAgentRanScenario.step()
 ```
 
 说明：
@@ -60,8 +62,8 @@ python -m simulation.main -s bristol_topology --ran-mvp --ran-mvp-mode aggregate
 ```text
 simulation/main.py
 -> run_ran_mvp_aggregate()
--> RanEngine.run_agent_upload_demo()
--> RanUploadScenario.step() 多次
+-> RanEngine.run_scenario()
+-> MultiAgentRanScenario.step() 多次
 -> 打印最终摘要
 ```
 
@@ -69,7 +71,7 @@ simulation/main.py
 
 ## 3. 总体链路
 
-当前 MVP 的协议/模块链路如下：
+对每个活跃 Service 执行的协议/模块链路如下；SchedulerRequest 会在同一 tick 汇总所有活跃 Service，并只调用一次 Scheduler：
 
 ```text
 AgentIntent
@@ -81,7 +83,7 @@ AgentIntent
 -> QoSFlow / QFI
 -> SlicePolicy
 -> SDAP: QFI -> DRB
--> PDCPBatch
+-> PDCPBatch（当前主场景兼容路径）
 -> RLCQueue
 -> ChannelState
 -> SchedulerRequest JSON
@@ -111,12 +113,12 @@ AgentIntent
 | UE 状态 | 创建手机 UE 并注册 | `AgentIntent` | `UeState` | `ran/ue/state.py`, `ran/core/amf.py`, `ran/contracts/ue.py` |
 | UE 请求 | 把意图转成 UE 业务请求 | `AgentIntent`, `ue_id` | `UERequest` | `ran/ue/request.py`, `ran/contracts/ue.py` |
 | 接入选择 | 当前固定选择 5G/3GPP | `UERequest`, `GnbSite` | `AccessSelection` | `ran/access/selector.py` |
-| PDU Session | 建立最小 PDU 会话 | `UeState`, `UERequest`, `slice_id` | `PduSession` | `ran/core/smf.py`, `ran/contracts/traffic.py` |
+| PDU Session | 建立并登记 PDU 会话 | `UeState`, `UERequest`, `slice_id` | `PduSession` | `ran/core/smf.py`, `ran/contracts/qos.py` |
 | IP 业务 | 生成上传业务批次 | `UERequest`, `PduSession` | `IPTrafficBatch` | `ran/traffic/ip.py`, `ran/traffic/service_profile.py` |
 | QoS Flow | 选择 QFI、5QI、时延预算 | `UERequest`, service profile | `QoSFlow` | `ran/qos.py`, `configs/ran/service_profiles.json` |
 | 网络切片 | 按业务类型分类切片 | service type | `slice_id`, `SlicePolicy` | `ran/slicing/classifier.py`, `ran/slicing/controller.py`, `configs/ran/slice_policies.json` |
-| SDAP | QFI 映射到 DRB | `QoSFlow`, `UERequest` | `Drb` | `ran/protocol/sdap.py`, `ran/contracts/bearer.py` |
-| PDCP | 最小 PDCP 批处理 | `IPTrafficBatch`, `Drb` | `PdcpBatch` | `ran/protocol/pdcp.py` |
+| SDAP | QFI 映射到 DRB；独立 API 可另外输出正式交接批次 | `QoSFlow`, `UERequest`（`process_sdap` 另接收 `IPTrafficBatch`） | `Drb` 或 `SdapOutput` | `ran/protocol/sdap.py`, `ran/contracts/bearer.py` |
+| PDCP | 按当前主场景兼容路径生成最小 PDCP 批处理 | `IPTrafficBatch`, `Drb` | `PdcpBatch` | `ran/protocol/pdcp.py` |
 | RLC | 维护队列和重传字节 | `PdcpBatch`, `Drb` | `RlcQueue` | `ran/protocol/rlc.py`, `ran/contracts/bearer.py` |
 | 地图信道 | 计算距离、墙损耗、SINR、CQI | UE 位置、gNB 位置、地图墙体 | `ChannelState` | `ran/radio/channel.py`, `ran/radio/topology_adapter.py`, `services/map_service.py` |
 | Scheduler 请求 | 汇总 MAC 调度输入 | RLC、QoS、DRB、Channel、Slice | `SchedulerRequest` | `ran/gnb/du.py`, `ran/contracts/scheduler.py` |
@@ -251,6 +253,8 @@ SimulationLoop.write_preview_state()
 当前 tick 状态和日志中的主要指标：
 
 - `tick`：当前 simulation tick。
+- `session`：本次业务的 PDU Session、SMF、UPF、DNN 和 UE IP。
+- `traffic`：IP 五元组、payload/packet/header 统计和会话 metadata。
 - `cqi`：简化 CQI，来自信道模型。
 - `sinr`：简化 SINR，单位 dB。
 - `prbs`：当前 tick 分配给该 UE/DRB 的 PRB 数。
@@ -292,13 +296,14 @@ MVP 不单独设计 Wi-Fi 文件夹，也不建立第二条 Wi-Fi 链路。当�
 
 未来接入 Wi-Fi/non-3GPP 时，应优先扩展这些字段和 `ran/access/selector.py`，而不是把 Wi-Fi 强行塞进 5G MAC scheduler。共享频谱、干扰和 backhaul 耦合可以作为后续信道/传输层扩展。
 
-## 11. 当前最小实现边界
+## 11. 当前实现边界
 
 - AMF：只更新 UE 注册状态，见 `ran/core/amf.py`。
-- SMF：只创建固定 PDU Session，见 `ran/core/smf.py`。
-- QoS：使用固定 service profile，见 `ran/qos.py` 和 `configs/ran/service_profiles.json`。
-- SDAP：固定 QFI 到 DRB 映射，见 `ran/protocol/sdap.py`。
-- PDCP：只估算 header 和 SN，见 `ran/protocol/pdcp.py`。
+- SMF：动态分配 PDU Session ID/UE IP、选择 UPF并维护会话注册表，见 `ran/core/smf.py`。
+- IP traffic：按端点配置生成 UL/DL TCP/UDP 流并保留包/字节证据，见 `ran/traffic/ip.py`。
+- QoS：使用可验证的 service profile 与 QoS rules，区分 QFI 和 5QI，见 `ran/qos.py`。
+- SDAP：动态分配 default/dedicated/shared DRB，维护 `qfi_list`，并可通过独立 API 输出 `SdapOutput` 交接契约，见 `ran/protocol/sdap.py`。
+- PDCP：当前主场景仍从 `IPTrafficBatch` 和 `Drb` 生成 PDCP 批次；接入 `SdapOutput` 属于 PDCP 模块后续集成项，见 `ran/protocol/pdcp.py`。
 - RLC：只维护字节队列和重传字节，见 `ran/protocol/rlc.py`。
 - Channel：距离、墙损耗、简化 path loss，见 `ran/radio/channel.py`。
 - Scheduler：Python fallback 分配 PRB/MCS/layers，见 `ran/scheduler/python_baseline.py`。

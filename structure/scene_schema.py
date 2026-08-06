@@ -190,6 +190,10 @@ class Portal:
     wall_id: str | None = None
     width_m: float | None = None
     open: bool = True
+    # channel_id: unique channel identifier shared by multiple doors of the same physical passage
+        # (editor multi-view / multi-name). When absent, the navigation layer merges them geometrically
+        # (collinear overlapping opening segments).
+    channel_id: str | None = None
 
     def to_dict(self) -> dict:
         endpoints = self.endpoints
@@ -213,6 +217,8 @@ class Portal:
             data["wall_id"] = self.wall_id
         if self.width_m is not None:
             data["width_m"] = self.width_m
+        if self.channel_id is not None:
+            data["channel_id"] = self.channel_id
         return data
 
 
@@ -274,18 +280,22 @@ class Area:
             "rendering": dict(self.rendering),
         }
 
-
 @dataclass
 class Home:
     node_id: str
     name: str
     default_agent_start: tuple[float, float] | None = None
+    # spawn_points: editable spawn point set (P1 data contract). Each element is shaped like
+    # {"spawn_id": str, "name": str, "position": [x, y], "role": str | None}.
+    # Editor UI support lands in P2; falls back to default_agent_start when empty.
+    spawn_points: list[dict] = field(default_factory=list)
     portals: list[Portal | dict] = field(default_factory=list)
     walls: list[WallSegment | dict] = field(default_factory=list)
     road_segments: list[RoadSegment | dict] = field(default_factory=list)
     road_intersections: list[RoadIntersection | dict] = field(default_factory=list)
     rendering: dict = field(default_factory=dict)
     areas: list[Area] = field(default_factory=list)
+    ckm: object | None = None  # ckm: hybrid CKM (attached at runtime when hybrid channel mode is active; optional).
 
     def add(self, area: Area) -> None:
         self.areas.append(area)
@@ -412,6 +422,7 @@ class Home:
             "node_id": self.node_id,
             "name": self.name,
             "default_agent_start": list(self.default_agent_start) if self.default_agent_start is not None else None,
+            "spawn_points": [dict(item) for item in self.spawn_points],
             "portals": [portal.to_dict() if hasattr(portal, "to_dict") else deepcopy(portal) for portal in self.portals],
             "walls": [wall.to_dict() if hasattr(wall, "to_dict") else deepcopy(wall) for wall in self.walls],
             "roads": {

@@ -1,0 +1,174 @@
+{
+  "schema_version": "1",
+  "default_mode": "shadow",
+  "scenes": {
+    "bristol_topology": {
+      "mode": "hybrid",
+      "fallback_model": "shadow",
+      "allow_provisional_calibration_in_shadow": true,
+      "require_confirmed_calibration_when_active": true,
+      "allow_extrapolation_in_shadow": true,
+      "allow_extrapolation_when_active": false,
+      "height_reference": "local_ground",
+      "gnb_heights": {
+        "gnb_001": {
+          "height_m": 10.0,
+          "source": "3gpp_umi_reference",
+          "status": "assumed"
+        }
+      },
+      "default_ue_height": {
+        "height_m": 1.5,
+        "source": "3gpp_umi_reference_handheld",
+        "status": "assumed"
+      },
+      "o2i": {
+        "penetration_residual_db": 0.0,
+        "unconfigured_building_policy": "legacy_fallback",
+        "building_profiles": {
+          "block_09_student_union": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "gym_sports_centre": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "block_11_research": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "block_12_library": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "wills_physics_laboratory": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "physics_central_tower": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "physics_west_annex": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "block_07_east_building": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "student_housing_east": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "residential_long_block": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "ensuite_residence": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          },
+          "coliving_space": {
+            "penetration_model": "low_loss",
+            "source": "simulation_assumption",
+            "status": "assumed"
+          }
+        }
+      },
+      "ckm": {
+        "enabled": true,
+        "grid_scale_m": 10,
+        "indoor_refine_scale_m": 5,
+        "cache_enabled": true,
+        "reference": {
+          "count": 20,
+          "seed": 42
+        },
+        "calibration": {
+          "ridge_lambda": 0.1
+        },
+        "residual": {
+          "power": 2,
+          "max_neighbors": 8,
+          "prior_std_db": 6.0,
+          "reference_distance_m": 50
+        },
+        "beam": {
+          "enabled": true,
+          "nlos_gain_cap_db": -3.0,
+          "codebook": [
+            {
+              "beam_id": "b0",
+              "azimuth_deg": 0,
+              "beamwidth_deg": 45,
+              "max_gain_dbi": 12,
+              "side_lobe_level_db": 25
+            },
+            {
+              "beam_id": "b1",
+              "azimuth_deg": 45,
+              "beamwidth_deg": 45,
+              "max_gain_dbi": 12,
+              "side_lobe_level_db": 25
+            },
+            {
+              "beam_id": "b2",
+              "azimuth_deg": 90,
+              "beamwidth_deg": 45,
+              "max_gain_dbi": 12,
+              "side_lobe_level_db": 25
+            },
+            {
+              "beam_id": "b3",
+              "azimuth_deg": 135,
+              "beamwidth_deg": 45,
+              "max_gain_dbi": 12,
+              "side_lobe_level_db": 25
+            },
+            {
+              "beam_id": "b4",
+              "azimuth_deg": 180,
+              "beamwidth_deg": 45,
+              "max_gain_dbi": 12,
+              "side_lobe_level_db": 25
+            },
+            {
+              "beam_id": "b5",
+              "azimuth_deg": 225,
+              "beamwidth_deg": 45,
+              "max_gain_dbi": 12,
+              "side_lobe_level_db": 25
+            },
+            {
+              "beam_id": "b6",
+              "azimuth_deg": 270,
+              "beamwidth_deg": 45,
+              "max_gain_dbi": 12,
+              "side_lobe_level_db": 25
+            },
+            {
+              "beam_id": "b7",
+              "azimuth_deg": 315,
+              "beamwidth_deg": 45,
+              "max_gain_dbi": 12,
+              "side_lobe_level_db": 25
+            }
+          ]
+        }
+      }
+    }
+  }
+}

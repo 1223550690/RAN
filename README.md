@@ -1,166 +1,158 @@
-# RAN
+# RAN 5G Simulation System (Integrated)
 
-RAN aims to extend Human Behavior Simulation with realistic wireless network
-effects. The project starts from a two-dimensional indoor scene structure and
-adds a single-cell radio access network simulation module. Based on each
-Agent's spatial position, channel condition, traffic demand, and basic resource
-scheduling policy, the system will produce network QoS feedback such as latency,
-throughput, packet loss, and congestion state.
+> Built on the merged branches of five members (haoyu / boyu / xizhe / tr22068 / zhiqian), with system-level capabilities filled in at the integration layer.
 
-The current repository keeps the existing scene structure package and prepares
-the project layout for later Agent, simulation, RAN, service, experiment, and
-validation modules.
+---
 
-## Install
+## 1. Project Overview
 
-```bash
-pip install -e .
-```
+This project extends the Human Behavior Simulation platform (2D scene + human behavior agents) with a **single-cell 5G RAN simulation module**: agents generate communication intents (messaging / video / web / gaming etc.), and the system completes end-to-end network processing — registration → access → session → scheduling → transmission → delivery — driven by spatial position, indoor/outdoor area, channel conditions, resource availability and scheduling policy, while exporting real-time metrics.
 
-## Current Directories
+### 1.1 Merged Foundation (Member Contributions)
 
-- `structure/`: Existing scene schema, scene builders, scene registry, and
-  indoor map data.
-- `ran/`: Wireless access network models, such as base station, channel,
-  scheduler, traffic, and QoS logic.
-- `agents/`: Reserved for future Agent-side integration; currently no Agent
-  runtime logic is implemented.
-- `simulation/`: Main simulation loop, clock, events, and global state.
-- `services/`: Application-level wrappers that connect scene, RAN, and
-  metrics modules.
-- `experiments/`: Experiment loading, execution, comparison, and reporting.
-- `configs/`: Project, scene, RAN, scheduler, and experiment configuration.
-- `outputs/`: Local runtime outputs such as logs, metrics, and reports.
-- `docs/`: Project documentation and team collaboration notes.
+| Member | Module | Content |
+|---|---|---|
+| haoyu | UE registration & access selection | RM/CM registration state machine, 3GPP/Wi-Fi access selection |
+| boyu | SMF IP QoS + SDAP | PDU session management (IP/slice/validation), QoS flow→DRB mapping, IP traffic factory |
+| xizhe | PDCP/RLC entity pipeline | PDCP sequence numbers/overhead, RLC segmentation/ARQ retransmission/SN management entities |
+| tr22068 | MAC scheduler | 4 algorithms (round-robin / max-throughput / BSR grant / weighted), PHR, Java adapter |
+| zhiqian | Radio channel | coordinate calibration, propagation geometry, 3GPP 38.901 path loss (UMi/InH/O2I), beamforming |
+| Integration layer | System completeness | see 1.2 |
 
-There is currently no dedicated `tests/` directory. Add one later when the RAN
-modules and simulation contracts become stable enough for automated checks.
+### 1.2 New Capabilities at the Integration Layer
 
-## Scene Quick Start
+- **Control plane**: AMF CM/RRC state machine (TS 24.501 / 38.331; suspends to RRC_INACTIVE between services)
+- **User plane entities**: UPF entity + N3 GTP-U tunnels (UL/DL; GTP overhead accounting; optional N3 rate limiting)
+- **Downlink path**: DN → N6 → UPF buffer → N3 → gNB → radio → UE, complete chain
+- **Hybrid CKM + beamforming**: physical priors + sparse-reference calibration + GP residual + 8-beam codebook; pre-generated at simulation start with version-keyed caching; hybrid mode on by default, can be disabled for comparison
+- **Standard CQI/MCS/BLER tables** (TS 38.214) replacing linear mapping; noise `-174+10lg(BW)+NF`
+- **Congestion & service-failure detection**: PRB utilisation / queue backlog / waiting-ticks metrics; long starvation → FAILED
+- **Multi-UE tunnel isolation**: UPF tunnel/buffer keys include `ue_id` (fixes multi-UE PDU session ID collisions)
+- **Entity pipeline in the runtime**: MultiAgentRanScenario fully switched to xizhe's PDCP/RLC entities (functional API kept for compatibility)
+- **Agent subsystem**: template/LLM dual-mode planning, navigation (pathfinding/semantic targets), intent gateway, stationary templates (`stay`)
+- **Runtime engineering**: single-instance lock, true pause (file control channel), guarded preview server, one-shot launcher, auto browser open
+- **Frontend preview**: MD3 light-blue bilingual UI, live map (top-level agents as authoritative source), heatmap overlay (adaptive colour scale, toggleable), task panel (template mode), 8 chart types in a single chart with dropdown switcher (multi-UE multi-line + hover values)
 
-```python
-from structure import available_scene_names, build_scene
+## 2. Quick Start
 
-print(available_scene_names())
-scene = build_scene("home")
-print(scene.to_dict())
-```
-
-More scene details are in [`structure/README.md`](structure/README.md).
-
-## Simulation Quick Start
-
-Run the minimal tick-based simulation loop:
+### 2.1 Environment
 
 ```bash
-python -m simulation.main
+# Zero third-party dependencies (Python 3.10+); pytest/playwright optional for tests
+python -m simulation.main --help
 ```
 
-Open the live preview while running the simulation:
+### 2.2 One-shot demo (default template)
 
 ```bash
-python -m simulation.main -p
+python start_demo.py --ticks 800 --tick-ms 200
 ```
 
-By default, the simulation live preview uses:
+Starts the simulation plus the preview server (8766) and opens the browser when ready.
 
-```text
-http://127.0.0.1:8766/editor/live/
-```
-
-Run the campus map with the live preview:
+### 2.3 Manual run
 
 ```bash
-python -m simulation.main -s bristol_topology -p
+# Custom template + preview
+python -m simulation.main -s bristol_topology --agent-sim --agents-config configs/agents/template_different_buildings_video_download.json --ticks 800 --tick-ms 200 --preview
+
+# Simulation only (no preview)
+python -m simulation.main -s bristol_topology --agent-sim --agents-config configs/agents/deterministic_three_agents_bristol.json --ticks 800 --tick-ms 200
 ```
 
-Open the interactive map query console:
+### 2.4 Key parameters
+
+| Parameter | Description | Default |
+|---|---|---|
+| `-s / --scene` | Scene (Bristol for now) | bristol_topology |
+| `--ticks` | Number of simulation ticks | 3000 |
+| `--tick-ms` | Duration per tick (1 tick = one radio slot semantic) | 200 |
+| `--agents-config` | Template config file (JSON) | deterministic template |
+| `--agent-speed` | Movement speed (m/tick) | 2.0 |
+| `--preview` | Start preview server and open browser | off |
+| `--n3-bandwidth-mbps` | N3 backhaul rate limit (None = instantaneous) | None |
+| `--max-waiting-ticks` | Service-failure threshold (0 = disabled) | 600 |
+| `--llm-*` | LLM mode (endpoint/model/key, provided at runtime, never committed) | off |
+
+### 2.5 Channel mode switching (for comparison experiments)
+
+`configs/ran/channel_model.json` → the `mode` of bristol:
+
+- `hybrid` (default): hybrid CKM (physics + calibration + GP residual + beam)
+- `shadow` / `legacy`: comparison modes with CKM disabled
+- `RAN_DISABLE_CKM=1` env var: skip CKM construction (debug acceleration)
+
+## 3. Custom Simulation Templates
+
+A template is a single JSON file (`configs/agents/*.json`):
+
+```json
+{
+  "simulation_id": "my_template",
+  "seed": 42,
+  "loop_policy": "stop",
+  "llm_mode": false,
+  "agents": [
+    { "agent_id": "student_001", "role": "student",
+      "spawn_position": [520.0, 300.0], "ue_id": "student_001_phone" }
+  ],
+  "plans": {
+    "student_001": [
+      { "destination_ref": "Block 09 / Student Union / Food Service South",
+        "intent_type": "video_upload",
+        "intent_parameters": { "size_profile": "medium" },
+        "stay": true }
+    ]
+  }
+}
+```
+
+### Field reference
+
+| Field | Description |
+|---|---|
+| `spawn_position` | Spawn point (map coordinates); with `stay: true` this is also where the service starts |
+| `destination_ref` | Semantic destination (scene path, e.g. `Block 09 / Student Union / Food Service South`); display-only with `stay` |
+| `intent_type` | Traffic type (see below) |
+| `intent_parameters` | `size_profile` (small/medium/large) or `duration_seconds`/`bitrate_kbps` (video_call) |
+| `stay` | `true` = stationary, submits the service immediately (used by channel-comparison templates) |
+
+### Supported intent types
+
+| Type | Direction | Description |
+|---|---|---|
+| `message` | UL | Short message (fixed 4KB) |
+| `video_upload` | UL | Video upload (size_profile) |
+| `video_download` | DL | Video download (size_profile) |
+| `video_call` | UL | Video call (duration_seconds + bitrate_kbps) |
+| `web_browse` | DL | Web browsing (small packets, low-latency preference) |
+| `gaming` | DL | Online gaming (low-latency, high-reliability preference) |
+| `file_transfer` | UL | File transfer (size_profile) |
+
+### Example templates
+
+- `deterministic_three_agents_bristol.json`: three agents moving + multiple services (default)
+- `template_same_building_three_services.json`: 3 services in the same building (upload/download/message×3, stationary) — compares different services under similar channels
+- `template_different_buildings_video_download.json`: 3× video download in different buildings (near indoor / deep indoor tower / outdoor) — compares the same service under different channels
+
+## 4. System Architecture
+
+```
+Agent subsystem (movement/planning/intent)      RAN scene (ran/)
+┌──────────────────────────┐   ┌─────────────────────────────────┐
+│ runtime/state_machine    │   │ Registration(AMF)→ Access(selector)│
+│ navigation(astar/room)   │   │ → Session(SMF)→ SDAP → PDCP → RLC  │
+│ planning(template/LLM)   │   │ → Scheduling(4 algos)→ PHY → N3/UPF │
+│ intent_gateway           │   │ Channel: geometry → 3GPP → CKM     │
+└──────────┬───────────────┘   └──────────────┬──────────────────┘
+           └──── intent/state ────────────────┘
+                     ↓
+        Preview server (live_state.json) → Frontend (map/charts/task panel)
+```
+
+## 5. Tests
 
 ```bash
-python -m simulation.main -s bristol_topology --console
+python -m unittest discover -s tests -t .        # full unit test suite
+python -m pytest tests/ -k "not aggregate"       # pytest (optional)
 ```
-
-Useful options:
-
-```bash
-python -m simulation.main -s potions_teacher_office --ticks 300 --tick-ms 300 -p
-```
-
-- `-s` / `--scene`: registered scene name.
-- `--ticks`: number of game ticks to run.
-- `--tick-ms`: milliseconds per tick.
-- `-p` / `--preview`: open the browser live preview.
-- `--console`: open the interactive map query console instead of the tick loop.
-
-The live preview reads `outputs/live_state.json`, which is generated by the
-simulation loop and ignored by Git.
-The preview also shows recent simulation console lines and provides a map query
-console.
-
-Map query commands:
-
-```text
-area <x> <y>
-pos <object_id>
-walls <x1> <y1> <x2> <y2>
-```
-
-- `area`: returns the area and child area at a global map coordinate.
-- `pos`: returns the global position of an area, child area, element, wall,
-  portal, road segment, or road intersection by id.
-- `walls`: returns all wall segments crossed by the line between two global
-  coordinates. Indoor building boundaries are included as exterior walls;
-  logical child-area boundaries are not treated as walls unless explicitly
-  defined.
-
-Service-level interface details are in [`services/README.md`](services/README.md).
-
-The Agent side is currently disabled. Each tick writes an empty `ran_requests`
-list; future RAN input should be connected through a dedicated UE request
-provider rather than the old Agent mock.
-
-## Structure Smoke Test
-
-Run these commands from the project root to check whether the existing
-`structure` package can still be imported and can build registered scenes.
-
-Install the current project in editable mode:
-
-```bash
-python -m pip install -e .
-```
-
-Check scene registration and build the `home` scene:
-
-```bash
-python -c "from structure import available_scene_names, build_scene; print(available_scene_names()); scene = build_scene('home'); print(scene.node_id, scene.name, len(scene.areas))"
-```
-
-This verifies:
-
-- the project packaging in `pyproject.toml`
-- the `structure` package import
-- the scene registry
-- the `home` scene builder
-- the basic scene object fields
-
-Check the larger `potions_teacher_office` scene:
-
-```bash
-python -c "from structure import build_scene; scene = build_scene('potions_teacher_office'); print(scene.node_id); print(scene.default_agent_start); print(len(scene.get_all_elements()))"
-```
-
-This verifies that a more complex scene can be loaded with its default Agent
-start position and element data.
-
-Run the built-in scene tree demo:
-
-```bash
-python -m structure.scene_tree
-```
-
-This builds and prints the `home` scene tree.
-
-These commands are only minimal smoke tests. They do not verify Agent behavior,
-RAN simulation, scheduling, QoS calculation, path finding, or full coordinate
-validity.

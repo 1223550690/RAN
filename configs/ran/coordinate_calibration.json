@@ -1,0 +1,53 @@
+{
+  "schema_version": "1",
+  "scenes": {
+    "bristol_topology": {
+      "calibration_id": "bristol_topology_uniform_extent_v1",
+      "status": "provisional",
+      "source": "team_approximation",
+      "map_bounds": [0.0, 0.0, 2000.0, 2000.0],
+      "physical_extent_m": {
+        "width": 275.0,
+        "height": 275.0
+      },
+      "origin_map": [0.0, 0.0],
+      "y_axis_direction": "down",
+      "gnb_height_m": null,
+      "default_ue_height_m": 1.5,
+      "anchors": [],
+      "reference_measurements": [
+        {
+          "reference_id": "left_top_to_second_junction",
+          "known_distance_m": 110.0,
+          "expected_distance_m": 109.36,
+          "role": "validation_pending_exact_map_endpoints",
+          "source": "user_confirmed_map_reference"
+        },
+        {
+          "reference_id": "top_reference_approximately_236m",
+          "known_distance_m": 236.0,
+          "expected_distance_m": 231.69,
+          "role": "validation_pending_exact_map_endpoints",
+          "source": "user_confirmed_map_reference"
+        },
+        {
+          "reference_id": "left_top_to_right_lower_intersection",
+          "known_distance_m": 362.95,
+          "expected_distance_m": 364.42,
+          "role": "validation_pending_exact_map_endpoints",
+          "source": "user_confirmed_map_reference"
+        }
+      ],
+      "known_deviations": [
+        {
+          "deviation_id": "left_second_junction_to_lower_road_end",
+          "claimed_distance_m": 220.0,
+          "observed_distance_m_range": [168.0, 175.0],
+          "classification": "schematic_map_known_deviation",
+          "include_in_calibration_fit": false,
+          "resolution": "reconfirm_endpoint_or_redraw_road"
+        }
+      ]
+    }
+  }
+}

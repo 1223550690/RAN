@@ -1,0 +1,38 @@
+{
+  "video_upload": {
+    "size_profiles": {
+      "small": 20971520,
+      "medium": 104857600,
+      "large": 524288000
+    },
+    "target": "youtube_server",
+    "content_type": "video",
+    "action": "upload"
+  },
+  "file_transfer": {
+    "size_profiles": {
+      "small": 10485760,
+      "medium": 52428800,
+      "large": 209715200
+    },
+    "target": "file_server",
+    "content_type": "file",
+    "action": "upload"
+  },
+  "video_call": {
+    "target": "video_call_server",
+    "content_type": "video",
+    "action": "video_call",
+    "qos_hint": {
+      "latency_budget_ms": 150,
+      "reliability": "high",
+      "throughput_preference": "high"
+    }
+  },
+  "message": {
+    "fixed_bytes": 4096,
+    "target": "chat_server",
+    "content_type": "text",
+    "action": "send_message"
+  }
+}

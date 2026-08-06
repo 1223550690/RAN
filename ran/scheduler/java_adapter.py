@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 
-from ran.contracts import MacAllocation, SchedulerRequest, SchedulerResult
+from ran.contracts import CONTRACT_VERSION, MacAllocation, SchedulerRequest, SchedulerResult
 from .python_baseline import PythonBaselineScheduler
 
 
@@ -26,11 +26,20 @@ class JavaSchedulerAdapter:
         return json.dumps(asdict(request), ensure_ascii=False)
 
     def from_json(self, raw: str) -> SchedulerResult:
-        """Project implementation detail."""
+        """Restore a SchedulerResult from the stable JSON returned by Java or the fallback."""
 
         data = json.loads(raw)
+        if data.get("contract_version") != CONTRACT_VERSION:
+            raise ValueError(f"Unsupported scheduler contract version: {data.get('contract_version')!r}")
         allocations = [MacAllocation(**item) for item in data.get("allocations", [])]
-        return SchedulerResult(tick=int(data["tick"]), allocations=allocations, debug=dict(data.get("debug", {})))
+        return SchedulerResult(
+            contract_version=str(data["contract_version"]),
+            simulation_id=str(data["simulation_id"]),
+            scheduler_request_id=str(data["scheduler_request_id"]),
+            tick=int(data["tick"]),
+            allocations=allocations,
+            debug=dict(data.get("debug", {})),
+        )
 
     def _send_to_java(self, payload: str) -> str:
         """Project implementation detail."""
@@ -45,7 +54,11 @@ def _request_from_dict(data: dict) -> SchedulerRequest:
     from ran.contracts import ChannelState, Drb, QoSFlow, RlcQueue, SlicePolicy
 
     return SchedulerRequest(
+        contract_version=str(data["contract_version"]),
+        simulation_id=str(data["simulation_id"]),
+        scheduler_request_id=str(data["scheduler_request_id"]),
         tick=int(data["tick"]),
+        gnb_id=str(data["gnb_id"]),
         direction=data["direction"],
         total_prbs=int(data["total_prbs"]),
         rlc_queues=[RlcQueue(**item) for item in data.get("rlc_queues", [])],
@@ -54,4 +67,7 @@ def _request_from_dict(data: dict) -> SchedulerRequest:
         channel_states=[ChannelState(**item) for item in data.get("channel_states", [])],
         slice_policies=[SlicePolicy(**item) for item in data.get("slice_policies", [])],
         harq_feedback=list(data.get("harq_feedback", [])),
+        phr=list(data["phr"]),
+        requirements=list(data["requirements"]),
+        slot_ms=float(data.get("slot_ms", 1.0)),
     )
