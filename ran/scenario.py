@@ -157,9 +157,17 @@ class MultiAgentRanScenario:
                 if dl_tunnel is not None:
                     n3_tx = self.upf.forward_to_gnb(dl_tunnel, tick_ms=self.tick_ms)
                     if n3_tx > 0:
-                        service.dl_queue.queued_bytes += n3_tx
+                        if service.rlc is not None:
+                            service.rlc.enqueue_bytes(n3_tx)
+                        else:
+                            service.dl_queue.queued_bytes += n3_tx
                     service.upf_buffered_bytes = self.upf.buffered_bytes(service.session.pdu_session_id)
                     service.n3_gtp_overhead_bytes = dl_tunnel.overhead_total_bytes
+
+        # UL inflow:实体管道 PDCP→RLC 入队(调度前,本 tick 新数据可见)
+        for service in active_services:
+            if service.rlc is not None and service.dl_queue is None:
+                service.rlc.enqueue(service.pdcp.process(service.traffic, tick=tick))
 
         channel_by_service = {}
         channel_by_link = {}
@@ -178,8 +186,8 @@ class MultiAgentRanScenario:
             tick=tick,
             gnb_id=self.gnb.gnb_id,
             total_prbs=self.gnb.total_prbs,
-            rlc_queues=[service.rlc_queue for service in active_services]
-            + [service.dl_queue for service in active_services if service.dl_queue is not None],
+            rlc_queues=[self._rlc_queue_state(service) for service in active_services]
+            + [service.dl_queue for service in active_services if service.dl_queue is not None and service.rlc is None],
             qos_flows=[service.qos_flow for service in active_services],
             drbs=[service.drb for service in active_services],
             channel_states=list(channel_by_link.values()),
@@ -209,12 +217,18 @@ class MultiAgentRanScenario:
                 service_states.append(self._build_waiting_service_state(service, channel, tick))
                 continue
 
-            # 最小 RLC grant mock：当前仅按队列字节截断；后续替换为真实 segment 列表。
-            grant_queue = service.dl_queue if service.dl_queue is not None else service.rlc_queue
-            actual_grant_bytes = min(
-                allocation.scheduled_bytes,
-                grant_queue.queued_bytes + grant_queue.retransmission_bytes,
-            )
+            # 最小 RLC grant mock:当前仅按队列字节截断;后续替换为真实 segment 列表。
+            if service.rlc is not None:
+                actual_grant_bytes = min(
+                    allocation.scheduled_bytes,
+                    service.rlc.queued_bytes + service.rlc.retransmission_bytes,
+                )
+            else:
+                grant_queue = service.dl_queue if service.dl_queue is not None else service.rlc_queue
+                actual_grant_bytes = min(
+                    allocation.scheduled_bytes,
+                    grant_queue.queued_bytes + grant_queue.retransmission_bytes,
+                )
             executed_allocation = replace(allocation, scheduled_bytes=actual_grant_bytes)
             service_states.append(
                 self._execute_service_tick(service, channel, executed_allocation, tick)
@@ -235,6 +249,47 @@ class MultiAgentRanScenario:
         )
         self.last_state = state
         return state
+
+    # ------------------------------------------------------------- 实体管道辅助(xizhe)
+
+    def _rlc_queue_state(self, service) -> RlcQueue:
+        """实体管道:返回 RLC 实体队列状态;函数式兼容返回原队列。"""
+
+        rlc = getattr(service, "rlc", None)
+        if rlc is not None:
+            return rlc.to_queue_state()
+        if service.dl_queue is not None:
+            return service.dl_queue
+        return service.rlc_queue
+
+    def _queue_drained(self, service) -> bool:
+        """队列耗尽判定(实体含 inflight;函数式含 queued/retransmission)。"""
+
+        rlc = getattr(service, "rlc", None)
+        if rlc is not None:
+            return (
+                rlc.queued_bytes <= 0
+                and rlc.retransmission_bytes <= 0
+                and rlc.inflight_new_bytes <= 0
+                and rlc.inflight_retx_bytes <= 0
+            )
+        if service.dl_queue is not None:
+            return service.dl_queue.queued_bytes <= 0 and service.dl_queue.retransmission_bytes <= 0
+        return service.rlc_queue.queued_bytes <= 0 and service.rlc_queue.retransmission_bytes <= 0
+
+    def _execute_rlc_entity_tick(self, service, channel, allocation, tick: int) -> TransmissionResult:
+        """实体管道单 tick:on_grant 分段 → PHY 传输 → on_transmission_result 反馈。"""
+
+        grant_result = service.rlc.on_grant(allocation)
+        actual = replace(allocation, scheduled_bytes=grant_result.actual_sent_bytes)
+        transmission = transmit(
+            tick=tick,
+            allocation=actual,
+            channel=channel,
+            rlc_mode=service.rlc.mode,
+        )
+        service.rlc.on_transmission_result(transmission)
+        return transmission
 
     def get_agent_states(self, *, tick: int) -> list[dict[str, object]]:
         """公开 mock/真实 AgentStateProvider 的统一状态接口。"""
@@ -318,11 +373,25 @@ class MultiAgentRanScenario:
         drb = map_qos_flow_to_drb(qos_flow, ue_request)
         pdcp_batch = build_pdcp_batch(traffic, drb)
         is_downlink = ue_request.direction == "DL"
+        # xizhe 实体管道(PDCP/RLC 实体;函数式 build_* 保留为兼容口径)
+        pdcp_entity = PdcpEntity(
+            drb_id=drb.drb_id,
+            qfi=drb.qfi,
+            slice_id=drb.slice_id,
+        )
+        rlc_entity = RlcEntity(
+            ue_id=drb.ue_id,
+            drb_id=drb.drb_id,
+            qfi=drb.qfi,
+            slice_id=drb.slice_id,
+            direction=drb.direction,
+            mode=drb.rlc_mode,
+        )
         # GTP-U 隧道(UL/DL 都建立;UL 用于 N3 交付统计,DL 用于缓冲-转发)
         tunnel = self.upf.create_tunnel(session.pdu_session_id, ue_request.direction)
         if is_downlink:
             # 下行:DN 数据经 N6 到达 UPF 缓冲(UE 挂起期间不丢);
-            # 每 tick 由 N3 流转填充 gNB 侧 dl_queue。
+            # 每 tick 由 N3 流转填充 gNB 侧 RLC 队列(实体 enqueue_bytes)。
             # 注意:缓冲与队列使用同一口径(pdcp_batch.output_bytes),
             # 初始队列清空(数据全部在 UPF 缓冲),避免双倍入队。
             self.upf.receive_from_dn(session.pdu_session_id, pdcp_batch.output_bytes)
@@ -370,6 +439,8 @@ class MultiAgentRanScenario:
             session=session,
             traffic=traffic,
             qos_flow=qos_flow,
+            pdcp=pdcp_entity,
+            rlc=rlc_entity,
             drb=drb,
             pdcp_batch=pdcp_batch,
             rlc_queue=rlc_queue,
@@ -420,13 +491,17 @@ class MultiAgentRanScenario:
         service.status = "ACTIVE"
         if service.dl_queue is not None:
             return self._execute_downlink_tick(service, channel, allocation, tick)
-        transmission = transmit(
-            tick=tick,
-            allocation=allocation,
-            channel=channel,
-            rlc_mode=service.rlc_queue.rlc_mode,
-        )
-        service.rlc_queue = apply_transmission_to_rlc(service.rlc_queue, transmission)
+        if service.rlc is not None:
+            # xizhe 实体管道:on_grant 分段 → PHY → on_transmission_result
+            transmission = self._execute_rlc_entity_tick(service, channel, allocation, tick)
+        else:
+            transmission = transmit(
+                tick=tick,
+                allocation=allocation,
+                channel=channel,
+                rlc_mode=service.rlc_queue.rlc_mode,
+            )
+            service.rlc_queue = apply_transmission_to_rlc(service.rlc_queue, transmission)
         ru_result = receive_radio(transmission)
         n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, service.session)))
         # 上行经 UPF 实体(N3 到达 → N6 交付 DN;带 GTP-U 隧道开销统计)
@@ -457,7 +532,7 @@ class MultiAgentRanScenario:
         counters.n6_loss_bytes += delivered.n6_loss_bytes
         self._update_payload_counters(service)
 
-        if service.rlc_queue.queued_bytes <= 0 and service.rlc_queue.retransmission_bytes <= 0:
+        if self._queue_drained(service):
             unresolved_protocol_bytes = max(
                 0,
                 original_protocol_bytes
@@ -491,7 +566,7 @@ class MultiAgentRanScenario:
             {
                 "status": service.status,
                 "result": asdict(result),
-                "rlc_queue_after": asdict(service.rlc_queue),
+                "rlc_queue_after": asdict(self._rlc_queue_state(service)),
                 "channel": asdict(channel),
                 "allocation": asdict(allocation),
                 "transmission": asdict(transmission),
@@ -510,13 +585,17 @@ class MultiAgentRanScenario:
         N3/N6 为零值占位(数据由 DN 直达 gNB,不经 UE 上行转发)。
         """
 
-        transmission = transmit(
-            tick=tick,
-            allocation=allocation,
-            channel=channel,
-            rlc_mode=service.dl_queue.rlc_mode,
-        )
-        service.dl_queue = apply_transmission_to_rlc(service.dl_queue, transmission)
+        if service.rlc is not None:
+            # xizhe 实体管道:on_grant 分段 → PHY → on_transmission_result
+            transmission = self._execute_rlc_entity_tick(service, channel, allocation, tick)
+        else:
+            transmission = transmit(
+                tick=tick,
+                allocation=allocation,
+                channel=channel,
+                rlc_mode=service.dl_queue.rlc_mode,
+            )
+            service.dl_queue = apply_transmission_to_rlc(service.dl_queue, transmission)
 
         counters = service.counters
         counters.attempted_protocol_bytes += transmission.attempted_bytes
@@ -535,8 +614,7 @@ class MultiAgentRanScenario:
         self._update_payload_counters(service)
 
         if (
-            service.dl_queue.queued_bytes <= 0
-            and service.dl_queue.retransmission_bytes <= 0
+            self._queue_drained(service)
             and self.upf.buffered_bytes(service.session.pdu_session_id) <= 0
         ):
             unresolved_protocol_bytes = max(
@@ -589,7 +667,7 @@ class MultiAgentRanScenario:
             {
                 "status": service.status,
                 "result": asdict(result),
-                "rlc_queue_after": asdict(service.dl_queue),
+                "rlc_queue_after": asdict(self._rlc_queue_state(service)),
                 "channel": asdict(channel),
                 "allocation": asdict(allocation),
                 "transmission": asdict(transmission),
@@ -677,11 +755,21 @@ class MultiAgentRanScenario:
     def _service_state_base(self, service, tick: int) -> dict[str, object]:
         dl_remaining = None
         if service.dl_queue is not None:
-            dl_remaining = (
-                service.dl_queue.queued_bytes
-                + service.dl_queue.retransmission_bytes
-                + service.upf_buffered_bytes
-            )
+            rlc = getattr(service, "rlc", None)
+            if rlc is not None:
+                dl_remaining = (
+                    rlc.queued_bytes
+                    + rlc.retransmission_bytes
+                    + rlc.inflight_new_bytes
+                    + rlc.inflight_retx_bytes
+                    + service.upf_buffered_bytes
+                )
+            else:
+                dl_remaining = (
+                    service.dl_queue.queued_bytes
+                    + service.dl_queue.retransmission_bytes
+                    + service.upf_buffered_bytes
+                )
         return {
             "agent_id": service.agent_id,
             "intent_id": service.intent_id,

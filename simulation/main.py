@@ -141,6 +141,12 @@ def acquire_simulation_lock() -> None:
 def main() -> None:
     args = parse_args()
     acquire_simulation_lock()
+    # 清理上一轮残留的暂停控制文件(防模拟启动即进入暂停死等;
+    # start_demo 已清理,直接命令行启动同样需要)
+    try:
+        (PROJECT_ROOT / "outputs" / "simulation_control.json").unlink(missing_ok=True)
+    except OSError:
+        pass
     scene_service = SceneService()
     scene = scene_service.load_scene(args.scene)
     preview_service = LivePreviewService(PROJECT_ROOT / "outputs" / "live_state.json")

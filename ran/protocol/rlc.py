@@ -111,6 +111,26 @@ class RlcEntity:
         self.next_sdu_id += 1
         self.queued_bytes += batch.output_bytes
 
+    def enqueue_bytes(self, byte_count: int) -> None:
+        """N3 流转注入:字节直接进入 SDU 队列(不经过 PDCP 批)。
+
+        用于下行 N3 到达 gNB 的字节注入(UPF 缓冲 → gNB 侧 RLC 队列)。
+        """
+
+        if byte_count <= 0:
+            return
+        self.sdu_queue.append(
+            RlcSdu(
+                sdu_id=self.next_sdu_id,
+                pdcp_sn_start=0,
+                pdcp_sn_end=0,
+                total_bytes=byte_count,
+                remaining_bytes=byte_count,
+            )
+        )
+        self.next_sdu_id += 1
+        self.queued_bytes += byte_count
+
     def to_queue_state(self) -> RlcQueue:
         """Project implementation detail."""
         return RlcQueue(
