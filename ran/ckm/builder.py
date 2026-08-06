@@ -121,11 +121,13 @@ def _sample_grid_points(
     def in_building(x: float, y: float) -> bool:
         return any(b[0] <= x <= b[2] and b[1] <= y <= b[3] for b in bounds)
 
-    # 户外粗网格(跳过建筑内部)
-    x = xs0 - margin
-    while x <= xs1 + margin:
-        y = ys0 - margin
-        while y <= ys1 + margin:
+    # 户外粗网格(跳过建筑内部);从地图原点 0 覆盖到 2000(viewBox 边界),
+    # 保证全图无白条(此前范围止于 bounds±margin,左上与右/下边缘缺失)。
+    map_extent = 2000.0
+    x = 0.0
+    while x <= map_extent:
+        y = 0.0
+        while y <= map_extent:
             if not in_building(x, y):
                 points.append({"x": x, "y": y, "indoor": False})
             y += grid_scale_m
@@ -223,7 +225,7 @@ def build_hybrid_ckm(
     gnb,
     policy,
     ckm_config: CkmConfig | None = None,
-    calibration_version: str = "ckm-v3",
+    calibration_version: str = "ckm-v5",
 ) -> HybridCkm | None:
     """构建(或从缓存加载)混合 CKM;失败返回 None(调用方回退 shadow)。"""
 
