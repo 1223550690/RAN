@@ -52,10 +52,10 @@ def estimate_channel(*, tick: int, scene, ue_request: UERequest, gnb: GnbSite) -
     path_loss = path_loss_evaluation.selected_total_path_loss_db
     antenna_gain = min(12.0, 10.0 * math.log10(max(1, gnb.antenna_elements)) * 0.5)
     received_power = gnb.tx_power_dbm + antenna_gain - path_loss
-    noise_floor = -94.0
+    noise_floor = _noise_floor_db(gnb, policy)
     sinr = received_power - noise_floor
     cqi = _sinr_to_cqi(sinr)
-    per = _cqi_to_error_rate(cqi)
+    per = _sinr_to_bler(sinr, cqi)
 
     geometry = path_loss_evaluation.geometry
     return ChannelState(
@@ -200,10 +200,10 @@ def _estimate_hybrid_channel(
             beam_gain = 0.0
 
     received_power = gnb.tx_power_dbm + beam_gain - cell.hybrid_path_loss_db
-    noise_floor = -94.0
+    noise_floor = _noise_floor_db(gnb, policy)
     sinr = received_power - noise_floor
     cqi = _sinr_to_cqi(sinr)
-    per = _cqi_to_error_rate(cqi)
+    per = _sinr_to_bler(sinr, cqi)
 
     return ChannelState(
         tick=tick,
@@ -247,9 +247,39 @@ def _estimate_hybrid_channel(
     )
 
 
+def _noise_floor_db(gnb, policy) -> float:
+    """热噪声底(环节十,文档 14.1):-174 + 10·log10(BW) + NF。
+
+    默认 20MHz + NF7dB ≈ -94dBm(与原固定值同量级;带宽/NF 变化时自动跟随)。
+    """
+
+    bandwidth_hz = max(getattr(gnb, "bandwidth_mhz", 20.0), 0.1) * 1e6
+    noise_figure = float(getattr(policy, "noise_figure_db", 7.0) or 7.0)
+    return -174.0 + 10.0 * math.log10(bandwidth_hz) + noise_figure
+
+
 def _sinr_to_cqi(sinr_db: float) -> int:
-    return max(1, min(15, int((sinr_db + 8.0) // 2.0)))
+    """SINR → CQI:标准查表(TS 38.214 工作点,文档 15.3)。"""
+
+    from ran.radio.mcs_tables import sinr_to_cqi
+
+    return sinr_to_cqi(sinr_db)
 
 
 def _cqi_to_error_rate(cqi: int) -> float:
-    return max(0.001, min(0.5, 0.30 * math.exp(-0.23 * cqi)))
+    """CQI → 预测 BLER(标准工作点 + sigmoid 近似)。"""
+
+    from ran.radio.mcs_tables import MAX_CQI, SINR_CQI_THRESHOLDS_DB
+
+    cqi = max(1, min(MAX_CQI, int(cqi)))
+    # 以工作点 SINR=0 偏移近似(兼容旧接口;channel.py 用 _sinr_to_bler 更精确)
+    working = SINR_CQI_THRESHOLDS_DB[cqi - 1]
+    return max(0.001, min(0.5, 0.1 * math.exp(-1.2 * (0.0 - working))))
+
+
+def _sinr_to_bler(sinr_db: float, cqi: int) -> float:
+    """SINR + CQI → 预测 BLER(文档 15.4:sigmoid 在 10% 工作点附近)。"""
+
+    from ran.radio.mcs_tables import sinr_to_bler
+
+    return sinr_to_bler(sinr_db, cqi)

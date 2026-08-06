@@ -9,6 +9,7 @@ from ran.contracts import (
     SchedulerRequest,
     SchedulerResult,
 )
+from ran.radio.mcs_tables import cqi_to_mcs
 from ran.radio.ofdm import estimate_transport_bytes
 
 
@@ -42,7 +43,7 @@ class PythonBaselineScheduler:
             if prbs <= 0:
                 continue
             cqi = channel.cqi if channel else 1
-            mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
+            mcs = cqi_to_mcs(cqi)  # 标准 CQI→MCS 映射(TS 38.214)
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
@@ -121,7 +122,7 @@ def roundRobinDLScheduling(channel_by_ue, request, active):
             ratio = weights[(queue.ue_id, queue.drb_id)] / weight_sum if weight_sum else 0.0
             prbs = math.floor(int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
-            mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
+            mcs = cqi_to_mcs(cqi)  # 标准 CQI→MCS 映射(TS 38.214)
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
@@ -160,7 +161,7 @@ def maxThroughputDLScheduling(channel_by_ue, request, active):
             ratio = weights[queue.ue_id] / weight_sum if weight_sum else 0.0
             prbs = math.floor(int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
-            mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
+            mcs = cqi_to_mcs(cqi)  # 标准 CQI→MCS 映射(TS 38.214)
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
@@ -235,7 +236,7 @@ def weightedULScheduling(channel_by_ue, request, active):
 
             prbs = math.floor(int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
-            mcs = max(1, min(28, int(cqi * 1.8))) #Change how mcs works fundamentally
+            mcs = cqi_to_mcs(cqi)  # 标准 CQI→MCS 映射(TS 38.214)
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)

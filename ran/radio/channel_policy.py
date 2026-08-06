@@ -50,6 +50,7 @@ class ChannelModelPolicy:
     o2i_profiles: dict[str, O2IBuildingProfile] = field(default_factory=dict)
     penetration_residual_db: float = 0.0
     unconfigured_building_policy: str = "legacy_fallback"
+    noise_figure_db: float = 7.0  # noise_figure_db: 接收机噪声系数(环节十,默认 3GPP 典型值)。
     ckm_config: dict | None = None  # ckm_config: 混合 CKM 配置(hybrid mode 使用)。
 
     @property
@@ -170,6 +171,10 @@ def load_channel_model_policy(
         o2i_profiles=profiles,
         penetration_residual_db=residual,
         unconfigured_building_policy=unconfigured_building_policy,
+        noise_figure_db=_finite_number(
+            scene_data.get("noise_figure_db", 7.0),
+            "noise_figure_db",
+        ),
         ckm_config=(scene_data.get("ckm") if isinstance(scene_data.get("ckm"), dict) else None),
     )
 

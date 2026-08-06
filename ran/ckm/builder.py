@@ -13,6 +13,7 @@ from ran.ckm.ckm import (
     HybridCKMCell,
     cache_path,
     compute_version_key,
+    scene_structure_hash,
 )
 from ran.ckm.reference import build_reference_measurements
 from ran.ckm.residual import IdwResidualModel, ResidualPoint
@@ -224,6 +225,7 @@ def build_hybrid_ckm(
         return None
     scene_id = str(getattr(scene, "node_id", ""))
     policy_hash = hashlib.sha256(str(sorted(policy.o2i_profiles.keys())).encode()).hexdigest()[:8]
+    scene_hash = scene_structure_hash(scene)
 
     version_key = compute_version_key(
         scene_id=scene_id,
@@ -232,6 +234,7 @@ def build_hybrid_ckm(
         reference_count=ckm_config.reference_count,
         seed=ckm_config.reference_seed,
         policy_hash=policy_hash,
+        scene_hash=scene_hash,
     )
     # 缓存命中
     if ckm_config.cache_enabled:

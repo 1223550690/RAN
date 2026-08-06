@@ -140,9 +140,38 @@ def compute_version_key(
     reference_count: int,
     seed: int,
     policy_hash: str = "",
+    scene_hash: str = "",
 ) -> str:
-    """版本键:场景结构/gNB/校准/参考/码本/信道策略(含 O2I profile)任一变化 → 重建。"""
+    """版本键:场景结构/gNB/校准/参考/码本/信道策略(含 O2I profile)任一变化 → 重建。
+
+    scene_hash: 墙体/门几何的结构 hash(编辑器改墙/门后 CKM 自动失效,文档 11.4)。
+    """
 
     scene_repr = f"{scene_id}:{gnb.gnb_id}:{gnb.position.x:.1f}:{gnb.position.y:.1f}:{gnb.carrier_freq_mhz}:{gnb.tx_power_dbm}"
-    raw = f"{scene_repr}|{calibration_version}|ref{reference_count}|seed{seed}|policy:{policy_hash}"
+    raw = f"{scene_repr}|{calibration_version}|ref{reference_count}|seed{seed}|policy:{policy_hash}|scene:{scene_hash}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def scene_structure_hash(scene) -> str:
+    """墙体/门几何的稳定结构 hash(walls/portals 的 segment 数值)。
+
+    遍历顺序与数值表示稳定;不受渲染字段/名称变化影响。
+    """
+
+    parts: list[str] = []
+
+    def walk(node) -> None:
+        for wall in getattr(node, "walls", []) or []:
+            start = getattr(wall, "start", None)
+            end = getattr(wall, "end", None)
+            if start is not None and end is not None:
+                parts.append("w" + repr((start, end)))
+        for portal in getattr(node, "portals", []) or []:
+            seg = getattr(portal, "segment", None)
+            if seg is not None:
+                parts.append("p" + repr(seg))
+        for child in getattr(node, "areas", []) or []:
+            walk(child)
+
+    walk(scene)
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:16]
