@@ -239,7 +239,7 @@ def build_hybrid_ckm(
     gnb,
     policy,
     ckm_config: CkmConfig | None = None,
-    calibration_version: str = "ckm-v6",
+    calibration_version: str = "ckm-v7",
 ) -> HybridCkm | None:
     """构建(或从缓存加载)混合 CKM;失败返回 None(调用方回退 shadow)。"""
 

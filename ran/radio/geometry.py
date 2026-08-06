@@ -194,6 +194,21 @@ def analyze_propagation_geometry(
     exterior_crossings = [crossing for crossing in exterior_crossings if crossing is not None]
     interior_crossings = [_is_interior(crossing) for crossing in effective_crossings]
     interior_crossings = [crossing for crossing in interior_crossings if crossing is not None]
+    # O2I 兜底:建筑 bounds 边界无外墙墙段时(场景只画了内墙),用
+    # 链路与建筑 bounds 的交点合成一个 exterior crossing——bounds 即
+    # 权威建筑轮廓;否则 O2I 链路抛 InconsistentGeometryLinkError 并
+    # fallback legacy FSPL(低损耗,室内信号虚高)。
+    if link_type == LINK_OUTDOOR_TO_INDOOR and not exterior_crossings and receiver_building_id:
+        synthesized = _synthesize_bounds_exterior_crossing(
+            scene=scene,
+            receiver_building_id=receiver_building_id,
+            gnb_position=gnb.position,
+            receiver_position=receiver_position,
+        )
+        if synthesized is not None:
+            exterior_crossings = [synthesized]
+            effective_crossings = [synthesized] + effective_crossings
+            all_crossings = [synthesized] + all_crossings
     los_state = LOS if not effective_crossings else NLOS
     if link_type == LINK_OUTDOOR_NLOS or blocking_building_ids:
         los_state = NLOS
@@ -626,6 +641,92 @@ def _is_exterior(crossing: PropagationSurfaceCrossing) -> PropagationSurfaceCros
     if crossing.wall_type == "exterior" or crossing.scope == "area_boundary":
         return crossing
     return None
+
+
+def _synthesize_bounds_exterior_crossing(
+    *,
+    scene,
+    receiver_building_id: str,
+    gnb_position: Position,
+    receiver_position: Position,
+) -> PropagationSurfaceCrossing | None:
+    """O2I 无外墙墙段时,用链路与建筑 bounds 的交点合成 exterior crossing。
+
+    建筑 bounds 是权威建筑轮廓(场景编辑器定义);损耗值由 O2I profile
+    计算,合成 crossing 只提供"外墙存在"与交点/距离信息。
+    """
+
+    def find_area(node, area_id: str):
+        if getattr(node, "node_id", None) == area_id:
+            return node
+        for child in getattr(node, "areas", []) or []:
+            found = find_area(child, area_id)
+            if found is not None:
+                return found
+        return None
+
+    area = find_area(scene, receiver_building_id)
+    if area is None:
+        return None
+    bounds = getattr(area, "bounds", None)
+    if not bounds or len(bounds) < 4:
+        return None
+    x0, y0, x1, y1 = (float(v) for v in bounds[:4])
+    ax, ay = gnb_position.x, gnb_position.y
+    bx, by = receiver_position.x, receiver_position.y
+    dx, dy = bx - ax, by - ay
+
+    # Liang-Barsky 线段-矩形裁剪:求链路与矩形第一个交点(进入点),
+    # 正确处理接收点在边界/链路穿过角点等边界情形。
+    t0, t1 = 0.0, 1.0
+    p_q = [(-dx, ax - x0), (dx, x1 - ax), (-dy, ay - y0), (dy, y1 - ay)]
+    for p, q in p_q:
+        if abs(p) < 1e-12:
+            if q < 0:
+                return None  # 平行且在矩形外
+            continue
+        r = q / p
+        if p < 0:
+            if r > t1:
+                return None
+            t0 = max(t0, r)
+        else:
+            if r < t0:
+                return None
+            t1 = min(t1, r)
+    if t0 > t1:
+        return None
+    entry_point = (ax + t0 * dx, ay + t0 * dy)
+    # 命中的边(进入点所在边,含容差)
+    edges = [
+        ((x0, y0), (x1, y0)),  # bottom
+        ((x1, y0), (x1, y1)),  # right
+        ((x1, y1), (x0, y1)),  # top
+        ((x0, y1), (x0, y0)),  # left
+    ]
+    hit_edge = next(
+        ((ex0, ey0), (ex1, ey1))
+        for (ex0, ey0), (ex1, ey1) in edges
+        if min(ex0, ex1) - 1e-6 <= entry_point[0] <= max(ex0, ex1) + 1e-6
+        and min(ey0, ey1) - 1e-6 <= entry_point[1] <= max(ey0, ey1) + 1e-6
+    )
+    distance = math.hypot(entry_point[0] - ax, entry_point[1] - ay)
+    name = getattr(area, "name", None) or receiver_building_id
+    return PropagationSurfaceCrossing(
+        surface_id=f"bounds_exterior_{receiver_building_id}",
+        name=f"{name} exterior boundary (synthesized from bounds)",
+        scope="area_boundary",
+        wall_type="exterior",
+        material=None,
+        area_id=receiver_building_id,
+        area_name=name,
+        intersection=entry_point,
+        distance_from_gnb_map_units=distance,
+        penetration_loss_db=0.0,  # 穿透损耗由 O2I profile 计算
+        segment=(hit_edge[0], hit_edge[1]),
+        distance_from_gnb_m=None,
+        is_effective=True,
+    )
 
 
 def _is_interior(crossing: PropagationSurfaceCrossing) -> PropagationSurfaceCrossing | None:
