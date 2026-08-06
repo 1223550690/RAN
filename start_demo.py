@@ -101,6 +101,13 @@ def main() -> None:
             print(f"[demo] 预览服务器启动失败,请查看 {log_path}", file=sys.stderr)
         print(f"[demo] 预览服务器已启动(pid={proc.pid}, 守护模拟 pid={sim_proc.pid}),日志: {log_path}")
 
+    # 自动打开浏览器(系统默认;带时间戳防缓存)
+    import webbrowser
+
+    url = f"http://127.0.0.1:{args.port}/editor/live/?v={int(time.time())}"
+    webbrowser.open(url)
+    print(f"[demo] 已在浏览器打开: {url}")
+
     # 3) 等待模拟结束(任何退出形式:自然/Ctrl+C/强杀/崩溃)
     try:
         result = sim_proc.wait()
