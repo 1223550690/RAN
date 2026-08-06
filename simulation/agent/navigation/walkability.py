@@ -1,11 +1,11 @@
-"""可行走性判定与碰撞检测。
+"""Walkability checks and collision detection.
 
-障碍来源:
-- 全局墙体(场景级 walls + area 级 walls 转全局)。
-- 室内区域边界(space == "indoor" 的区域四条边界按外墙处理)。
-- 阻挡元素(blocks_movement=True,矩形)。
+Obstacle sources:
+- Global walls (scene-level walls + area-level walls converted to global coordinates).
+- Indoor area boundaries (the four boundary edges of areas with space == "indoor" are treated as exterior walls).
+- Blocking elements (blocks_movement=True, rectangles).
 
-所有几何都以 Agent 半径膨胀处理;判定统一走 point_clear / segment_clear。
+All geometry is inflated by the agent radius; checks go through point_clear / segment_clear uniformly.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ class WalkabilityMap:
         self.agent_radius = max(0.05, float(agent_radius))
         self.walls: list[tuple[Point, Point]] = []
         self.obstacles: list[Rect] = []
-        # 空间预筛:每堵墙/障碍的 AABB,碰撞检测先剔除不相交项,避免大场景全量遍历。
+        # Spatial pre-filter: AABB per wall/obstacle; collision checks cull non-intersecting items first, avoiding full traversal on large scenes.
         self._wall_aabbs: list[Rect] = []
         self._obstacle_aabbs: list[Rect] = []
         self._build()
@@ -63,9 +63,9 @@ class WalkabilityMap:
         self._obstacle_aabbs = list(self.obstacles)
 
     def _openings_on(self, segment: tuple[Point, Point]) -> list[tuple[float, float]]:
-        """返回与线段共线重叠的 open 门开口区间(参数化 [0,1])。
+        """Return parameterized [0,1] intervals of open-door openings collinear-overlapping the segment.
 
-        门 = 可通行开口:任何墙(显式或边界)在门开口处让路。
+        Door = passable opening: any wall (explicit or boundary) yields at a door opening.
         """
 
         openings: list[tuple[float, float]] = []
@@ -79,7 +79,7 @@ class WalkabilityMap:
         return openings
 
     def _segment_minus_openings(self, segment: tuple[Point, Point]) -> list[tuple[Point, Point]]:
-        """墙段扣除门开口(两端按 agent 半径扩张)后的剩余子段。"""
+        """Remaining sub-segments of a wall segment after subtracting door openings (both ends expanded by the agent radius)."""
 
         keep = [(0.0, 1.0)]
         for interval in self._openings_on(segment):
@@ -88,16 +88,16 @@ class WalkabilityMap:
             )
         result: list[tuple[Point, Point]] = []
         for t_start, t_end in keep:
-            if t_end - t_start < 0.005:  # 过滤数值噪声产生的零长度墙段。
+            if t_end - t_start < 0.005:  # filter zero-length wall segments caused by numeric noise.
                 continue
             result.append(_interpolate_segment(segment, t_start, t_end))
         return result
 
     def _build_boundary_walls(self) -> None:
-        """室内区域边界墙,处理共享边界与门开口。
+        """Boundary walls of indoor areas, handling shared boundaries and door openings.
 
-        - 相邻区域共享边界(共线重叠):整段不建墙(通道语义,相邻建筑连通)。
-        - 非共享边界:扣除门(portal)开口区间(两端按 agent 半径扩张)后建墙。
+        - Shared boundary with an adjacent area (collinear overlap): no wall for the whole segment (channel semantics; adjacent buildings connect).
+        - Non-shared boundary: build walls after subtracting door (portal) opening intervals (both ends expanded by the agent radius).
         """
 
         indoor_segments: list[tuple[tuple[Point, Point], str]] = []
@@ -114,7 +114,7 @@ class WalkabilityMap:
                 indoor_segments.append((segment, area.area_id))
 
         for segment, area_id in indoor_segments:
-            # 1) 与其他区域共享的边界区间(整段无墙)。
+            # 1) Boundary intervals shared with other areas (no wall for the whole segment).
             shared: list[tuple[float, float]] = []
             for other_segment, other_id in indoor_segments:
                 if other_id == area_id:
@@ -123,7 +123,7 @@ class WalkabilityMap:
                     segment[0], segment[1], other_segment[0], other_segment[1], eps=0.1
                 ):
                     shared.append(_projection_interval(segment, other_segment))
-            # 2) 边界上的门开口区间(两端按 agent 半径扩张)。
+            # 2) Door opening intervals on the boundary (both ends expanded by the agent radius).
             openings: list[tuple[float, float]] = []
             for portal in self.index.portals.values():
                 if not portal.open:
@@ -132,7 +132,7 @@ class WalkabilityMap:
                     segment[0], segment[1], portal.segment[0], portal.segment[1], eps=0.1
                 ):
                     openings.append(_projection_interval(segment, portal.segment))
-            # 3) 保留区间 = 整段 - 共享区间 - 门开口。
+            # 3) Kept intervals = whole segment - shared intervals - door openings.
             keep = [(0.0, 1.0)]
             for interval in shared:
                 keep = _subtract_intervals(keep, interval)
@@ -141,14 +141,14 @@ class WalkabilityMap:
                     keep, _expand_interval(interval, self.agent_radius, segment)
                 )
             for t_start, t_end in keep:
-                if t_end - t_start < 0.005:  # 过滤数值噪声产生的零长度墙段。
+                if t_end - t_start < 0.005:  # filter zero-length wall segments caused by numeric noise.
                     continue
                 self.walls.append(_interpolate_segment(segment, t_start, t_end))
 
-    # ------------------------------------------------------------------ 点判定
+    # ------------------------------------------------------------------ point checks
 
     def point_clear(self, point: Point) -> bool:
-        """点是否可站立(与所有墙/障碍保持至少 agent_radius 距离)。"""
+        """Whether a point is standable (at least agent_radius away from all walls/obstacles)."""
 
         radius = self.agent_radius
         for aabb, (start, end) in zip(self._wall_aabbs, self.walls):
@@ -164,7 +164,7 @@ class WalkabilityMap:
         return True
 
     def point_to_nearest_obstacle(self, point: Point) -> float:
-        """点到最近障碍(墙或矩形)的距离;被阻挡时为 0。"""
+        """Distance from a point to the nearest obstacle (wall or rectangle); 0 when blocked."""
 
         best = float("inf")
         for aabb, (start, end) in zip(self._wall_aabbs, self.walls):
@@ -177,10 +177,10 @@ class WalkabilityMap:
             best = min(best, point_to_rect_distance(point, rect))
         return best
 
-    # ------------------------------------------------------------------ 线段判定
+    # ------------------------------------------------------------------ segment checks
 
     def segment_clear(self, a: Point, b: Point) -> bool:
-        """线段 ab 是否可通行(与所有膨胀障碍保持至少 agent_radius 距离)。"""
+        """Whether segment ab is passable (at least agent_radius away from all inflated obstacles)."""
 
         radius = self.agent_radius
         seg_aabb = _segment_aabb((a, b))
@@ -197,7 +197,7 @@ class WalkabilityMap:
         return True
 
     def segment_blocked_by_wall(self, a: Point, b: Point) -> bool:
-        """线段 ab 是否与任意墙体线段相交(不含膨胀,用于视线简化)。"""
+        """Whether segment ab intersects any wall segment (no inflation; used for line-of-sight simplification)."""
 
         seg_aabb = _segment_aabb((a, b))
         for aabb, (start, end) in zip(self._wall_aabbs, self.walls):
@@ -207,10 +207,10 @@ class WalkabilityMap:
                 return True
         return False
 
-    # ------------------------------------------------------------------ 起点修正
+    # ------------------------------------------------------------------ start adjustment
 
     def find_safe_start(self, point: Point, *, max_radius: float | None = None) -> Point | None:
-        """起点不可站立时,在螺旋网格上搜索最近安全点。"""
+        """When the start point is not standable, search for the nearest safe point on a spiral grid."""
 
         if self.point_clear(point):
             return point
@@ -227,12 +227,12 @@ class WalkabilityMap:
                     return candidate
         return None
 
-    # ------------------------------------------------------------------ 推离辅助
+    # ------------------------------------------------------------------ push-away helpers
 
     def clearance_and_direction(self, point: Point) -> tuple[float, tuple[float, float]]:
-        """返回 point 到最近墙/障碍的距离,以及"远离最近墙"的单位方向。
+        """Return the distance from point to the nearest wall/obstacle and the unit direction "away from the nearest wall".
 
-        距离为 0 时方向取固定轴 (1, 0)。
+        When the distance is 0, the direction defaults to the fixed axis (1, 0).
         """
 
         best_distance = float("inf")
@@ -260,11 +260,11 @@ class WalkabilityMap:
         return best_distance, best_direction
 
 
-# ------------------------------------------------------------------ 距离工具
+# ------------------------------------------------------------------ distance utilities
 
 
 def point_to_rect_distance(point: Point, rect: Rect) -> float:
-    """点到矩形的最短距离;点在矩形内时为 0。"""
+    """Shortest distance from a point to a rectangle; 0 when the point is inside."""
 
     min_x, min_y, max_x, max_y = rect
     x, y = point
@@ -276,7 +276,7 @@ def point_to_rect_distance(point: Point, rect: Rect) -> float:
 
 
 def segment_to_segment_distance(a: Point, b: Point, c: Point, d: Point) -> float:
-    """两线段间最短距离;相交时为 0。"""
+    """Shortest distance between two segments; 0 when they intersect."""
 
     if segment_intersection(a, b, c, d) is not None:
         return 0.0
@@ -289,7 +289,7 @@ def segment_to_segment_distance(a: Point, b: Point, c: Point, d: Point) -> float
 
 
 def segment_to_rect_distance(a: Point, b: Point, rect: Rect) -> float:
-    """线段到矩形的最短距离;相交或线段端点在矩形内时为 0。"""
+    """Shortest distance from a segment to a rectangle; 0 when they intersect or an endpoint is inside."""
 
     if point_in_rect(a, rect) or point_in_rect(b, rect):
         return 0.0

@@ -1,7 +1,7 @@
-"""AgentRegistry:场景建立时冻结 Agent 集合,提供运行时与快照访问。
+"""AgentRegistry: freezes the agent set at scenario build time, providing runtime and snapshot access.
 
-Agent ID、角色、UE 和总数在构造后不可增删;与 RAN 侧
-RanScenarioDefinition 的唯一性校验保持一致。
+Agent IDs, roles, UEs, and the total count cannot be added to or removed after
+construction; consistent with the uniqueness validation on the RAN side (RanScenarioDefinition).
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class AgentRegistry:
         }
 
     def attach_gateway(self, gateway: RanIntentGateway) -> None:
-        """在 RAN 场景构建完成后挂载意图网关(构建顺序要求,见 orchestrator)。"""
+        """Attach the intent gateway after the RAN scenario is built (construction-order requirement, see orchestrator)."""
 
         for runtime in self._runtimes.values():
             runtime.gateway = gateway

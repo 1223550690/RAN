@@ -18,7 +18,7 @@ class PduSession:
     ue_id: str
     dnn: str
     slice_id: str
-    pdu_session_type: str  # pdu_session_type: IPv4/IPv6/IPv4v6。
+    pdu_session_type: str  # pdu_session_type: IPv4/IPv6/IPv4v6.
     ue_ip: str
     smf_id: str
     upf_id: str
@@ -54,7 +54,7 @@ class QoSFlow:
     """
 
     pdu_session_id: int
-    qfi: int  # qfi: QoS Flow Identifier。
+    qfi: int  # qfi: QoS Flow Identifier.
     five_qi: int
     direction: Direction
     service_type: str
@@ -65,8 +65,8 @@ class QoSFlow:
     slice_id: str
     gbr_mbps: float | None = None
     mbr_mbps: float | None = None
-    ue_id: str = ""  # ue_id: QFI 所属 UE(集成扩展,可选)。
-    service_instance_id: str = ""  # service_instance_id: 业务来源标识(集成扩展,可选)。
+    ue_id: str = ""  # ue_id: UE that owns the QFI (integration extension, optional).
+    service_instance_id: str = ""  # service_instance_id: source identifier of the service (integration extension, optional).
 
     def __post_init__(self) -> None:
         if not 1 <= self.qfi <= 63:

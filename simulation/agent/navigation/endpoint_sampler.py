@@ -1,11 +1,11 @@
-"""候选终点采样:在目标区域/元素周围采样最多 max_candidates 个合法终点。
+"""Candidate endpoint sampling: sample up to max_candidates valid endpoints around a target area/element.
 
-策略:
-- 区域目标:区域内部按网格采样 + 区域中心 + 通向该区域的门中点。
-- 元素目标:元素四侧(正面/背面/左右,距离 = 半尺寸 + Agent 半径 + 间距)+ 元素中心(元素不阻挡时)。
-- 门目标:门中点。
+Strategy:
+- Area target: grid sampling inside the area + area center + midpoints of doors leading into the area.
+- Element target: four sides of the element (front/back/left/right, distance = half size + agent radius + margin) + element center (when the element does not block).
+- Portal target: door midpoint.
 
-采样顺序由固定种子决定,保证可复现。
+The sampling order is determined by a fixed seed, guaranteeing reproducibility.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ class EndpointSampler:
         self.rng = random.Random(seed)
 
     def sample(self, destination: ResolvedDestination) -> list[Point]:
-        """返回候选终点列表(已过滤不可行点,顺序由种子决定)。"""
+        """Return the candidate endpoint list (infeasible points filtered; order determined by the seed)."""
 
         if destination.target_type == "portal":
             candidates = [destination.position]
@@ -32,7 +32,7 @@ class EndpointSampler:
             candidates = self._sample_element(destination)
         else:
             candidates = self._sample_area(destination)
-        # 加入目标区域通往其他区域的门中点,便于跨房间终点靠近门。
+        # Add midpoints of doors from the target area to other areas so cross-room endpoints stay close to doors.
         candidates.extend(self._door_approaches(destination))
         seen: set[tuple[float, float]] = set()
         result: list[Point] = []
@@ -74,15 +74,15 @@ class EndpointSampler:
         half_h = max(0.1, (bounds[3] - bounds[1]) / 2)
         margin = self.walkability.agent_radius * 2.0
         return [
-            (center[0], center[1] - half_h - margin),  # 上侧
-            (center[0], center[1] + half_h + margin),  # 下侧
-            (center[0] - half_w - margin, center[1]),  # 左侧
-            (center[0] + half_w + margin, center[1]),  # 右侧
-            center,  # 中心(元素不阻挡时可用)
+            (center[0], center[1] - half_h - margin),  # top side
+            (center[0], center[1] + half_h + margin),  # bottom side
+            (center[0] - half_w - margin, center[1]),  # left side
+            (center[0] + half_w + margin, center[1]),  # right side
+            center,  # center (usable when the element does not block)
         ]
 
     def _door_approaches(self, destination: ResolvedDestination) -> list[Point]:
-        """目标区域边界上通往其他区域的门中点(用于跨房间时终点贴近门)。"""
+        """Midpoints of doors on the target area boundary leading to other areas (keeps endpoints near doors when crossing rooms)."""
 
         if destination.target_type != "area":
             return []

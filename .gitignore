@@ -16,3 +16,7 @@ outputs/live_state.json
 outputs/live_state.json.tmp
 pixel_preview_sandbox/
 .DS_Store
+
+# PR 收尾:集成文档不提交(仅本地参考)
+docs/integration/
+

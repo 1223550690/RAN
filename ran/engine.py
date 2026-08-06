@@ -6,7 +6,7 @@ from ran.scenario import MultiAgentRanScenario
 
 
 class RanEngine:
-    """创建并运行固定规模的多 Agent RAN 场景。"""
+    """Create and run a fixed-size multi-Agent RAN scenario."""
 
     def __init__(
         self,
@@ -22,7 +22,7 @@ class RanEngine:
         self.agent_state_provider = agent_state_provider
 
     def run_scenario(self, *, tick: int = 1, max_ticks: int = 5000) -> dict[str, object]:
-        """运行默认或注入的多 Agent 场景，直到全部业务结束或达到 tick 上限。"""
+        """Run the default or injected multi-Agent scenario until all services finish or the tick limit is reached."""
 
         scenario = self.build_scenario()
         state: dict[str, object] | None = None
@@ -36,7 +36,7 @@ class RanEngine:
         return state
 
     def build_scenario(self) -> MultiAgentRanScenario:
-        """在此处确定场景 Agent 总数，并构造集合式编排器。"""
+        """Determine the total Agent count of the scenario here and build the collection-style orchestrator."""
 
         return MultiAgentRanScenario(
             self.scene,
@@ -46,11 +46,11 @@ class RanEngine:
         )
 
     def run_agent_upload_demo(self, *, tick: int = 1, max_ticks: int = 5000) -> dict[str, object]:
-        """兼容旧入口；实际运行统一的多 Agent 场景。"""
+        """Compatibility entry point; actually runs the unified multi-Agent scenario."""
 
         return self.run_scenario(tick=tick, max_ticks=max_ticks)
 
     def build_upload_scenario(self) -> MultiAgentRanScenario:
-        """兼容旧入口；新代码应调用 build_scenario()。"""
+        """Compatibility entry point; new code should call build_scenario()."""
 
         return self.build_scenario()

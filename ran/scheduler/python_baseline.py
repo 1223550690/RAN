@@ -43,7 +43,7 @@ class PythonBaselineScheduler:
             if prbs <= 0:
                 continue
             cqi = channel.cqi if channel else 1
-            mcs = cqi_to_mcs(cqi)  # 标准 CQI→MCS 映射(TS 38.214)
+            mcs = cqi_to_mcs(cqi)  # standard CQI→MCS mapping (TS 38.214)
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
@@ -67,7 +67,7 @@ class PythonBaselineScheduler:
 
 
 def _apportion_prbs(weights: dict[tuple[str, int], float], total_prbs: int) -> dict[tuple[str, int], int]:
-    """使用最大余数法进行整数分配，保证 PRB 总量严格守恒。"""
+    """Allocate integers using the largest remainder method, guaranteeing strict conservation of the total PRB count."""
 
     if total_prbs <= 0 or not weights:
         return {key: 0 for key in weights}
@@ -90,7 +90,7 @@ def _build_result(
     allocations: list[MacAllocation],
     debug: dict[str, object],
 ) -> SchedulerResult:
-    """复制请求 envelope，避免 SchedulerResult 与请求失去关联。"""
+    """Copy the request envelope so the SchedulerResult stays associated with the request."""
 
     return SchedulerResult(
         contract_version=request.contract_version,
@@ -106,7 +106,7 @@ def _build_result(
 
 
 # ---------------------------------------------------------------------------
-# tr22068 调度算法(独立函数,可切换使用)
+# tr22068 scheduling algorithms (standalone functions, switchable)
 # ---------------------------------------------------------------------------
 
 def roundRobinDLScheduling(channel_by_ue, request, active):
@@ -122,7 +122,7 @@ def roundRobinDLScheduling(channel_by_ue, request, active):
             ratio = weights[(queue.ue_id, queue.drb_id)] / weight_sum if weight_sum else 0.0
             prbs = math.floor(int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
-            mcs = cqi_to_mcs(cqi)  # 标准 CQI→MCS 映射(TS 38.214)
+            mcs = cqi_to_mcs(cqi)  # standard CQI→MCS mapping (TS 38.214)
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
@@ -161,7 +161,7 @@ def maxThroughputDLScheduling(channel_by_ue, request, active):
             ratio = weights[queue.ue_id] / weight_sum if weight_sum else 0.0
             prbs = math.floor(int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
-            mcs = cqi_to_mcs(cqi)  # 标准 CQI→MCS 映射(TS 38.214)
+            mcs = cqi_to_mcs(cqi)  # standard CQI→MCS mapping (TS 38.214)
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
@@ -236,7 +236,7 @@ def weightedULScheduling(channel_by_ue, request, active):
 
             prbs = math.floor(int(request.total_prbs * ratio))
             cqi = channel.cqi if channel else 1
-            mcs = cqi_to_mcs(cqi)  # 标准 CQI→MCS 映射(TS 38.214)
+            mcs = cqi_to_mcs(cqi)  # standard CQI→MCS mapping (TS 38.214)
             layers = 1 if cqi < 10 else 2
             capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
             scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)

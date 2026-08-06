@@ -1,7 +1,7 @@
-"""路径平滑:视线简化 + 最小间距过滤。
+"""Path smoothing: line-of-sight simplification + minimum-spacing filtering.
 
-- 视线简化:若 waypoint[i] 到 waypoint[j] 的直线段可通行,跳过中间点。
-- 最小间距过滤:相邻点距离过近时删除中间点(保留首尾)。
+- Line-of-sight simplification: if the straight segment from waypoint[i] to waypoint[j] is passable, skip the intermediate points.
+- Minimum-spacing filtering: drop intermediate points that are too close to their neighbors (keep first and last).
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ def smooth_path(
     if len(waypoints) < 3:
         return list(waypoints)
 
-    # 视线简化。
+    # Line-of-sight simplification.
     simplified: list[Point] = [waypoints[0]]
     i = 0
     while i < len(waypoints) - 1:
@@ -32,7 +32,7 @@ def smooth_path(
         simplified.append(waypoints[j])
         i = j
 
-    # 最小间距过滤(保留首尾)。
+    # Minimum-spacing filtering (keep first and last).
     filtered: list[Point] = [simplified[0]]
     for point in simplified[1:-1]:
         if ((point[0] - filtered[-1][0]) ** 2 + (point[1] - filtered[-1][1]) ** 2) ** 0.5 >= min_spacing:
@@ -50,13 +50,13 @@ def push_away_from_walls(
     max_shift: float = 0.9,
     steps: int = 9,
 ) -> list[Point]:
-    """将中间路径点沿"远离最近墙"方向推出,保持至少 target_clearance 余量。
+    """Push intermediate waypoints away from the nearest wall, keeping at least target_clearance margin.
 
-    - 首尾点不动(起点是实际位置,终点是目标点)。
-    - 尽力而为:若推动后与相邻点的线段不可通行(如窄通道/门开口),保留原位置
-      (原位置由 A*/平滑保证可通行,只是余量较小)。
-    - 分步逼近:每次推进 max_shift/steps,取第一个同时满足"点可站立"且
-      "与前后线段可通行"的候选。
+    - First/last points stay put (the start is the actual position, the end is the goal point).
+    - Best effort: if pushing makes the segments to neighboring points impassable (e.g. narrow passages/door openings),
+      keep the original position (the original position is passable per A*/smoothing, just with less margin).
+    - Stepwise approach: advance max_shift/steps at a time and take the first candidate where the point
+      is standable AND the segments to the previous/next points are passable.
     """
 
     if len(waypoints) < 3:

@@ -1,6 +1,6 @@
-"""二维几何基础工具(自包含,不依赖 services/map_service,避免反向依赖)。
+"""2D geometry primitives (self-contained; does not depend on services/map_service to avoid a reverse dependency).
 
-与 MapService 中的几何逻辑保持同一套约定:坐标均为全局地图坐标。
+Follows the same conventions as the geometry logic in MapService: all coordinates are global map coordinates.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ def point_on_segment(p: Point, start: Point, end: Point) -> bool:
 
 
 def segment_intersection(a: Point, b: Point, c: Point, d: Point) -> Point | None:
-    """返回线段 ab 与 cd 的交点;平行/共线时返回共线重叠起点,不相交返回 None。"""
+    """Return the intersection of segments ab and cd; for parallel/collinear segments return the start of the collinear overlap; None when disjoint."""
 
     r = (b[0] - a[0], b[1] - a[1])
     s = (d[0] - c[0], d[1] - c[1])
@@ -66,14 +66,14 @@ def _collinear_overlap_point(a: Point, b: Point, c: Point, d: Point) -> Point | 
 
 
 def point_to_segment_distance(p: Point, start: Point, end: Point) -> float:
-    """点到线段的最短距离。"""
+    """Shortest distance from a point to a segment."""
 
     closest = closest_point_on_segment(p, start, end)
     return distance(p, closest)
 
 
 def closest_point_on_segment(p: Point, start: Point, end: Point) -> Point:
-    """p 在线段 start-end 上的最近点(含端点)。"""
+    """Closest point on segment start-end to p (including endpoints)."""
 
     sx, sy = start
     ex, ey = end
@@ -110,7 +110,7 @@ def rect_intersection(a: Rect, b: Rect) -> Rect | None:
 
 
 def segment_crosses_rect(a: Point, b: Point, rect: Rect) -> bool:
-    """线段 ab 是否穿过矩形(含边界接触)。"""
+    """Whether segment ab crosses the rectangle (including boundary contact)."""
 
     min_x, min_y, max_x, max_y = rect
     corners = [
@@ -128,9 +128,9 @@ def segment_crosses_rect(a: Point, b: Point, rect: Rect) -> bool:
 
 
 def segments_collinear_overlap(a: Point, b: Point, c: Point, d: Point, eps: float = 0.1) -> bool:
-    """两线段是否共线且区间重叠(同一通道开口段的判定)。
+    """Whether two segments are collinear with overlapping intervals (same-channel opening detection).
 
-    用于把同一物理通道的多个门(编辑器多视角)合并为唯一通道边界。
+    Used to merge multiple portals of one physical channel (editor multi-view) into a single channel boundary.
     """
 
     v1 = (b[0] - a[0], b[1] - a[1])
@@ -139,13 +139,13 @@ def segments_collinear_overlap(a: Point, b: Point, c: Point, d: Point, eps: floa
     len2 = (v2[0] * v2[0] + v2[1] * v2[1]) ** 0.5
     if len1 < 1e-9 or len2 < 1e-9:
         return False
-    # 平行(叉积 ≈ 0)。
+    # Parallel (cross product ~ 0).
     if abs(v1[0] * v2[1] - v1[1] * v2[0]) > eps * len1 * len2:
         return False
-    # 共线:线段 2 至少一个端点落在线段 1 上(含端点附近)。
+    # Collinear: at least one endpoint of segment 2 lies on segment 1 (including near endpoints).
     if point_to_segment_distance(c, a, b) > eps and point_to_segment_distance(d, a, b) > eps:
         return False
-    # 区间重叠:任一线段端点落在另一线段上。
+    # Interval overlap: any endpoint of either segment lies on the other segment.
     return (
         point_to_segment_distance(c, a, b) <= eps
         or point_to_segment_distance(d, a, b) <= eps
@@ -155,14 +155,14 @@ def segments_collinear_overlap(a: Point, b: Point, c: Point, d: Point, eps: floa
 
 
 def _segment_aabb(segment: Segment) -> Rect:
-    """线段的轴对齐包围盒 (min_x, min_y, max_x, max_y)。"""
+    """Axis-aligned bounding box of a segment (min_x, min_y, max_x, max_y)."""
 
     a, b = segment
     return (min(a[0], b[0]), min(a[1], b[1]), max(a[0], b[0]), max(a[1], b[1]))
 
 
 def _projection_interval(segment: Segment, other: Segment) -> tuple[float, float]:
-    """把线段 other 投影到 segment 的参数区间 [0,1] 上(共线线段用)。"""
+    """Project segment other onto the parameter interval [0,1] of segment (for collinear segments)."""
 
     (ax, ay), (bx, by) = segment
     vx, vy = bx - ax, by - ay
@@ -180,7 +180,7 @@ def _subtract_intervals(
     keep: list[tuple[float, float]],
     removed: tuple[float, float],
 ) -> list[tuple[float, float]]:
-    """从区间列表中扣除一个区间(参数化区间减法)。"""
+    """Subtract one interval from a list of intervals (parameterized interval subtraction)."""
 
     result: list[tuple[float, float]] = []
     r_start, r_end = removed
@@ -198,7 +198,7 @@ def _subtract_intervals(
 
 
 def _expand_interval(interval: tuple[float, float], length_m: float, segment: Segment | None = None) -> tuple[float, float]:
-    """按长度(米)扩张参数化区间两端;无 segment 时按比例 0.01 保底。"""
+    """Expand both ends of a parameterized interval by a length (meters); falls back to a 0.01 ratio when no segment is given."""
 
     start, end = interval
     if segment is not None:
@@ -211,7 +211,7 @@ def _expand_interval(interval: tuple[float, float], length_m: float, segment: Se
 
 
 def _interpolate_segment(segment: Segment, t_start: float, t_end: float) -> Segment:
-    """按参数区间截取线段子段。"""
+    """Extract the sub-segment of a segment over a parameter interval."""
 
     (ax, ay), (bx, by) = segment
     start = (ax + (bx - ax) * t_start, ay + (by - ay) * t_start)

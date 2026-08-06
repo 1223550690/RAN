@@ -1,12 +1,12 @@
-"""Agent 状态机。
+"""Agent state machine.
 
-状态:READY → PLANNING → WALKING → NETWORK_PENDING → NETWORK_ACTIVE → PLANNING …
-终态:DONE(无更多计划)/ FAILED(计划或导航失败)。
+States: READY -> PLANNING -> WALKING -> NETWORK_PENDING -> NETWORK_ACTIVE -> PLANNING ...
+Terminal states: DONE (no more plans) / FAILED (plan or navigation failed).
 
-约束(由转移表强制):
-- WALKING 时不得产生网络流量:只有到达(NETWORK_PENDING)后才能提交意图。
-- NETWORK_ACTIVE 时坐标冻结:该状态不进入任何移动转移。
-- 每个 Agent 同时只有一个活跃网络意图:NETWORK_* 状态互斥。
+Constraints (enforced by the transition table):
+- No network traffic while WALKING: intents can only be submitted after arrival (NETWORK_PENDING).
+- Position is frozen in NETWORK_ACTIVE: this state never enters a movement transition.
+- Each agent has only one active network intent at a time: NETWORK_* states are mutually exclusive.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ AgentEvent = Literal[
     "terminate",
 ]
 
-# 状态 -> 可接受事件。
+# State -> acceptable events.
 _TRANSITIONS: dict[AgentState, set[AgentEvent]] = {
     "READY": {"start_planning", "terminate"},
     "PLANNING": {"plan_ready", "plan_failed", "no_more_plans", "terminate"},
@@ -93,12 +93,12 @@ class AgentStateMachine:
 
     @property
     def lifecycle_status(self) -> str:
-        """映射到 ran.AgentStatus 兼容的生命周期状态。"""
+        """Map to a lifecycle status compatible with ran.AgentStatus."""
 
         return _LIFECYCLE_BY_STATE[self.state]
 
     @property
     def activity_state(self) -> str:
-        """对外暴露的活动状态名。"""
+        """Activity state name exposed externally."""
 
         return self.state.lower()

@@ -10,33 +10,33 @@ from .radio import ChannelState, MacAllocation
 
 @dataclass(slots=True)
 class SchedulerRequest:
-    """Python 发给可替换 Scheduler 后端的完整调度快照。"""
+    """Complete scheduling snapshot sent by Python to the replaceable Scheduler backend."""
 
-    contract_version: str  # contract_version: 跨语言合同版本。
-    simulation_id: str  # simulation_id: 本次仿真标识。
-    scheduler_request_id: str  # scheduler_request_id: 本次决策请求标识。
-    tick: int  # tick: 当前仿真 tick。
-    gnb_id: str  # gnb_id: 被调度的基站标识。
-    direction: Direction  # direction: UL 或 DL。
-    total_prbs: int  # total_prbs: 当前方向可用 PRB 总量。
-    rlc_queues: list[RlcQueue]  # rlc_queues: 活跃 RLC 队列摘要。
-    qos_flows: list[QoSFlow]  # qos_flows: QoS Flow 摘要列表。
-    drbs: list[Drb]  # drbs: DRB 配置列表。
-    channel_states: list[ChannelState]  # channel_states: 信道状态 record 列表。
-    slice_policies: list[SlicePolicy]  # slice_policies: 切片策略列表。
+    contract_version: str  # contract_version: cross-language contract version.
+    simulation_id: str  # simulation_id: identifier of this simulation run.
+    scheduler_request_id: str  # scheduler_request_id: identifier of this decision request.
+    tick: int  # tick: current simulation tick.
+    gnb_id: str  # gnb_id: identifier of the base station being scheduled.
+    direction: Direction  # direction: UL or DL.
+    total_prbs: int  # total_prbs: total PRBs available for the current direction.
+    rlc_queues: list[RlcQueue]  # rlc_queues: summary of active RLC queues.
+    qos_flows: list[QoSFlow]  # qos_flows: list of QoS flow summaries.
+    drbs: list[Drb]  # drbs: list of DRB configurations.
+    channel_states: list[ChannelState]  # channel_states: list of channel state records.
+    slice_policies: list[SlicePolicy]  # slice_policies: list of slice policies.
     harq_feedback: list[dict[str, object]] = field(default_factory=list)
-    requirements: list[str] = field(default_factory=list)  # requirements: 调度需求标签(tr22068 扩展,可选)。
-    phr: list[float] = field(default_factory=list)  # phr: UE 功率余量报告(tr22068 扩展,可选)。
-    slot_ms: float = 1.0  # slot_ms: 本 tick 代表的无线时隙时长(ms);传输量按 tick 语义时长缩放。
+    requirements: list[str] = field(default_factory=list)  # requirements: scheduling requirement tags (tr22068 extension, optional).
+    phr: list[float] = field(default_factory=list)  # phr: UE power headroom reports (tr22068 extension, optional).
+    slot_ms: float = 1.0  # slot_ms: radio slot duration (ms) represented by this tick; throughput is scaled by the tick's semantic duration.
 
 
 @dataclass(slots=True)
 class SchedulerResult:
-    """Scheduler 后端针对一个 SchedulerRequest 返回的决策。"""
+    """Decision returned by the Scheduler backend for one SchedulerRequest."""
 
-    contract_version: str  # contract_version: 必须与请求版本一致。
-    simulation_id: str  # simulation_id: 必须与请求仿真一致。
-    scheduler_request_id: str  # scheduler_request_id: 对应的请求标识。
-    tick: int  # tick: 决策所属 tick。
-    allocations: list[MacAllocation]  # allocations: DRB 到 PRB 的决策列表。
-    debug: dict[str, object] = field(default_factory=dict)  # debug: 非执行必需的调试信息。
+    contract_version: str  # contract_version: must match the request version.
+    simulation_id: str  # simulation_id: must match the request simulation.
+    scheduler_request_id: str  # scheduler_request_id: identifier of the corresponding request.
+    tick: int  # tick: tick the decision belongs to.
+    allocations: list[MacAllocation]  # allocations: list of DRB-to-PRB decisions.
+    debug: dict[str, object] = field(default_factory=dict)  # debug: debug information not required for execution.

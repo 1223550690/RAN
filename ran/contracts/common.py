@@ -10,7 +10,7 @@ Direction = Literal["UL", "DL"]
 
 @dataclass(slots=True)
 class Position:
-    """地图中的二维全局坐标。"""
+    """Two-dimensional global coordinates on the map."""
 
-    x: float  # x: 地图全局 X 坐标。
-    y: float  # y: 地图全局 Y 坐标。
+    x: float  # x: global X coordinate on the map.
+    y: float  # y: global Y coordinate on the map.

@@ -1,14 +1,14 @@
-"""NavigationPlanner:导航门面,组合语义解析、房间图、终点采样、A*、平滑与评分。
+"""NavigationPlanner: navigation facade combining semantic resolution, room graph, endpoint sampling, A*, smoothing, and scoring.
 
-流程(与 3D 场景导航逻辑对齐):
-1. 按完整层级路径/名字/别名解析目标。
-2. 判断起点与目标分别位于哪个区域。
-3. 跨房间时构建区域-门连接图,通过 BFS 确定门序列。
-4. 起点落在障碍中时,搜索附近安全起点。
-5. 在目标区域/元素各侧采样最多 max_candidates 个候选终点。
-6. 对每个候选执行八方向 A*(分段经过门序列)。
-7. 用连续线段碰撞检查防止简化后穿墙,再做视线简化与最小间距过滤。
-8. 对候选路线评分并选择结果。
+Pipeline (aligned with the 3D scene navigation logic):
+1. Resolve the destination by full hierarchical path/name/alias.
+2. Determine which area the start and the destination are in.
+3. When crossing rooms, build an area-door connection graph and derive the door sequence via BFS.
+4. If the start falls inside an obstacle, search for a nearby safe start.
+5. Sample up to max_candidates candidate endpoints around the target area/element.
+6. Run 8-direction A* for each candidate (segmented through the door sequence).
+7. Use continuous segment collision checks to prevent wall-cutting after simplification, then line-of-sight simplification and minimum-spacing filtering.
+8. Score the candidate routes and pick the result.
 """
 
 from __future__ import annotations
@@ -27,17 +27,17 @@ from .walkability import WalkabilityMap
 
 @dataclass(frozen=True, slots=True)
 class PathPlan:
-    waypoints: tuple[Point, ...]  # waypoints: 平滑后的世界坐标路径(含起点与终点)。
-    destination: ResolvedDestination  # destination: 解析后的目标。
-    endpoint: Point  # endpoint: 选定的终点。
-    doors: tuple  # doors: 跨房间门序列(IndexedPortal 元组)。
-    score: RouteScore  # score: 选中路线的评分明细。
+    waypoints: tuple[Point, ...]  # waypoints: smoothed world-coordinate path (including start and end).
+    destination: ResolvedDestination  # destination: resolved target.
+    endpoint: Point  # endpoint: selected endpoint.
+    doors: tuple  # doors: cross-room door sequence (IndexedPortal tuple).
+    score: RouteScore  # score: scoring details of the selected route.
 
 
 @dataclass(slots=True)
 class PathPlanResult:
-    plan: PathPlan | None  # plan: 成功时为路径计划,失败为 None。
-    error: str | None = None  # error: 失败原因。
+    plan: PathPlan | None  # plan: path plan on success, None on failure.
+    error: str | None = None  # error: failure reason.
 
     @property
     def ok(self) -> bool:
@@ -63,28 +63,28 @@ class NavigationPlanner:
             self.walkability, max_candidates=max_candidates, seed=seed
         )
         self.agent_radius = agent_radius
-        self.clearance_margin = agent_radius + 0.3  # 推离目标余量(半径 + 视觉余量)
+        self.clearance_margin = agent_radius + 0.3  # push-away margin (radius + visual margin)
         self.cell_size = cell_size
         self.max_astar_candidates = max_astar_candidates
         self._astar: GridAstar | None = None
         self._coarse: GridAstar | None = None
         self._local_astars: dict[str, GridAstar] = {}
 
-    # ------------------------------------------------------------------ 对外接口
+    # ------------------------------------------------------------------ public interface
 
     def resolve_destination(self, ref: str) -> ResolvedDestination | None:
-        """语义目标解析;解析失败返回 None。"""
+        """Resolve a semantic destination; returns None when resolution fails."""
 
         return self.semantic_index.resolve(ref)
 
     def current_room(self, point: Point) -> str | None:
-        """返回点所在的最深层区域 ID;户外为 None。"""
+        """Return the deepest area ID containing the point; None when outdoors."""
 
         area = self.semantic_index.find_area_at(point)
         return area.area_id if area is not None else None
 
     def plan_path(self, start: Point, destination_ref: str) -> PathPlanResult:
-        """规划从起点到语义目标的完整路径。"""
+        """Plan a complete path from the start point to the semantic destination."""
 
         destination = self.semantic_index.resolve(destination_ref)
         if destination is None:
@@ -99,16 +99,16 @@ class NavigationPlanner:
         if not candidates:
             return PathPlanResult(None, error=f"no walkable endpoint for destination {destination_ref!r}")
 
-        # 主干路径:起点 → 各门(所有候选共享,只算一次)。
+        # Trunk path: start -> each door (shared by all candidates; computed once).
         trunk, trunk_end = self._build_trunk(safe_start, doors)
         if trunk is None:
             return PathPlanResult(None, error=f"no route to door sequence for destination {destination_ref!r}")
-        # 共享末端段:最后门 → 目标区域中心(候选终点都在目标区域内,共享此段)。
+        # Shared tail segment: last door -> target area center (all candidate endpoints are inside the target area; share this segment).
         tail, tail_end = self._build_tail(trunk_end, destination.position)
 
         best: PathPlan | None = None
         straight_distance = ((safe_start[0] - destination.position[0]) ** 2 + (safe_start[1] - destination.position[1]) ** 2) ** 0.5
-        # 候选按到共享末端段终点的距离排序,优先评估近的。
+        # Sort candidates by distance to the tail segment end; evaluate nearer ones first.
         ordered = sorted(
             candidates,
             key=lambda point: (point[0] - tail_end[0]) ** 2 + (point[1] - tail_end[1]) ** 2,
@@ -133,17 +133,17 @@ class NavigationPlanner:
             )
             if best is None or score.score < best.score.score:
                 best = plan
-            # 提前终止:已找到直线可达或足够接近直线的路线。
+            # Early termination: a straight-line-reachable or near-straight route was found.
             if score.score <= straight_distance * 1.3 + 2.0:
                 break
         if best is None:
             return PathPlanResult(None, error=f"no route found to destination {destination_ref!r}")
         return PathPlanResult(best)
 
-    # ------------------------------------------------------------------ 内部
+    # ------------------------------------------------------------------ internals
 
     def _get_astar(self) -> GridAstar:
-        """全局细网格:保留给需要全场景细节的兜底场景(当前跨建筑段已改用粗网格)。"""
+        """Global fine grid: kept as a fallback for scenarios needing full-scene detail (cross-building segments now use the coarse grid)."""
 
         if self._astar is None:
             self._astar = GridAstar(
@@ -154,7 +154,7 @@ class NavigationPlanner:
         return self._astar
 
     def _coarse_astar(self) -> GridAstar:
-        """全局粗网格:跨建筑/户外段使用,cell 大、格数少,绕行规划快。"""
+        """Global coarse grid: used for cross-building/outdoor segments; large cells, few grid nodes, fast detour planning."""
 
         if self._coarse is None:
             self._coarse = GridAstar(
@@ -166,7 +166,7 @@ class NavigationPlanner:
         return self._coarse
 
     def _top_level_area_id(self, point: Point) -> str | None:
-        """返回点所在的最顶层区域 ID(建筑级);户外为 None。"""
+        """Return the top-level area ID (building level) containing the point; None when outdoors."""
 
         area = self.semantic_index.find_area_at(point)
         while area is not None and area.parent_id is not None:
@@ -177,7 +177,7 @@ class NavigationPlanner:
         return area.area_id if area is not None else None
 
     def _local_astar(self, top_area_id: str) -> GridAstar:
-        """建筑级局部网格:更细的 cell,只覆盖单建筑范围,规划快且精确。"""
+        """Building-level local grid: finer cells covering only one building; fast and precise planning."""
 
         cached = self._local_astars.get(top_area_id)
         if cached is not None:
@@ -196,7 +196,7 @@ class NavigationPlanner:
         return cached
 
     def _segment_astar(self, a: Point, b: Point) -> GridAstar:
-        """选择段规划使用的网格:段两端同建筑 → 局部网格;跨建筑/户外 → 粗网格。"""
+        """Pick the grid for segment planning: both ends in the same building -> local grid; cross-building/outdoor -> coarse grid."""
 
         top_a = self._top_level_area_id(a)
         top_b = self._top_level_area_id(b)
@@ -217,7 +217,7 @@ class NavigationPlanner:
         start: Point,
         doors: list,
     ) -> tuple[list[Point] | None, Point]:
-        """计算所有候选共享的主干路径:起点 → 各门中点(逐段选择局部/全局网格)。"""
+        """Compute the trunk path shared by all candidates: start -> each door midpoint (picking local/global grid per segment)."""
 
         waypoints: list[Point] = [start]
         current = start
@@ -240,7 +240,7 @@ class NavigationPlanner:
         trunk_end: Point,
         goal_position: Point,
     ) -> tuple[list[Point], Point]:
-        """共享末端段:主干末端 → 目标区域中心。返回 (路径, 末端点)。"""
+        """Shared tail segment: trunk end -> target area center. Returns (path, end point)."""
 
         tail_start = trunk_end
         tail_end = self.walkability.find_safe_start(goal_position)
@@ -260,7 +260,7 @@ class NavigationPlanner:
         tail_end: Point,
         endpoint: Point,
     ) -> list[Point] | None:
-        """构造候选路径:共享主干 + 共享末端段 + 末端点到候选终点的短段。"""
+        """Build a candidate path: shared trunk + shared tail + short segment from the tail end to the candidate endpoint."""
 
         prefix = trunk + tail[1:]
         if self.walkability.segment_clear(tail_end, endpoint):

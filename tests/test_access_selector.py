@@ -1,4 +1,4 @@
-"""接入选择(haoyu Module 1)测试:显式 5G/Wi-Fi、自动选择、未知接入回退。"""
+"""Access selection (haoyu Module 1) tests: explicit 5G/Wi-Fi, auto selection, unknown fallback."""
 from __future__ import annotations
 
 import unittest
@@ -58,7 +58,7 @@ class AccessSelectionTests(unittest.TestCase):
         self.assertEqual(selection.selected_access, "5g")
 
     def test_registration_flow_uses_selected_access(self) -> None:
-        """注册-接入链路(haoyu Module 1 接线):UERequest → select_access 一致性。"""
+        """Registration-access flow (haoyu Module 1 wiring): UERequest -> select_access consistency."""
         request = _request("wifi")
         selection = select_access(request, GNB)
         self.assertEqual(selection.selected_access, request.selected_access)

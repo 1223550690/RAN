@@ -1,10 +1,12 @@
-"""CKM 预生成脚本:场景不变时离线构建一次,模拟启动直接加载缓存。
+"""CKM pre-generation script: when the scene is unchanged, build once offline and
+the simulation loads the cache directly at startup.
 
-用法:
+Usage:
     python -m ran.ckm.pregen --scene bristol_topology [--grid 10 --indoor 5]
 
-输出:outputs/ckm_cache_{scene_id}.json(版本键绑定场景/gNB/频率/功率/校准/参考/码本;
-任一变化自动重建)。
+Output: outputs/ckm_cache_{scene_id}.json (the version key binds scene / gNB /
+frequency / power / calibration / reference / codebook; any change triggers an
+automatic rebuild).
 """
 from __future__ import annotations
 
@@ -32,7 +34,7 @@ def main() -> None:
     gnb = load_gnb_site_from_scene(scene)
     policy = load_channel_model_policy(str(getattr(scene, "node_id", args.scene)))
     if not getattr(policy, "is_hybrid", False):
-        print(f"[ckm-pregen] 场景 {args.scene} 的 channel_model.json mode 不是 hybrid,无需预生成。", file=sys.stderr)
+        print(f"[ckm-pregen] channel_model.json mode for scene {args.scene} is not hybrid; no pre-generation needed.", file=sys.stderr)
         sys.exit(1)
 
     config = CkmConfig(
@@ -46,15 +48,15 @@ def main() -> None:
     t0 = time.time()
     ckm = build_hybrid_ckm(scene=scene, gnb=gnb, policy=policy, ckm_config=config)
     if ckm is None:
-        print("[ckm-pregen] 构建失败(返回 None)。", file=sys.stderr)
+        print("[ckm-pregen] build failed (returned None).", file=sys.stderr)
         sys.exit(1)
     print(
-        f"[ckm-pregen] 完成: cells={len(ckm.cells)} refs={ckm.model_metadata.get('reference_count')} "
-        f"耗时={time.time() - t0:.1f}s 版本={ckm.version_key}"
+        f"[ckm-pregen] done: cells={len(ckm.cells)} refs={ckm.model_metadata.get('reference_count')} "
+        f"elapsed={time.time() - t0:.1f}s version={ckm.version_key}"
     )
     from ran.ckm.ckm import cache_path
 
-    print(f"[ckm-pregen] 缓存: {cache_path(args.scene)}")
+    print(f"[ckm-pregen] cache: {cache_path(args.scene)}")
 
 
 if __name__ == "__main__":

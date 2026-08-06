@@ -1,9 +1,9 @@
-"""场景语义索引:把 structure.Home 展开为统一全局坐标,并按语义引用解析目标。
+"""Scene semantic index: expands structure.Home into unified global coordinates and resolves targets by semantic reference.
 
-坐标约定与 services/map_service.py 一致:
-- 顶层区域 bounds 为全局坐标。
-- 子区域 bounds 为其父区域渲染坐标系(map_bounds 或默认归一化 0..1)下的局部坐标,
-  通过父区域 bounds 归一化映射到全局。
+Coordinate conventions match services/map_service.py:
+- Top-level area bounds are global coordinates.
+- Child-area bounds are local coordinates in the parent's rendering coordinate system (map_bounds or the default 0..1 normalization),
+  mapped to global coordinates through the parent's bounds.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from typing import Literal
 
 from .geometry import Point, Rect, point_in_rect
 
-# 模糊匹配正则缓存(按 ref key 缓存)。
+# Fuzzy-match regex cache (keyed by ref key).
 _WORD_PATTERN_CACHE: dict[str, re.Pattern] = {}
 
 
@@ -22,21 +22,21 @@ _WORD_PATTERN_CACHE: dict[str, re.Pattern] = {}
 class IndexedArea:
     area_id: str
     name: str
-    bounds: Rect  # bounds: 全局坐标。
-    parent_id: str | None  # parent_id: 父区域 ID,顶层为 None。
-    path: str  # path: 完整层级路径,如 "Block 09 / Student Union / Dining Area"。
+    bounds: Rect  # bounds: global coordinates.
+    parent_id: str | None  # parent_id: parent area ID; None for top-level.
+    path: str  # path: full hierarchical path, e.g. "Block 09 / Student Union / Dining Area".
     metadata: dict = field(default_factory=dict)
-    rendering: dict = field(default_factory=dict)  # rendering: 原始渲染配置,含 map_bounds。
+    rendering: dict = field(default_factory=dict)  # rendering: raw rendering config, including map_bounds.
 
 
 @dataclass(frozen=True, slots=True)
 class IndexedElement:
     element_id: str
     name: str
-    center: Point  # center: 全局坐标。
-    size: tuple[float, float]  # size: 全局尺寸。
-    area_id: str  # area_id: 所在区域。
-    path: str  # path: 完整层级路径。
+    center: Point  # center: global coordinates.
+    size: tuple[float, float]  # size: global size.
+    area_id: str  # area_id: containing area.
+    path: str  # path: full hierarchical path.
     blocks_movement: bool = False
     movable: bool = False
 
@@ -45,17 +45,17 @@ class IndexedElement:
 class IndexedPortal:
     portal_id: str
     name: str
-    segment: tuple[Point, Point]  # segment: 全局坐标线段。
-    center: Point  # center: 门线段中点。
-    area_ids: tuple[str, str]  # area_ids: 连接的两个区域。
-    open: bool = True  # open: 通行状态(与编辑器 locked 字段区分,导航以 open 为准)。
-    channel_id: str | None = None  # channel_id: 同一物理通道的共享标识,缺省为 None。
+    segment: tuple[Point, Point]  # segment: segment in global coordinates.
+    center: Point  # center: midpoint of the door segment.
+    area_ids: tuple[str, str]  # area_ids: the two connected areas.
+    open: bool = True  # open: passability (distinct from the editor locked field; navigation follows open).
+    channel_id: str | None = None  # channel_id: shared identifier of the same physical channel; None by default.
 
 
 @dataclass(frozen=True, slots=True)
 class IndexedWall:
     wall_id: str
-    segment: tuple[Point, Point]  # segment: 全局坐标线段。
+    segment: tuple[Point, Point]  # segment: segment in global coordinates.
     blocks_movement: bool = True
 
 
@@ -64,17 +64,17 @@ TargetType = Literal["area", "element", "portal"]
 
 @dataclass(frozen=True, slots=True)
 class ResolvedDestination:
-    ref: str  # ref: 原始语义引用。
-    target_type: TargetType  # target_type: 目标类型。
-    target_id: str  # target_id: 目标对象 ID。
-    area_id: str | None  # area_id: 目标所在区域;目标本身为区域时即自身。
-    position: Point  # position: 参考点(区域/元素中心,门中点)。
-    bounds: Rect | None  # bounds: 区域或元素全局 bounds;portal 为 None。
-    path: str  # path: 目标的完整路径。
+    ref: str  # ref: original semantic reference.
+    target_type: TargetType  # target_type: target type.
+    target_id: str  # target_id: target object ID.
+    area_id: str | None  # area_id: area containing the target; the target itself when it is an area.
+    position: Point  # position: reference point (area/element center, door midpoint).
+    bounds: Rect | None  # bounds: global bounds of the area or element; None for portals.
+    path: str  # path: full path of the target.
 
 
 def _local_bounds_to_global(bounds: Rect, parent: IndexedArea) -> Rect:
-    """把子区域局部 bounds 转换为全局坐标。"""
+    """Convert child-area local bounds to global coordinates."""
 
     local_bounds = parent.rendering.get("map_bounds")
     if local_bounds:
@@ -98,7 +98,7 @@ def _local_bounds_to_global(bounds: Rect, parent: IndexedArea) -> Rect:
 
 
 class SceneSemanticIndex:
-    """从 Home 场景对象构建全局语义索引,并提供语义引用解析。"""
+    """Build a global semantic index from a Home scene object and provide semantic reference resolution."""
 
     def __init__(self, scene, aliases: dict[str, str] | None = None) -> None:
         self.scene = scene
@@ -107,10 +107,10 @@ class SceneSemanticIndex:
         self.elements: dict[str, IndexedElement] = {}
         self.portals: dict[str, IndexedPortal] = {}
         self.walls: list[IndexedWall] = []
-        self.by_name: dict[str, list[str]] = {}  # 小写名称 -> 对象 id 列表(区域/元素/门)。
+        self.by_name: dict[str, list[str]] = {}  # lowercase name -> list of object ids (areas/elements/portals).
         self._build()
 
-    # ------------------------------------------------------------------ 构建
+    # ------------------------------------------------------------------ building
 
     def _build(self) -> None:
         for area in getattr(self.scene, "areas", []):
@@ -138,7 +138,7 @@ class SceneSemanticIndex:
         self.areas[area.node_id] = indexed
         self._add_name(area.name, f"area:{area.node_id}")
         self._add_name(area.node_id, f"area:{area.node_id}")
-        self._add_name(indexed.path, f"area:{area.node_id}")  # 完整层级路径(同建筑过滤/精确解析用)。
+        self._add_name(indexed.path, f"area:{area.node_id}")  # full hierarchical path (for same-building filtering/exact resolution).
 
         for element in getattr(area, "elements", []):
             center = tuple(float(v) for v in element.center)
@@ -209,7 +209,7 @@ class SceneSemanticIndex:
         self._add_name(portal_id, f"portal:{portal_id}")
 
     def _index_road_objects(self) -> None:
-        # 道路对象暂不参与目标解析(road 不作为导航终点);仅登记名称避免歧义。
+        # Road objects do not participate in target resolution (roads are not navigation endpoints); names are registered only to avoid ambiguity.
         for road in getattr(self.scene, "road_segments", []):
             self._add_name(getattr(road, "name", ""), f"road:{getattr(road, 'road_id', '')}")
         for intersection in getattr(self.scene, "road_intersections", []):
@@ -221,10 +221,10 @@ class SceneSemanticIndex:
             return
         self.by_name.setdefault(key, []).append(object_key)
 
-    # ------------------------------------------------------------------ 查询
+    # ------------------------------------------------------------------ queries
 
     def scene_bounds(self) -> Rect:
-        """返回所有区域并集边界;无区域时回退到场景默认出生点附近。"""
+        """Return the union bounds of all areas; falls back to near the scene's default agent start when there are no areas."""
 
         if not self.areas:
             start = getattr(self.scene, "default_agent_start", None) or (0.0, 0.0)
@@ -236,7 +236,7 @@ class SceneSemanticIndex:
         return (min_x, min_y, max_x, max_y)
 
     def find_area_at(self, point: Point) -> IndexedArea | None:
-        """返回包含该点的最深层区域(按层级深度优先匹配)。"""
+        """Return the deepest area containing the point (preferring greater hierarchy depth)."""
 
         best: IndexedArea | None = None
         for area in self.areas.values():
@@ -252,13 +252,13 @@ class SceneSemanticIndex:
         return self.elements.get(element_id)
 
     def resolve(self, ref: str) -> ResolvedDestination | None:
-        """按语义引用解析目标。
+        """Resolve a target by semantic reference.
 
-        解析顺序:
-        1. 别名(alias -> 标准引用),对别名结果递归解析一次。
-        2. 精确 ID / 名称匹配(区域、元素、门),大小写不敏感。
-        3. 完整路径匹配("A / B / C"),大小写不敏感。
-        4. 末段名称匹配:路径的最后一段唯一命中时采用。
+        Resolution order:
+        1. Alias (alias -> canonical reference); the alias result is resolved recursively once.
+        2. Exact ID / name match (areas, elements, portals), case-insensitive.
+        3. Full-path match ("A / B / C"), case-insensitive.
+        4. Last-segment name match: used when the final path segment matches uniquely.
         """
 
         raw = str(ref or "").strip()
@@ -273,7 +273,7 @@ class SceneSemanticIndex:
         if len(candidates) == 1:
             return self._resolve_key(candidates[0], raw)
         if len(candidates) > 1:
-            # 多义名称:优先区域,其次元素,最后门。
+            # Ambiguous name: prefer areas, then elements, then portals.
             for prefix in ("area:", "element:", "portal:"):
                 for candidate in candidates:
                     if candidate.startswith(prefix):
@@ -293,8 +293,8 @@ class SceneSemanticIndex:
             if element.path.lower().endswith(f" / {key}"):
                 return self._to_destination(element, raw)
 
-        # 5. 唯一模糊匹配(LLM 简写/别名兜底):ref 作为独立词出现在名称中,
-        #    解析目标按 (类型, 层级深度) 取最优,唯一时采用。
+        # 5. Unique fuzzy match (LLM shorthand/alias fallback): ref appears in a name as a standalone word;
+        #    the best candidate is chosen by (type, hierarchy depth) and adopted only when unique.
         pattern = _WORD_PATTERN_CACHE.get(key)
         if pattern is None:
             pattern = re.compile(rf"(?<![a-z0-9_/-]){re.escape(key)}(?![a-z0-9_/-])")
@@ -370,7 +370,7 @@ class SceneSemanticIndex:
         )
 
 
-# ------------------------------------------------------------------ 工具
+# ------------------------------------------------------------------ utilities
 
 
 def _rect_center(bounds: Rect) -> Point:

@@ -1,4 +1,4 @@
-"""混合 CKM(环节七):网格单元、双层网格(室内细/户外粗)、O(1) 查询、缓存与版本键。"""
+"""Hybrid CKM (phase 7): grid cells, two-layer grid (fine indoor / coarse outdoor), O(1) query, cache and version key."""
 from __future__ import annotations
 
 import hashlib
@@ -15,7 +15,7 @@ CKM_CACHE_DIR = PROJECT_ROOT / "outputs"
 
 @dataclass(slots=True)
 class HybridCKMCell:
-    """单个网格单元的大尺度信道知识(文档 11.3 压缩版)。"""
+    """Large-scale channel knowledge for a single grid cell (condensed from doc 11.3)."""
 
     grid_x: int
     grid_y: int
@@ -32,10 +32,10 @@ class HybridCKMCell:
     exterior_walls_crossed: list[str]
     interior_walls_crossed: list[str]
     portals_crossed: list[str]
-    physical_path_loss_db: float  # 3GPP 物理先验
-    calibrated_path_loss_db: float  # + 校准修正
-    residual_correction_db: float  # + 空间残差
-    hybrid_path_loss_db: float  # 最终
+    physical_path_loss_db: float  # 3GPP physical prior
+    calibrated_path_loss_db: float  # + calibration correction
+    residual_correction_db: float  # + spatial residual
+    hybrid_path_loss_db: float  # final
     predicted_rsrp_dbm: float
     prediction_std_db: float
     best_beam_id: str | None
@@ -46,7 +46,7 @@ class HybridCKMCell:
 
 @dataclass(slots=True)
 class HybridCkm:
-    """混合 CKM:双层网格(室内细、户外粗)+ 查询。"""
+    """Hybrid CKM: two-layer grid (fine indoor, coarse outdoor) + query."""
 
     scene_id: str
     version_key: str
@@ -67,9 +67,10 @@ class HybridCkm:
                 self._outdoor_cells[key] = cell
 
     def query(self, x_map: float, y_map: float) -> HybridCKMCell | None:
-        """最近网格单元查询(O(1));建筑内命中细网格,户外命中粗网格。"""
+        """Nearest grid cell query (O(1)); indoor hits the fine grid, outdoor the coarse grid."""
 
-        # 先判建筑内(粗查);半开区间与采样一致(边界点算户外,避免空洞)
+        # First check if inside a building (coarse lookup); half-open interval
+        # consistent with sampling (boundary points count as outdoor, avoiding holes)
         in_building = False
         for bx0, by0, bx1, by1 in self._building_bounds:
             if bx0 <= x_map < bx1 and by0 <= y_map < by1:
@@ -83,7 +84,7 @@ class HybridCkm:
         cell = table.get(key)
         if cell is not None:
             return cell
-        # 降级:另一张表 / 最近邻扫描(极少数边界点)
+        # Fallback: the other table / nearest-neighbor scan (rare boundary points)
         fallback = self._outdoor_cells if in_building else self._indoor_cells
         cell = fallback.get(key)
         if cell is not None:
@@ -101,7 +102,7 @@ class HybridCkm:
                     best = cell
         return best
 
-    # ------------------------------------------------------------ 缓存
+    # ------------------------------------------------------------ cache
 
     def to_json(self) -> dict:
         return {
@@ -142,9 +143,11 @@ def compute_version_key(
     policy_hash: str = "",
     scene_hash: str = "",
 ) -> str:
-    """版本键:场景结构/gNB/校准/参考/码本/信道策略(含 O2I profile)任一变化 → 重建。
+    """Version key: any change in scene structure / gNB / calibration / reference /
+    codebook / channel policy (incl. O2I profiles) → rebuild.
 
-    scene_hash: 墙体/门几何的结构 hash(编辑器改墙/门后 CKM 自动失效,文档 11.4)。
+    scene_hash: structural hash of wall/door geometry (the CKM auto-invalidates
+    when the editor changes walls/doors, doc 11.4).
     """
 
     scene_repr = f"{scene_id}:{gnb.gnb_id}:{gnb.position.x:.1f}:{gnb.position.y:.1f}:{gnb.carrier_freq_mhz}:{gnb.tx_power_dbm}"
@@ -153,9 +156,10 @@ def compute_version_key(
 
 
 def scene_structure_hash(scene) -> str:
-    """墙体/门几何的稳定结构 hash(walls/portals 的 segment 数值)。
+    """Stable structural hash of wall/door geometry (segment values of walls/portals).
 
-    遍历顺序与数值表示稳定;不受渲染字段/名称变化影响。
+    Traversal order and numeric representation are stable; unaffected by
+    rendering-field/name changes.
     """
 
     parts: list[str] = []

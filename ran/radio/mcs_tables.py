@@ -1,9 +1,10 @@
-"""标准 CQI / MCS / BLER 查表(环节十一,文档 15.3)。
+"""Standard CQI / MCS / BLER lookup tables (phase 11, doc 15.3).
 
-数据来源:TS 38.214 表 5.2.2.1-2(CQI,4-bit)与表 5.1.3.1-1(MCS,64QAM 上限)。
-SINR→CQI 阈值与 BLER 采用 3GPP AWGN 仿真常用工作点(BLER 10%)。
+Data sources: TS 38.214 Table 5.2.2.1-2 (CQI, 4-bit) and Table 5.1.3.1-1
+(MCS, 64QAM cap). The SINR→CQI thresholds and BLER use the common 3GPP AWGN
+simulation operating point (BLER 10%).
 
-用法:
+Usage:
     cqi = sinr_to_cqi(sinr_db)
     mcs = cqi_to_mcs(cqi)
     eff = mcs_spectral_efficiency(mcs)          # bits/symbol
@@ -11,7 +12,7 @@ SINR→CQI 阈值与 BLER 采用 3GPP AWGN 仿真常用工作点(BLER 10%)。
 """
 from __future__ import annotations
 
-# (modulation_order, code_rate_1024, spectral_eff)——TS 38.214 表 5.2.2.1-2
+# (modulation_order, code_rate_1024, spectral_eff) -- TS 38.214 Table 5.2.2.1-2
 # modulation_order: 0=QPSK, 1=16QAM, 2=64QAM, 3=256QAM
 CQI_TABLE: list[tuple[int, int, float]] = [
     (0, 78, 0.1523),   # CQI 1
@@ -29,15 +30,15 @@ CQI_TABLE: list[tuple[int, int, float]] = [
     (1, 466, 3.3223),  # 13
     (2, 517, 4.0391),  # 14
     (3, 490, 4.5234),  # 15
-    (3, 616, 5.1152),  # 16(4-bit 表的 15 之后为 256QAM 扩展,这里取满表)
+    (3, 616, 5.1152),  # 16 (after 15 the 4-bit table extends into 256QAM; full table used here)
 ]
 
-# SINR 工作点(3GPP AWGN,BLER≈10%):CQI 1-16 对应阈值 dB
+# SINR operating points (3GPP AWGN, BLER≈10%): thresholds in dB for CQI 1-16
 SINR_CQI_THRESHOLDS_DB = [
     -6.7, -4.7, -2.3, 0.2, 2.4, 4.3, 5.9, 8.1, 10.3, 11.7, 14.1, 16.3, 18.7, 21.0, 22.7, 24.0,
 ]
 
-# TS 38.214 表 5.1.3.1-1(MCS 0-27,64QAM 上限):(modulation_order, code_rate_1024)
+# TS 38.214 Table 5.1.3.1-1 (MCS 0-27, 64QAM cap): (modulation_order, code_rate_1024)
 MCS_TABLE: list[tuple[int, int]] = [
     (0, 120), (0, 157), (0, 193), (0, 251), (0, 308), (0, 379), (0, 449), (0, 526), (0, 602),  # 0-8 QPSK
     (1, 340), (1, 378), (1, 434), (1, 490), (1, 553), (1, 616), (1, 658),                      # 9-15 16QAM
@@ -50,7 +51,7 @@ MAX_MCS = len(MCS_TABLE)          # 28
 
 
 def sinr_to_cqi(sinr_db: float) -> int:
-    """SINR → CQI(选择不超过阈值的最高 CQI;低于最差阈值 → 1)。"""
+    """SINR → CQI (select the highest CQI not exceeding the threshold; below the worst threshold → 1)."""
 
     cqi = 1
     for index, threshold in enumerate(SINR_CQI_THRESHOLDS_DB, start=1):
@@ -62,7 +63,7 @@ def sinr_to_cqi(sinr_db: float) -> int:
 
 
 def cqi_to_mcs(cqi: int) -> int:
-    """CQI → MCS(取 MCS 表中频谱效率最接近且不超过 CQI 的索引)。"""
+    """CQI → MCS (index in the MCS table whose spectral efficiency is closest to but not above the CQI's)."""
 
     cqi = max(1, min(MAX_CQI, int(cqi)))
     target_eff = CQI_TABLE[cqi - 1][2]
@@ -73,12 +74,12 @@ def cqi_to_mcs(cqi: int) -> int:
     return max(1, best)
 
 
-# modulation_order 索引 → 每符号比特:0=QPSK(2), 1=16QAM(4), 2=64QAM(6)
+# modulation_order index → bits per symbol: 0=QPSK(2), 1=16QAM(4), 2=64QAM(6)
 _MODULATION_BITS = (2, 4, 6)
 
 
 def mcs_spectral_efficiency(mcs: int) -> float:
-    """MCS → 频谱效率(bits/symbol)。"""
+    """MCS → spectral efficiency (bits/symbol)."""
 
     mcs = max(0, min(MAX_MCS - 1, int(mcs)))
     modulation_order, code_rate = MCS_TABLE[mcs]
@@ -86,14 +87,14 @@ def mcs_spectral_efficiency(mcs: int) -> float:
 
 
 def mcs_modulation_order(mcs: int) -> int:
-    """MCS → 调制阶数(QPSK=2, 16QAM=4, 64QAM=6)。"""
+    """MCS → modulation order (QPSK=2, 16QAM=4, 64QAM=6)."""
 
     mcs = max(0, min(MAX_MCS - 1, int(mcs)))
     return _MODULATION_BITS[MCS_TABLE[mcs][0]]
 
 
 def sinr_to_bler(sinr_db: float, cqi: int) -> float:
-    """预测 BLER:在 CQI 工作点附近呈 sigmoid 衰减(BLER 10% 工作点)。"""
+    """Predicted BLER: sigmoid roll-off around the CQI working point (BLER 10% operating point)."""
 
     cqi = max(1, min(MAX_CQI, int(cqi)))
     working_point = SINR_CQI_THRESHOLDS_DB[cqi - 1]

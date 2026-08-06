@@ -1,12 +1,12 @@
-"""房间-门连接图:跨房间路径的 BFS 通道序列规划。
+"""Room-door connection graph: BFS channel-sequence planning for cross-room paths.
 
-通道(Channel)抽象:
-- 编辑器里同一物理通道可能有多个 Portal(不同区域侧、不同名称,便于编辑);
-  全局导航只认唯一通道边界。
-- 通道合并来源:① Portal.channel_id(数据合同,编辑器未来写入);
-  ② 几何合并兜底:开口段共线且区间重叠的多个门视为同一通道。
-- 节点为全部区域(顶层 + 子区域),通道的 area_ids 经 open_space/outside 归一化。
-- 通行以 Portal.open 为准;locked 是编辑器锁定字段,不视为物理门锁。
+Channel abstraction:
+- A single physical channel may have multiple Portals in the editor (different area sides, different names, for editing convenience);
+  global navigation only recognizes the unique channel boundary.
+- Channel merging sources: 1) Portal.channel_id (data contract, written by the editor in the future);
+  2) geometric merge fallback: multiple doors whose opening segments are collinear and overlapping are treated as one channel.
+- Nodes are all areas (top-level + child areas); channel area_ids are normalized through open_space/outside.
+- Passability follows Portal.open; locked is an editor lock field, not a physical door lock.
 """
 
 from __future__ import annotations
@@ -20,15 +20,15 @@ from .semantic_index import IndexedArea, IndexedPortal, SceneSemanticIndex
 
 @dataclass(slots=True)
 class ChannelGroup:
-    """同一物理通道的 Portal 集合;对外表现为唯一的通道边界。"""
+    """Set of Portals of the same physical channel; exposed externally as a unique channel boundary."""
 
-    channel_id: str  # channel_id: 通道标识(优先取成员 channel_id,否则派生)。
-    members: list[IndexedPortal] = field(default_factory=list)  # members: 构成通道的门。
-    area_ids: set[str] = field(default_factory=set)  # area_ids: 通道两侧区域(已归一化,含 OUTSIDE)。
+    channel_id: str  # channel_id: channel identifier (prefers a member's channel_id, otherwise derived).
+    members: list[IndexedPortal] = field(default_factory=list)  # members: doors forming the channel.
+    area_ids: set[str] = field(default_factory=set)  # area_ids: areas on both sides of the channel (normalized, including OUTSIDE).
 
     @property
     def center(self) -> Point:
-        """通道几何中心:所有成员开口段合并区间的中心。"""
+        """Channel geometric center: center of the merged interval of all members' opening segments."""
 
         xs = [point[0] for portal in self.members for point in portal.segment]
         ys = [point[1] for portal in self.members for point in portal.segment]
@@ -36,7 +36,7 @@ class ChannelGroup:
 
     @property
     def representative(self) -> IndexedPortal:
-        """代表门:第一个成员(open 优先),用于对外展示。"""
+        """Representative door: the first member (open preferred), used for external display."""
 
         for member in self.members:
             if member.open:
@@ -44,7 +44,7 @@ class ChannelGroup:
         return self.members[0]
 
     def as_portal(self) -> IndexedPortal:
-        """以合并后的通道边界构造一个虚拟 Portal(segment 为并集开口段)。"""
+        """Build a virtual Portal from the merged channel boundary (segment is the union opening)."""
 
         representative = self.representative
         xs = [point[0] for portal in self.members for point in portal.segment]
@@ -63,7 +63,7 @@ class ChannelGroup:
 
 class RoomGraph:
     OUTSIDE = "__outside__"
-    """虚拟户外枢纽:场景数据中门连接 outside 表示建筑对外出口。"""
+    """Virtual outdoor hub: in scene data, a door connecting to outside marks a building exit."""
 
     def __init__(
         self,
@@ -86,10 +86,10 @@ class RoomGraph:
             for area_id in channel.area_ids:
                 self.portals_by_area.setdefault(area_id, []).append(channel)
 
-    # ------------------------------------------------------------------ 通道构建
+    # ------------------------------------------------------------------ channel construction
 
     def _group_channels(self) -> list[ChannelGroup]:
-        """把全部门归并为通道组(channel_id 优先,几何共线重叠兜底)。"""
+        """Group all doors into channel groups (channel_id first, geometric collinear-overlap fallback)."""
 
         open_portals = [portal for portal in self.index.portals.values() if portal.open]
         groups: list[ChannelGroup] = []
@@ -99,7 +99,7 @@ class RoomGraph:
                 continue
             members: list[IndexedPortal] = [portal]
             used.add(portal.portal_id)
-            # 贪心传播:组内成员与未使用门比较,避免链式合并漏项。
+            # Greedy propagation: compare group members against unused doors to avoid missing chained merges.
             changed = True
             while changed:
                 changed = False
@@ -114,7 +114,7 @@ class RoomGraph:
         return groups
 
     def _same_channel(self, a: IndexedPortal, b: IndexedPortal) -> bool:
-        """两个门是否属于同一物理通道。"""
+        """Whether two doors belong to the same physical channel."""
 
         if a.channel_id is not None and a.channel_id == b.channel_id:
             return True
@@ -145,11 +145,11 @@ class RoomGraph:
         *,
         fallback_point: Point | None = None,
     ) -> str | None:
-        """把虚拟区域引用归一到真实区域或户外枢纽。
+        """Normalize a virtual area reference to a real area or the outdoor hub.
 
-        场景数据中的门可能连接 `{area}_open_space`(父区域内部开放空间)
-        或 `outside`(户外)。open_space 优先按 ID 前缀匹配父区域;匹配失败时
-        用门中心的空间包含关系推断归属(门一定位于其父区域内)。
+        Doors in scene data may connect to `{area}_open_space` (open space inside the parent area)
+        or `outside` (outdoors). open_space matches the parent area by ID prefix first; when that
+        fails, the door center's spatial containment is used to infer the parent (a door always lies inside it).
         """
 
         if not area_id:
@@ -165,8 +165,8 @@ class RoomGraph:
             if fallback_point is not None:
                 area = self.index.find_area_at(fallback_point)
                 if area is not None:
-                    # 归一到顶层区域(建筑级):保证 BFS 从顶层节点出发可达,
-                    # 子区域内部的门统一挂在建筑节点下。
+                    # Normalize to the top-level area (building level): ensures BFS from the top-level
+                    # node reaches it; doors inside child areas are uniformly attached to the building node.
                     while area.parent_id is not None:
                         parent = self.index.get_area(area.parent_id)
                         if parent is None:
@@ -176,9 +176,9 @@ class RoomGraph:
         return None
 
     def is_same_room(self, area_a: IndexedArea | None, area_b: IndexedArea | None) -> bool:
-        """两个区域是否同房间(相同、或互为祖先/后代)。
+        """Whether two areas are in the same room (identical, or ancestor/descendant of each other).
 
-        户外(None)与户外同房间;户外与任何室内区域不同房间。
+        Outdoors (None) and outdoors are the same room; outdoors differs from every indoor area.
         """
 
         if area_a is None and area_b is None:
@@ -190,16 +190,16 @@ class RoomGraph:
         path_a, path_b = area_a.path, area_b.path
         return path_a.startswith(path_b + " / ") or path_b.startswith(path_a + " / ")
 
-    # ------------------------------------------------------------------ 通道序列
+    # ------------------------------------------------------------------ channel sequence
 
     def find_door_sequence(
         self,
         start_area_id: str | None,
         goal_area_id: str | None,
     ) -> list[IndexedPortal] | None:
-        """BFS 求跨房间通道序列;同房间或无解返回 None 或空列表。
+        """BFS for the cross-room channel sequence; returns None or an empty list for the same room or no solution.
 
-        返回:按顺序穿过的通道(以合并后的虚拟 Portal 表示)。无法到达时返回 None。
+        Returns: channels to traverse in order (as merged virtual Portals). None when unreachable.
         """
 
         if start_area_id == goal_area_id:
@@ -217,7 +217,7 @@ class RoomGraph:
             current = queue.popleft()
             current_area = self.index.get_area(current)
             if current_area is not None and self.is_same_room(current_area, goal_area):
-                # 从实际到达的节点回溯(goal 可能通过其子区域到达,不在回溯链上)。
+                # Backtrack from the actually-reached node (the goal may be reached via a child area not on the backtrack chain).
                 return self._reconstruct_channels(current, came_from_channel, came_from_area)
             for channel in self.portals_by_area.get(current, []):
                 for neighbor in channel.area_ids:

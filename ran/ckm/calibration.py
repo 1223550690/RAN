@@ -1,6 +1,6 @@
-"""可解释参数校准(环节五):零依赖 Ridge 回归(正规方程)。
+"""Interpretable parameter calibration (phase 5): zero-dependency Ridge regression (normal equations).
 
-模型(文档 9.3):
+Model (doc 9.3):
   PL_calibrated = PL_3gpp
     + beta_0
     + beta_brick·N_brick + beta_glass·N_glass + beta_drywall·N_drywall
@@ -26,7 +26,7 @@ FEATURE_NAMES = [
 
 @dataclass(slots=True)
 class CalibratedChannelParameters:
-    """校准后的参数与不确定性。"""
+    """Calibrated parameters with their uncertainties."""
 
     model_version: str
     training_measurement_count: int
@@ -35,11 +35,11 @@ class CalibratedChannelParameters:
     indoor_distance_coefficient: float  # dB/m
     nlos_bias_db: float
     calibration_rmse_db: float
-    parameter_uncertainties: dict[str, float]  # 对角 (XᵀX+λI)⁻¹·σ² 开方
+    parameter_uncertainties: dict[str, float]  # sqrt of diagonal (XᵀX+λI)⁻¹·σ²
 
 
 def feature_vector(geometry: PropagationGeometry) -> list[float]:
-    """从传播几何提取校准特征向量(与 FEATURE_NAMES 对齐)。"""
+    """Extract the calibration feature vector from the propagation geometry (aligned with FEATURE_NAMES)."""
 
     brick = glass = drywall = 0
     for crossing in geometry.effective_surface_crossings:
@@ -57,7 +57,7 @@ def feature_vector(geometry: PropagationGeometry) -> list[float]:
 
 
 def _solve_ridge(X: list[list[float]], y: list[float], lam: float) -> list[float]:
-    """正规方程 (XᵀX + λI)β = Xᵀy,高斯消元(特征 ≤8,样本 ≤80,毫秒级)。"""
+    """Solve the normal equations (XᵀX + λI)β = Xᵀy by Gaussian elimination (≤8 features, ≤80 samples, millisecond scale)."""
 
     n_features = len(X[0])
     n = len(X)
@@ -72,7 +72,7 @@ def _solve_ridge(X: list[list[float]], y: list[float], lam: float) -> list[float
             A[i][j] = s
         A[i][i] += lam
         b[i] = sum(X[k][i] * y[k] for k in range(n))
-    # 高斯消元(部分主元)
+    # Gaussian elimination (partial pivoting)
     for col in range(n_features):
         pivot = max(range(col, n_features), key=lambda r: abs(A[r][col]))
         if abs(A[pivot][col]) < 1e-12:
@@ -100,7 +100,7 @@ def fit_calibration(
     ridge_lambda: float = 0.1,
     model_version: str = "ckm-v1",
 ) -> CalibratedChannelParameters:
-    """拟合校准参数(在参考点上,残差 = 测量 - 物理预测)。"""
+    """Fit the calibration parameters (on reference points, residual = measured - physical prediction)."""
 
     if not feature_rows:
         return CalibratedChannelParameters(
@@ -140,7 +140,7 @@ def fit_calibration(
 
 
 def apply_calibration(calibration: CalibratedChannelParameters, features: list[float]) -> float:
-    """校准修正量(叠加到物理预测)。"""
+    """Calibration correction (added on top of the physical prediction)."""
 
     if calibration.training_measurement_count == 0:
         return 0.0

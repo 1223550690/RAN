@@ -1,13 +1,13 @@
-"""候选路线评分。
+"""Candidate route scoring.
 
-P1 指标(全部计算,加权精简):
-- length:路线总长(米)。
-- avg_clearance / min_clearance:路径采样点到最近障碍的平均/最小距离。
-- wall_ratio:采样点中"贴墙"(最近障碍 < 2 * agent_radius)的比例。
-- endpoint_space:终点周围可站立空间比例(8 方向采样)。
-- front_center / reachable:目标是否位于元素正面中央、是否在手臂可触达距离(记录,权重为 0)。
+P1 metrics (all computed, weighted summary):
+- length: total route length (meters).
+- avg_clearance / min_clearance: average/minimum distance from path sample points to the nearest obstacle.
+- wall_ratio: fraction of sample points "hugging the wall" (nearest obstacle < 2 * agent_radius).
+- endpoint_space: fraction of standable space around the endpoint (8-direction sampling).
+- front_center / reachable: whether the target is at the element's front center / within arm's reach (recorded, weight 0).
 
-综合分越低越好:score = length + wall_ratio * WALL_PENALTY + max(0, REF - min_clearance) - endpoint_space * ENDPOINT_BONUS。
+Lower composite score is better: score = length + wall_ratio * WALL_PENALTY + max(0, REF - min_clearance) - endpoint_space * ENDPOINT_BONUS.
 """
 
 from __future__ import annotations
@@ -18,22 +18,22 @@ from .geometry import Point, Rect
 from .semantic_index import ResolvedDestination
 from .walkability import WalkabilityMap
 
-WALL_PENALTY = 3.0  # wall_ratio 每增加 1 的惩罚(米)。
-CLEARANCE_REF = 0.8  # 最小净空参考值(米),低于该值的部分计入惩罚。
-ENDPOINT_BONUS = 1.2  # 终点可站立空间比例的奖励(米)。
-ARM_REACH_M = 1.0  # 手臂可触达距离参考(米)。
+WALL_PENALTY = 3.0  # penalty per 1.0 increase of wall_ratio (meters).
+CLEARANCE_REF = 0.8  # minimum clearance reference (meters); the amount below it is penalized.
+ENDPOINT_BONUS = 1.2  # bonus per 1.0 of endpoint standable-space ratio (meters).
+ARM_REACH_M = 1.0  # arm-reach distance reference (meters).
 
 
 @dataclass(frozen=True, slots=True)
 class RouteScore:
-    length: float  # length: 路线总长(米)。
-    avg_clearance: float  # avg_clearance: 平均净空(米)。
-    min_clearance: float  # min_clearance: 最小净空(米)。
-    wall_ratio: float  # wall_ratio: 贴墙采样点比例 [0,1]。
-    endpoint_space: float  # endpoint_space: 终点可站立空间比例 [0,1]。
-    front_center: bool  # front_center: 终点是否在目标正面中央(近似:终点在目标中心正方向)。
-    reachable: bool  # reachable: 终点是否在手臂可触达距离内。
-    score: float  # score: 综合分,越低越好。
+    length: float  # length: total route length (meters).
+    avg_clearance: float  # avg_clearance: average clearance (meters).
+    min_clearance: float  # min_clearance: minimum clearance (meters).
+    wall_ratio: float  # wall_ratio: fraction of wall-hugging sample points [0,1].
+    endpoint_space: float  # endpoint_space: standable-space ratio around the endpoint [0,1].
+    front_center: bool  # front_center: whether the endpoint is at the target's front center (approx: endpoint on a cardinal direction from the target center).
+    reachable: bool  # reachable: whether the endpoint is within arm's reach.
+    score: float  # score: composite score; lower is better.
 
 
 def score_route(
@@ -145,7 +145,7 @@ def _is_front_center(endpoint: Point, destination: ResolvedDestination) -> bool:
         return False
     bounds: Rect = destination.bounds
     center = destination.position
-    # 近似:终点在元素中心的正上/正下/正左/正右方向,且位于中心所在半区内。
+    # Approximation: the endpoint is directly above/below/left/right of the element center, in the corresponding half-plane of the center.
     dx = endpoint[0] - center[0]
     dy = endpoint[1] - center[1]
     if abs(dx) < 1e-6 and abs(dy) < 1e-6:

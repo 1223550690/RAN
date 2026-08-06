@@ -190,8 +190,9 @@ class Portal:
     wall_id: str | None = None
     width_m: float | None = None
     open: bool = True
-    # channel_id: 同一物理通道的多个门(编辑器多视角/多名称)共享的唯一通道标识。
-    # 缺省时导航层按几何(共线重叠开口段)自动合并。
+    # channel_id: unique channel identifier shared by multiple doors of the same physical passage
+        # (editor multi-view / multi-name). When absent, the navigation layer merges them geometrically
+        # (collinear overlapping opening segments).
     channel_id: str | None = None
 
     def to_dict(self) -> dict:
@@ -284,9 +285,9 @@ class Home:
     node_id: str
     name: str
     default_agent_start: tuple[float, float] | None = None
-    # spawn_points: 可编辑出生点集合(P1 数据合同)。每个元素形如
-    # {"spawn_id": str, "name": str, "position": [x, y], "role": str | None}。
-    # 编辑器 UI 支持放 P2;为空时回退到 default_agent_start。
+    # spawn_points: editable spawn point set (P1 data contract). Each element is shaped like
+    # {"spawn_id": str, "name": str, "position": [x, y], "role": str | None}.
+    # Editor UI support lands in P2; falls back to default_agent_start when empty.
     spawn_points: list[dict] = field(default_factory=list)
     portals: list[Portal | dict] = field(default_factory=list)
     walls: list[WallSegment | dict] = field(default_factory=list)
@@ -294,7 +295,7 @@ class Home:
     road_intersections: list[RoadIntersection | dict] = field(default_factory=list)
     rendering: dict = field(default_factory=dict)
     areas: list[Area] = field(default_factory=list)
-    ckm: object | None = None  # ckm: 混合 CKM(hybrid 信道模式运行时挂载,可选)。
+    ckm: object | None = None  # ckm: hybrid CKM (attached at runtime when hybrid channel mode is active; optional).
 
     def add(self, area: Area) -> None:
         self.areas.append(area)

@@ -13,9 +13,11 @@ def transmit(
     ue_state: UEState | None = None,
     gnb: GnbSite | None = None,
 ) -> TransmissionResult:
-    """执行最小 PHY mock；HARQ 实现前将最终失败明确交给 RLC 或 drop。
+    """Execute the minimal PHY mock; before HARQ is implemented, final failures
+    are explicitly handed to RLC or dropped.
 
-    ue_state/gnb 为 tr22068 PHR 扩展：提供时计算 UE 功率余量(power_report)。
+    ue_state/gnb are the tr22068 PHR extension: when provided, the UE power
+    headroom (power_report) is computed.
     """
 
     error_rate = max(allocation.expected_error_rate, channel.estimated_packet_error_rate)

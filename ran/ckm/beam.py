@@ -1,6 +1,6 @@
-"""二维码本式 Beamforming(环节八):方向图、码本、LOS/NLOS 约束、Beam 选择。
+"""Codebook-based Beamforming (phase 8): pattern, codebook, LOS/NLOS constraints, beam selection.
 
-3GPP 风格简化水平方向图(文档 12.4):
+3GPP-style simplified horizontal pattern (doc 12.4):
   attenuation_db = min(12 × (relative_angle / beamwidth_3db)², max_attenuation_db)
   beam_gain_db   = max_gain_dbi - attenuation_db
 """
@@ -32,7 +32,7 @@ class BeamSelection:
 
 
 def beam_gain_db(beam: BeamConfig, relative_angle_deg: float) -> float:
-    """水平方向图增益(relative_angle ∈ [-180, 180])。"""
+    """Horizontal-pattern gain (relative_angle ∈ [-180, 180])."""
 
     angle = abs(((relative_angle_deg + 180.0) % 360.0) - 180.0)
     if beam.beamwidth_deg <= 0:
@@ -53,7 +53,7 @@ def select_best_beam(
     tx_power_dbm: float,
     path_loss_db: float,
 ) -> BeamSelection | None:
-    """遍历码本选择最佳 Beam(按有效接收功率)。LOS 全增益;NLOS 受增益上限约束。"""
+    """Scan the codebook and select the best beam (by effective received power). LOS gets full gain; NLOS is capped by a gain limit."""
 
     if not codebook:
         return None
@@ -82,7 +82,7 @@ def select_best_beam(
 
 
 def default_codebook() -> list[BeamConfig]:
-    """默认 8 波束码本(0°/45°/.../315°,45° 波束宽度,12dBi 峰值)。"""
+    """Default 8-beam codebook (0°/45°/.../315°, 45° beamwidth, 12 dBi peak)."""
 
     return [
         BeamConfig(beam_id=f"b{i}", azimuth_deg=float(i * 45), beamwidth_deg=45.0, max_gain_dbi=12.0)

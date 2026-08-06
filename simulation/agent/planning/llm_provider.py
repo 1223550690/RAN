@@ -1,11 +1,11 @@
-"""LLM 自动模式计划提供者。
+"""LLM auto-mode plan provider.
 
-- 全程由 LLM 指挥下一步行动:每次请求返回语义目标(目的地引用 + 意图类型 + 参数),
-  坐标合法性由导航层兜底,LLM 不接触坐标。
-- 零第三方依赖:优先使用注入的 llm_call 函数;缺省时用标准库 urllib 调用
-  OpenAI 兼容的 /chat/completions 接口。
-- 可复现:record_path 记录每次计划(含计划哈希);replay_path 存在时按记录重放,
-  不调用 LLM。重放条目与预期不符时抛出错误,保证测量一致。
+- The LLM directs every next action: each request returns a semantic target (destination reference + intent type + parameters);
+  coordinate validity is enforced by the navigation layer; the LLM never touches coordinates.
+- Zero third-party dependencies: prefers an injected llm_call function; by default calls an
+  OpenAI-compatible /chat/completions endpoint via the stdlib urllib.
+- Reproducible: record_path records every plan (including a plan hash); when replay_path exists, entries are
+  replayed without calling the LLM. A replay entry that mismatches expectations raises an error, keeping measurements consistent.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class LlmAgentPlanProvider:
                 if line.strip()
             ]
 
-    # ------------------------------------------------------------------ 接口
+    # ------------------------------------------------------------------ interface
 
     def request_plan(self, agent_id: str, context: dict) -> AgentPlan | None:
         if self._replay_entries:
@@ -68,7 +68,7 @@ class LlmAgentPlanProvider:
                 return plan
         return None
 
-    # ------------------------------------------------------------------ 重放
+    # ------------------------------------------------------------------ replay
 
     def _replay_next(self, agent_id: str) -> AgentPlan | None:
         if self._replay_index >= len(self._replay_entries):
@@ -90,7 +90,7 @@ class LlmAgentPlanProvider:
             raise ValueError(f"replay plan hash mismatch for agent {agent_id!r}: {entry}")
         return plan
 
-    # ------------------------------------------------------------------ LLM 调用
+    # ------------------------------------------------------------------ LLM invocation
 
     def _build_payload(self, agent_id: str, context: dict) -> dict:
         catalog = context.get("destination_catalog", [])
@@ -165,7 +165,7 @@ class LlmAgentPlanProvider:
             intent_parameters=dict(data.get("intent_parameters", {}) or {}),
         )
 
-    # ------------------------------------------------------------------ 记录
+    # ------------------------------------------------------------------ recording
 
     def _record(self, agent_id: str, payload: dict, raw: str, plan: AgentPlan) -> None:
         if self._record_file is None:

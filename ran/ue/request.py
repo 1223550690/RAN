@@ -10,7 +10,7 @@ def build_ue_request(
     service_instance_id: str,
     selected_access: str = "5g",
 ) -> UERequest:
-    """将一个 AgentIntent 转换为带完整业务身份的 UERequest。"""
+    """Convert an AgentIntent into a UERequest with full service identity."""
 
     access_type = "non_3gpp" if selected_access == "wifi" else "3gpp"
     qos_hint = dict(intent.qos_hint) if intent.qos_hint else {

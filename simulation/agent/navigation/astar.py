@@ -1,8 +1,8 @@
-"""八方向网格 A*。
+"""8-direction grid A*.
 
-- 代价 = 行走距离 + 靠近障碍物的净空惩罚(以可行邻居数近似净空)。
-- 禁止斜向穿过两个相邻障碍的夹角:斜向移动要求两个正交邻居均可通行。
-- 平局规则确定:按 (f, h, 入队序号) 排序,保证同输入同输出(可复现)。
+- Cost = walking distance + a clearance penalty near obstacles (clearance approximated by the number of walkable neighbors).
+- Diagonal cutting through the corner between two adjacent obstacles is forbidden: diagonal moves require both orthogonal neighbors to be passable.
+- Deterministic tie-breaking: sorted by (f, h, enqueue order), guaranteeing same input -> same output (reproducible).
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from .walkability import WalkabilityMap, point_to_rect_distance
 _STRAIGHT = 1.0
 _DIAGONAL = 2 ** 0.5
 
-# 八方向:0-3 正交,4-7 对角。
+# Eight directions: 0-3 orthogonal, 4-7 diagonal.
 _DIRECTIONS = (
     (1, 0),
     (-1, 0),
@@ -49,17 +49,17 @@ class GridAstar:
         self.rows = max(2, int((max_y - min_y) / self.cell_size) + 1)
         self.clearance_penalty = clearance_penalty
         self._blocked_cache: dict[tuple[int, int], bool] = {}
-        # 网格空间索引:cell -> 墙/障碍索引。点判定只查所在 cell 的障碍,
-        # 避免大场景全量遍历(常数从数百条降到个位数)。
+        # Grid spatial index: cell -> wall/obstacle indices. Point checks only inspect
+        # obstacles in the nearby cells, avoiding full traversal on large scenes (the constant drops from hundreds to a few).
         self._cell_walls: dict[int, list[int]] = {}
         self._cell_obstacles: dict[int, list[int]] = {}
         self._index_obstacles()
-        # 连通性预检:从起点 flood fill 标记可达格,目标不可达时立即失败,
-        # 避免 A* 无解时探索整个网格。
+        # Reachability pre-check: flood fill from the start marks reachable cells; if the
+        # goal is unreachable, fail immediately instead of exploring the whole grid.
         self._reachable_from: tuple[int, int] | None = None
         self._reachable: array | None = None
 
-    # ------------------------------------------------------------------ 空间索引
+    # ------------------------------------------------------------------ spatial index
 
     def _index_obstacles(self) -> None:
         for index, (start, end) in enumerate(self.walkability.walls):
@@ -74,7 +74,7 @@ class GridAstar:
                     self._cell_obstacles.setdefault(col + row * self.cols, []).append(index)
 
     def _rasterize(self, start: Point, end: Point) -> set[int]:
-        """把墙线段光栅化到经过的网格 cell(按 cell_size/2 步进)。"""
+        """Rasterize a wall segment onto the grid cells it crosses (stepping by cell_size/2)."""
 
         cells: set[int] = set()
         length = ((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2) ** 0.5
@@ -90,11 +90,11 @@ class GridAstar:
         return cells
 
     def _point_clear_fast(self, point: Point, cell: tuple[int, int]) -> bool:
-        """只查所在 cell 附近 cell 的障碍(覆盖 agent 半径范围)。"""
+        """Only check obstacles in cells near the given cell (covering the agent-radius range)."""
 
         col, row = cell
         radius = self.walkability.agent_radius
-        span = max(1, int(radius / self.cell_size) + 1)  # 膨胀半径覆盖的格数。
+        span = max(1, int(radius / self.cell_size) + 1)  # cells covered by the inflation radius.
         for dcol in range(-span, span + 1):
             for drow in range(-span, span + 1):
                 ncol, nrow = col + dcol, row + drow
@@ -111,7 +111,7 @@ class GridAstar:
                         return False
         return True
 
-    # ------------------------------------------------------------------ 网格坐标
+    # ------------------------------------------------------------------ grid coordinates
 
     def to_cell(self, point: tuple[float, float]) -> tuple[int, int]:
         col = int((point[0] - self.min_x) / self.cell_size)
@@ -132,10 +132,10 @@ class GridAstar:
             self._blocked_cache[cell] = cached
         return cached
 
-    # ------------------------------------------------------------------ 连通性预检
+    # ------------------------------------------------------------------ reachability pre-check
 
     def _ensure_reachable(self, start_cell: tuple[int, int]) -> None:
-        """从起点 flood fill 标记可达格;目标不可达时 find_path 立即失败。"""
+        """Flood fill from the start cell to mark reachable cells; find_path fails immediately when the goal is unreachable."""
 
         if self._reachable_from == start_cell:
             return
@@ -169,10 +169,10 @@ class GridAstar:
         start: tuple[float, float],
         goal: tuple[float, float],
     ) -> list[tuple[float, float]] | None:
-        """返回从起点到目标点的世界坐标路径;无解返回 None。
+        """Return the world-coordinate path from start to goal; None when no path exists.
 
-        目标格松弛:目标点所在格子中心不可行(常见于门/边界线上的点)时,
-        在其邻域搜索最近可行格作为终点;路径末端再尝试替换回实际目标点。
+        Goal-cell relaxation: when the goal cell center is not feasible (common for points on doors/boundary lines), search
+        the neighborhood for the nearest feasible cell as the endpoint; afterwards, try replacing the path end with the actual goal.
         """
 
         start_cell = self.to_cell(start)
@@ -187,7 +187,7 @@ class GridAstar:
             goal_cell = relaxed
 
         def heuristic(cell: tuple[int, int]) -> float:
-            # octile 距离:八方向移动的精确下界,比曼哈顿更紧,扩展格数更少。
+            # Octile distance: exact lower bound for 8-direction movement; tighter than Manhattan, fewer expanded cells.
             dx = abs(cell[0] - goal_cell[0])
             dy = abs(cell[1] - goal_cell[1])
             return max(dx, dy) + (_DIAGONAL - 1.0) * min(dx, dy)
@@ -213,7 +213,7 @@ class GridAstar:
                     continue
                 diagonal = dx != 0 and dy != 0
                 if diagonal:
-                    # 禁止斜穿两个相邻障碍的夹角。
+                    # Forbid diagonal cutting through the corner between two adjacent obstacles.
                     if self._is_blocked((current[0] + dx, current[1])) or self._is_blocked(
                         (current[0], current[1] + dy)
                     ):
@@ -231,7 +231,7 @@ class GridAstar:
         return None
 
     def _relax_goal(self, goal_cell: tuple[int, int], radius: int = 4) -> tuple[int, int] | None:
-        """在目标格邻域(菱形环)搜索最近可行格。"""
+        """Search the nearest feasible cell in the goal-cell neighborhood (diamond rings)."""
 
         for ring in range(1, radius + 1):
             for dx in range(-ring, ring + 1):
@@ -250,14 +250,14 @@ class GridAstar:
         path: list[tuple[float, float]],
         goal: tuple[float, float],
     ) -> list[tuple[float, float]]:
-        """路径末端替换回实际目标点(直线段可行时),否则保留松弛后的终点。"""
+        """Replace the path end with the actual goal (when the straight segment is feasible); otherwise keep the relaxed endpoint."""
 
         if path and self.walkability.segment_clear(path[-1], goal):
             return path + [goal]
         return path
 
     def _clearance_cost(self, cell: tuple[int, int]) -> float:
-        """净空惩罚:可行邻居越少(越贴墙)代价越高,范围 [0, penalty]。"""
+        """Clearance penalty: the fewer walkable neighbors (the closer to a wall), the higher the cost; range [0, penalty]."""
 
         blocked_neighbors = 0
         for dx, dy in _DIRECTIONS:

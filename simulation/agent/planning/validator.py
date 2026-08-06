@@ -1,7 +1,7 @@
-"""计划校验:验证语义目标能否被导航层解析。
+"""Plan validation: verifies the semantic destination can be resolved by the navigation layer.
 
-- 解析失败时返回错误信息,由上层决定重试或降级(重试 1 次后使用模板默认目标)。
-- 只读,不修改任何状态。
+- On resolution failure, returns the error message; the caller decides to retry or degrade (after 1 retry, fall back to the template default destination).
+- Read-only; does not modify any state.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from ..navigation import NavigationPlanner
 
 
 def validate_plan(plan: AgentPlan, navigation: NavigationPlanner) -> tuple[bool, str | None]:
-    """校验计划的目标引用可解析;返回 (是否有效, 错误信息)。"""
+    """Validate that the plan's destination reference resolves; returns (valid, error message)."""
 
     destination = navigation.resolve_destination(plan.destination_ref)
     if destination is None:

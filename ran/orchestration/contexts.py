@@ -24,34 +24,34 @@ ServiceStatus = Literal["INITIALIZING", "ACTIVE", "WAITING_FOR_ALLOCATION", "COM
 
 @dataclass(slots=True)
 class AgentContext:
-    """一个 Agent 在当前 RAN 场景中的状态与关联对象。"""
+    """An Agent's state and associated objects in the current RAN scenario."""
 
-    agent_id: str  # agent_id: Agent 全局标识。
-    state: AgentStateSnapshot  # state: 最近一次 AgentStateProvider 状态。
-    intent_ids: list[str] = field(default_factory=list)  # intent_ids: 该 Agent 的意图集合。
-    ue_ids: list[str] = field(default_factory=list)  # ue_ids: 该 Agent 关联的 UE 集合。
+    agent_id: str  # agent_id: global Agent identifier.
+    state: AgentStateSnapshot  # state: most recent AgentStateProvider state.
+    intent_ids: list[str] = field(default_factory=list)  # intent_ids: the Agent's set of intents.
+    ue_ids: list[str] = field(default_factory=list)  # ue_ids: the set of UEs associated with this Agent.
 
 
 @dataclass(slots=True)
 class IntentContext:
-    """保存一个 Intent 的生命周期及其产生的业务实例。"""
+    """Keeps an Intent's lifecycle and the service instances it produced."""
 
-    intent: AgentIntent  # intent: 原始 Agent 意图。
-    status: IntentStatus = "PENDING"  # status: 当前 Intent 生命周期状态。
-    service_instance_ids: list[str] = field(default_factory=list)  # service_instance_ids: 派生业务集合。
+    intent: AgentIntent  # intent: original Agent intent.
+    status: IntentStatus = "PENDING"  # status: current Intent lifecycle state.
+    service_instance_ids: list[str] = field(default_factory=list)  # service_instance_ids: set of derived service instances.
 
 
 @dataclass(slots=True)
 class UeContext:
-    """保存 UE 控制面状态和当前承载的业务集合。"""
+    """Keeps UE control plane state and the currently carried service set."""
 
-    state: UEState  # state: UE 注册、连接和位置状态。
-    active_service_ids: list[str] = field(default_factory=list)  # active_service_ids: 未结束业务集合。
+    state: UEState  # state: UE registration, connection and location state.
+    active_service_ids: list[str] = field(default_factory=list)  # active_service_ids: set of unfinished services.
 
 
 @dataclass(slots=True)
 class ServiceCounters:
-    """按业务实例独立维护的最小指标账本。"""
+    """Minimal metrics ledger maintained independently per service instance."""
 
     attempted_protocol_bytes: int = 0
     delivered_protocol_bytes: int = 0
@@ -64,12 +64,12 @@ class ServiceCounters:
 
 @dataclass(slots=True)
 class ServiceContext:
-    """一个业务实例从 UERequest 到 RLC、核心网和 metrics 的连续状态。"""
+    """Continuous state of one service instance from UERequest through RLC, core network, and metrics."""
 
-    service_instance_id: str  # service_instance_id: 全局业务实例标识。
-    intent_id: str  # intent_id: 上游 Intent 标识。
-    agent_id: str  # agent_id: 业务所属 Agent。
-    ue_id: str  # ue_id: 执行业务的 UE。
+    service_instance_id: str  # service_instance_id: global service instance identifier.
+    intent_id: str  # intent_id: upstream Intent identifier.
+    agent_id: str  # agent_id: Agent owning the service.
+    ue_id: str  # ue_id: UE executing the service.
     ue_request: UERequest
     access: AccessSelection
     slice_id: str
@@ -79,14 +79,14 @@ class ServiceContext:
     drb: Drb
     pdcp_batch: PdcpBatch
     rlc_queue: RlcQueue
-    dl_queue: RlcQueue | None = None  # dl_queue: 下行业务时 gNB 侧队列(UL 业务为 None)。
-    pdcp: object | None = None  # pdcp: xizhe PDCP 实体(实体管道运行时)。
-    rlc: object | None = None  # rlc: xizhe RLC 实体(实体管道运行时)。
-    intent_type: str = ""  # intent_type: 业务类型(message/video_upload/video_download 等,前端展示用)。
-    upf_buffered_bytes: int = 0  # upf_buffered_bytes: UPF 侧 DL 缓冲字节(未过 N3)。
-    n3_tunnel_id: str | None = None  # n3_tunnel_id: GTP-U 隧道 id(dl_{session}/ul_{session})。
-    n3_gtp_overhead_bytes: int = 0  # n3_gtp_overhead_bytes: 累计 GTP-U 封装开销(统计)。
+    dl_queue: RlcQueue | None = None  # dl_queue: gNB-side queue for downlink services (None for UL services).
+    pdcp: object | None = None  # pdcp: xizhe PDCP entity (when running the entity pipeline).
+    rlc: object | None = None  # rlc: xizhe RLC entity (when running the entity pipeline).
+    intent_type: str = ""  # intent_type: service type (message/video_upload/video_download, etc.; for frontend display).
+    upf_buffered_bytes: int = 0  # upf_buffered_bytes: DL buffered bytes on the UPF side (not yet past N3).
+    n3_tunnel_id: str | None = None  # n3_tunnel_id: GTP-U tunnel id (dl_{session}/ul_{session}).
+    n3_gtp_overhead_bytes: int = 0  # n3_gtp_overhead_bytes: cumulative GTP-U encapsulation overhead (statistics).
     status: ServiceStatus = "INITIALIZING"
-    waiting_ticks: int = 0  # waiting_ticks: 累计等待分配 tick 数(拥塞/失败判定辅助)。
+    waiting_ticks: int = 0  # waiting_ticks: cumulative ticks spent waiting for allocation (aids congestion/failure detection).
     counters: ServiceCounters = field(default_factory=ServiceCounters)
     last_state: dict[str, object] | None = None

@@ -70,7 +70,7 @@ class RlcEntity:
     qfi: int
     slice_id: str
     direction: Direction
-    mode: str  # rlc_mode: TM/UM/AM。
+    mode: str  # rlc_mode: TM/UM/AM.
     queued_bytes: int = 0
     sdu_queue: list[RlcSdu] = field(default_factory=list)
     retx_blocks: list[RlcRetxBlock] = field(default_factory=list)
@@ -112,9 +112,9 @@ class RlcEntity:
         self.queued_bytes += batch.output_bytes
 
     def enqueue_bytes(self, byte_count: int) -> None:
-        """N3 流转注入:字节直接进入 SDU 队列(不经过 PDCP 批)。
+        """N3 flow injection: bytes go directly into the SDU queue (bypassing PDCP batches).
 
-        用于下行 N3 到达 gNB 的字节注入(UPF 缓冲 → gNB 侧 RLC 队列)。
+        Used to inject downlink N3 bytes arriving at the gNB (UPF buffer → RLC queue on the gNB side).
         """
 
         if byte_count <= 0:
@@ -164,13 +164,13 @@ class RlcEntity:
         budget = grant_bytes
         segments: list[RlcSegment] = []
 
-        # 清空上一个 tick 的在途记录
+        # Clear the in-flight records of the previous tick
         self.inflight_new_bytes = 0
         self.inflight_retx_bytes = 0
         self.inflight_retx_max_attempts = 0
         self.inflight_segments = []
 
-        # 1. AM 模式下，优先处理重传队列
+        # 1. In AM mode, process the retransmission queue first
         retx_sent = 0
         retx_max_attempts = 0
         remaining_blocks: list[RlcRetxBlock] = []
@@ -219,7 +219,7 @@ class RlcEntity:
 
         self.retx_blocks = remaining_blocks
 
-        # 2. grant 还有剩余时，处理首传 SDU 队列
+        # 2. When grant budget remains, process the first-transmission SDU queue
         new_sent = 0
 
         while budget > 0 and self.sdu_queue:
@@ -247,11 +247,11 @@ class RlcEntity:
             new_sent += take
             budget -= take
 
-            # 当前 SDU 已经全部切完
+            # Current SDU is fully segmented
             if sdu.remaining_bytes == 0:
                 self.sdu_queue.pop(0)
 
-        # 记录跨 tick 的切分位置
+        # Record the segmentation position across ticks
         self.partial_segment_bytes = (
             self.sdu_queue[0].next_offset_bytes
             if self.sdu_queue

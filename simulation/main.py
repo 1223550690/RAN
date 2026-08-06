@@ -29,7 +29,7 @@ LOCK_PATH = PROJECT_ROOT / "outputs" / "simulation.lock"
 
 
 def _pid_alive(pid: int) -> bool:
-    """检查 PID 是否存活(Windows 用 OpenProcess,其他平台用信号 0)。"""
+    """Check whether a PID is alive (OpenProcess on Windows, signal 0 elsewhere)."""
 
     if sys.platform == "win32":
         import ctypes
@@ -48,9 +48,9 @@ def _pid_alive(pid: int) -> bool:
 
 
 def _pid_creation_time(pid: int) -> int | None:
-    """返回进程创建时间(FILETIME 整数,1601 起 100ns 单位);进程不存在返回 None。
+    """Return the process creation time (FILETIME integer, 100ns units since 1601); None when the process does not exist.
 
-    用于识别 PID 复用:同一 PID 若创建时间与锁记录不符,说明锁属于已死进程。
+    Used to detect PID reuse: if a PID's creation time differs from the lock record, the lock belongs to a dead process.
     """
 
     if sys.platform != "win32":
@@ -82,11 +82,11 @@ def _pid_creation_time(pid: int) -> int | None:
 
 
 def acquire_simulation_lock() -> None:
-    """单实例锁:Windows 命名互斥体(内核级原子,强杀自动释放)。
+    """Single-instance lock: Windows named mutex (kernel-level atomic; auto-released on force kill).
 
-    锁文件 outputs/simulation.lock 仅记录 PID/启动时间供诊断;
-    权威判断由命名互斥体 RAN_Simulation_Lock 完成——并发启动时
-    内核保证只有一个进程获得互斥体,进程退出(含强杀)自动释放。
+    The lock file outputs/simulation.lock only records PID/start time for diagnostics;
+    the authoritative check is the named mutex RAN_Simulation_Lock: on concurrent starts, the
+    kernel guarantees only one process obtains the mutex, and it is released automatically on exit (incl. force kill).
     """
 
     import ctypes
@@ -95,24 +95,24 @@ def acquire_simulation_lock() -> None:
     MUTEX_NAME = "Local\\RAN_Simulation_Lock"
     handle = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
     if not handle:
-        print("[lock] 创建互斥体失败,无法获取单实例锁。", file=sys.stderr)
+        print("[lock] failed to create the mutex; cannot acquire the single-instance lock.", file=sys.stderr)
         raise SystemExit(1)
     already_exists = ctypes.windll.kernel32.GetLastError() == 183  # ERROR_ALREADY_EXISTS
     if already_exists:
-        # 有别的模拟在运行(读锁文件给出诊断信息)
+        # Another simulation is running (read the lock file for diagnostics)
         try:
             meta = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
             started = meta.get("started_at", "?")
         except (OSError, ValueError, json.JSONDecodeError):
             started = "?"
         print(
-            f"[lock] 已有模拟进程运行中 (started={started})。\n"
-            f"       同一时间只允许一个模拟实例;请先结束该进程后再启动。",
+            f"[lock] another simulation process is running (started={started}).\n"
+            f"       Only one simulation instance is allowed at a time; terminate that process first.",
             file=sys.stderr,
         )
         raise SystemExit(1)
 
-    # 持有互斥体:记录诊断信息;atexit 关闭句柄即释放互斥体
+    # Mutex held: record diagnostic info; atexit closes the handle, releasing the mutex
     LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
     LOCK_PATH.write_text(
         json.dumps(
@@ -141,8 +141,8 @@ def acquire_simulation_lock() -> None:
 def main() -> None:
     args = parse_args()
     acquire_simulation_lock()
-    # 清理上一轮残留的暂停控制文件(防模拟启动即进入暂停死等;
-    # start_demo 已清理,直接命令行启动同样需要)
+    # Remove any leftover pause-control file from a previous run (prevents the sim from
+    # starting paused and waiting forever; start_demo cleans it too, and direct CLI starts need it as well)
     try:
         (PROJECT_ROOT / "outputs" / "simulation_control.json").unlink(missing_ok=True)
     except OSError:
@@ -254,7 +254,7 @@ def run_agent_sim_tick(
     preview_service: LivePreviewService,
     control: SimulationControl,
 ) -> None:
-    """运行 Agent 子系统仿真:Agent 移动 + 网络意图 + RAN 处理。"""
+    """Run the agent-subsystem simulation: agent movement + network intents + RAN processing."""
 
     from simulation.agent import build_default_three_agent_definition, load_agent_simulation_definition
     from simulation.agent.planning import LlmAgentPlanProvider, TemplatePlanProvider
@@ -405,9 +405,9 @@ def start_preview_server(port: int, scene, control: SimulationControl) -> None:
     try:
         server = ThreadingHTTPServer(("127.0.0.1", port), handler)
     except OSError as exc:
-        # 端口被已有预览服务器占用:不影响模拟运行(页面仍由已有服务器服务)
+        # Port already taken by an existing preview server: the simulation still runs (the page is served by the existing server)
         print(
-            f"[preview] 端口 {port} 已被占用(已有预览服务器?),跳过内置服务器启动: {exc}",
+            f"[preview] port {port} is already in use (existing preview server?), skipping the built-in server: {exc}",
             file=sys.stderr,
         )
         return

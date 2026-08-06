@@ -18,10 +18,10 @@ def build_scheduler_request(
     requirements: list[str] | None = None,
     slot_ms: float = 1.0,
 ) -> SchedulerRequest:
-    """汇总所有活跃 UE/DRB，构造一次 UL SchedulerRequest。
+    """Aggregate all active UEs/DRBs and build one UL SchedulerRequest.
 
-    power_report / requirements 为 tr22068 调度扩展字段，缺省为空列表。
-    slot_ms 为该 tick 的无线时隙时长(默认 1ms),传输量按比例缩放。
+    power_report / requirements are tr22068 scheduling extension fields, defaulting to empty lists.
+    slot_ms is the radio slot duration for this tick (default 1ms); throughput scales proportionally.
     """
 
     return SchedulerRequest(

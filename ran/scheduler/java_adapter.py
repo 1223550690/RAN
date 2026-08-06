@@ -26,7 +26,7 @@ class JavaSchedulerAdapter:
         return json.dumps(asdict(request), ensure_ascii=False)
 
     def from_json(self, raw: str) -> SchedulerResult:
-        """将 Java 或 fallback 返回的稳定 JSON 还原为 SchedulerResult。"""
+        """Restore a SchedulerResult from the stable JSON returned by Java or the fallback."""
 
         data = json.loads(raw)
         if data.get("contract_version") != CONTRACT_VERSION:

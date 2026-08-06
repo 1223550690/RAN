@@ -8,20 +8,20 @@ from ran.contracts.ue import SelectedAccess
 
 @dataclass(frozen=True, slots=True)
 class AgentScenarioDefinition:
-    """场景建立时冻结的单个 Agent、UE 和可选初始 Intent 定义。"""
+    """Definition of a single Agent, UE, and optional initial Intent, frozen at scenario setup."""
 
-    agent_id: str  # agent_id: Agent 的全局标识。
-    ue_id: str  # ue_id: 该 Agent 默认使用的 UE 标识。
-    intent: AgentIntent | None = None  # intent: 场景启动时提交的初始意图;为 None 时由运行时通过 submit_intent 动态提交。
-    selected_access: SelectedAccess = "5g"  # selected_access: V1 默认使用 5G。
+    agent_id: str  # agent_id: global identifier of the Agent.
+    ue_id: str  # ue_id: identifier of the UE this Agent uses by default.
+    intent: AgentIntent | None = None  # intent: initial intent submitted at scenario start; when None, the runtime submits intents dynamically via submit_intent.
+    selected_access: SelectedAccess = "5g"  # selected_access: V1 defaults to 5G.
 
 
 @dataclass(frozen=True, slots=True)
 class RanScenarioDefinition:
-    """不可变场景定义；Agent 总数在实例创建时由 agents 元组确定。"""
+    """Immutable scenario definition; the total Agent count is fixed by the agents tuple at instance creation."""
 
-    simulation_id: str  # simulation_id: 一次仿真的全局标识。
-    agents: tuple[AgentScenarioDefinition, ...]  # agents: 场景中的固定 Agent 集合。
+    simulation_id: str  # simulation_id: global identifier of one simulation run.
+    agents: tuple[AgentScenarioDefinition, ...]  # agents: fixed set of Agents in the scenario.
 
     def __post_init__(self) -> None:
         if not self.simulation_id:
@@ -48,13 +48,13 @@ class RanScenarioDefinition:
 
     @property
     def agent_count(self) -> int:
-        """返回场景建立时冻结的 Agent 数量。"""
+        """Return the number of Agents frozen at scenario setup."""
 
         return len(self.agents)
 
 
 def build_default_three_agent_definition() -> RanScenarioDefinition:
-    """构造当前整体测试使用的三个静态 Agent 与三类业务。"""
+    """Build the three static Agents and three service types used by the current end-to-end tests."""
 
     definitions = (
         AgentScenarioDefinition(
@@ -114,9 +114,9 @@ def build_runtime_agent_definition(
     simulation_id: str,
     agents: list[tuple[str, str]],
 ) -> RanScenarioDefinition:
-    """构造无初始 Intent 的场景定义;Intent 由运行时通过 submit_intent 动态提交。
+    """Build a scenario definition without initial intents; intents are submitted dynamically by the runtime via submit_intent.
 
-    agents: (agent_id, ue_id) 列表,场景建立后冻结。
+    agents: (agent_id, ue_id) list, frozen after scenario setup.
     """
     definitions = tuple(
         AgentScenarioDefinition(agent_id=agent_id, ue_id=ue_id, intent=None)

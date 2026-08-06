@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-# 测试环境:跳过 CKM 构建(hybrid 模式的场景构造不再做全网格扫描)
+# test environment: skip CKM building (hybrid-mode scenario construction no longer does a full grid scan)
 os.environ.setdefault("RAN_DISABLE_CKM", "1")
 
 from dataclasses import replace
@@ -93,7 +93,7 @@ class ChannelRuntimePipelineTests(unittest.TestCase):
             policy=policy,
         )
 
-        # hybrid 模式:3GPP 评估值即运行值(不再保留 legacy 为运行值)
+        # hybrid mode: the 3GPP evaluation value is the runtime value (legacy is no longer kept as the runtime value)
         self.assertEqual(result.selected_model, "3gpp_o2i")
         self.assertAlmostEqual(result.selected_total_path_loss_db, 108.5172986450)
         self.assertEqual(result.evaluated_model, "3gpp_o2i")
@@ -203,7 +203,7 @@ class ChannelRuntimePipelineTests(unittest.TestCase):
             gnb=self.gnb,
         )
 
-        # hybrid 模式(无 CKM 时回退 pipeline):运行值选择 3GPP 评估值
+        # hybrid mode (pipeline fallback when CKM is unavailable): runtime value selects the 3GPP evaluation value
         self.assertEqual(channel.channel_model_mode, MODE_HYBRID)
         self.assertEqual(channel.path_loss_model, "3gpp_o2i")
         self.assertAlmostEqual(channel.total_path_loss_db, 108.5172986450)

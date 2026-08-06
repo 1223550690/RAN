@@ -51,7 +51,7 @@ TERMINAL_SERVICE_STATUSES = {"COMPLETED", "FAILED"}
 
 
 class MultiAgentRanScenario:
-    """固定 Agent 集合的 RAN 场景编排器；协议细节由各模块继续完善。"""
+    """RAN scenario orchestrator for a fixed Agent set; protocol details are refined by the individual modules."""
 
     def __init__(
         self,
@@ -92,10 +92,10 @@ class MultiAgentRanScenario:
         self._build_contexts(initial_states)
 
     def _ensure_hybrid_ckm(self) -> None:
-        """hybrid 信道模式:模拟启动时构建(或加载缓存)混合 CKM 并挂到 scene。
+        """Hybrid channel mode: build (or load from cache) a hybrid CKM at simulation startup and attach it to scene.
 
-        构建失败/关闭时 scene.ckm 保持 None,estimate_channel 自动回退。
-        环境变量 RAN_DISABLE_CKM=1 可跳过构建(测试环境用)。
+        When the build fails or is disabled, scene.ckm stays None and estimate_channel falls back automatically.
+        Set the environment variable RAN_DISABLE_CKM=1 to skip the build (for test environments).
         """
 
         import os
@@ -123,21 +123,21 @@ class MultiAgentRanScenario:
             if ckm is not None:
                 self.scene.ckm = ckm
                 print(
-                    f"[ckm] hybrid CKM 就绪: cells={len(ckm.cells)} "
+                    f"[ckm] hybrid CKM ready: cells={len(ckm.cells)} "
                     f"refs={ckm.model_metadata.get('reference_count')} "
                     f"build={ckm.model_metadata.get('build_seconds')}s",
                     flush=True,
                 )
-        except Exception as exc:  # CKM 失败不阻塞模拟(回退 shadow)
-            print(f"[ckm] 混合 CKM 构建失败,回退 shadow: {exc}", file=sys.stderr, flush=True)
+        except Exception as exc:  # CKM failure must not block the simulation (fall back to shadow)
+            print(f"[ckm] hybrid CKM build failed, falling back to shadow: {exc}", file=sys.stderr, flush=True)
 
     def step(self, tick: int) -> dict[str, object]:
-        """推进一个 tick：汇总所有活跃队列，调度一次，再逐业务执行。"""
+        """Advance one tick: aggregate all active queues, schedule once, then execute per service."""
 
         if self.completed:
-            # 无活跃业务时仍刷新 RAN 侧 Agent 副本,避免嵌套快照过期
-            # (此前 completed 快速路径不重读 Agent 坐标,预览页读取该
-            #  副本时移动阶段呈现冻结,直到首个意图提交场景重新激活)
+            # Even with no active services, keep refreshing the RAN-side Agent copies to avoid stale nested snapshots
+            # (the completed fast path used to skip re-reading Agent coordinates, so the preview page
+            #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
             self._update_agent_states(tick)
             return self.snapshot(tick=tick, status="completed")
 
@@ -151,8 +151,8 @@ class MultiAgentRanScenario:
             self.completed = True
             return self.snapshot(tick=tick, status="completed")
 
-        # N3 流转:UPF 缓冲 → gNB DL 队列(下行;默认瞬时到达,受 n3 带宽约束)。
-        # 放在调度之前,保证本次调度窗口能看到已到达 gNB 的下行数据。
+        # N3 flow: UPF buffer → gNB DL queue (downlink; instantaneous arrival by default, bounded by n3 bandwidth).
+        # Placed before scheduling so this scheduling window can see downlink data that has reached the gNB.
         for service in active_services:
             if service.dl_queue is not None:
                 dl_tunnel = self.upf.tunnel_of(service.ue_id, service.session.pdu_session_id, "DL")
@@ -166,7 +166,7 @@ class MultiAgentRanScenario:
                     service.upf_buffered_bytes = self.upf.buffered_bytes(service.ue_id, service.session.pdu_session_id)
                     service.n3_gtp_overhead_bytes = dl_tunnel.overhead_total_bytes
 
-        # UL inflow:实体管道 PDCP→RLC 入队(调度前,本 tick 新数据可见)
+        # UL inflow: entity pipeline PDCP→RLC enqueue (before scheduling, so this tick's new data is visible)
         for service in active_services:
             if service.rlc is not None and service.dl_queue is None:
                 service.rlc.enqueue(service.pdcp.process(service.traffic, tick=tick))
@@ -217,16 +217,16 @@ class MultiAgentRanScenario:
             if allocation is None or allocation.scheduled_bytes <= 0:
                 service.waiting_ticks += 1
                 if service.waiting_ticks >= self.max_waiting_ticks:
-                    # 服务失败判定(0608 需求):长期无分配(信道过差/资源饿死)→ FAILED
+                    # Service failure determination (0608 requirement): long-term lack of allocation (poor channel/starvation) → FAILED
                     service.status = "FAILED"
                     service_states.append(self._build_waiting_service_state(service, channel, tick))
                     continue
                 service.status = "WAITING_FOR_ALLOCATION"
                 service_states.append(self._build_waiting_service_state(service, channel, tick))
                 continue
-            service.waiting_ticks = 0  # 获得分配,清零等待计数
+            service.waiting_ticks = 0  # allocation received, reset waiting counter
 
-            # 最小 RLC grant mock:当前仅按队列字节截断;后续替换为真实 segment 列表。
+            # Minimal RLC grant mock: currently just truncated by queue bytes; to be replaced by a real segment list.
             if service.rlc is not None:
                 actual_grant_bytes = min(
                     allocation.scheduled_bytes,
@@ -259,10 +259,10 @@ class MultiAgentRanScenario:
         self.last_state = state
         return state
 
-    # ------------------------------------------------------------- 实体管道辅助(xizhe)
+    # ------------------------------------------------------------- Entity pipeline helpers (xizhe)
 
     def _rlc_queue_state(self, service) -> RlcQueue:
-        """实体管道:返回 RLC 实体队列状态;函数式兼容返回原队列。"""
+        """Entity pipeline: return the RLC entity queue state; the functional-compatible path returns the original queue."""
 
         rlc = getattr(service, "rlc", None)
         if rlc is not None:
@@ -272,7 +272,7 @@ class MultiAgentRanScenario:
         return service.rlc_queue
 
     def _queue_drained(self, service) -> bool:
-        """队列耗尽判定(实体含 inflight;函数式含 queued/retransmission)。"""
+        """Queue drained determination (entity includes inflight; functional includes queued/retransmission)."""
 
         rlc = getattr(service, "rlc", None)
         if rlc is not None:
@@ -287,7 +287,7 @@ class MultiAgentRanScenario:
         return service.rlc_queue.queued_bytes <= 0 and service.rlc_queue.retransmission_bytes <= 0
 
     def _execute_rlc_entity_tick(self, service, channel, allocation, tick: int) -> TransmissionResult:
-        """实体管道单 tick:on_grant 分段 → PHY 传输 → on_transmission_result 反馈。"""
+        """Entity pipeline single tick: on_grant segmentation → PHY transmission → on_transmission_result feedback."""
 
         grant_result = service.rlc.on_grant(allocation)
         actual = replace(allocation, scheduled_bytes=grant_result.actual_sent_bytes)
@@ -301,13 +301,13 @@ class MultiAgentRanScenario:
         return transmission
 
     def get_agent_states(self, *, tick: int) -> list[dict[str, object]]:
-        """公开 mock/真实 AgentStateProvider 的统一状态接口。"""
+        """Unified state interface exposing mock/real AgentStateProvider."""
 
         states = self._read_agent_states(tick)
         return [asdict(state) for state in states]
 
     def snapshot(self, *, tick: int, status: str | None = None) -> dict[str, object]:
-        """返回当前场景快照，不推进协议状态。"""
+        """Return a snapshot of the current scenario without advancing protocol state."""
 
         if self.last_state is not None:
             state = dict(self.last_state)
@@ -331,7 +331,7 @@ class MultiAgentRanScenario:
             agent_state = state_by_agent[item.agent_id]
             self._register_ue(item, agent_state)
             if item.intent is None:
-                # 无初始 Intent:仅注册 UE,业务由运行时通过 submit_intent 动态提交。
+                # No initial intent: only register the UE; services are submitted dynamically by the runtime via submit_intent.
                 self.agents[item.agent_id] = AgentContext(
                     agent_id=item.agent_id,
                     state=agent_state,
@@ -342,7 +342,7 @@ class MultiAgentRanScenario:
             self._create_service(item, item.intent, index)
 
     def _register_ue(self, item, agent_state) -> None:
-        """注册并保存 Agent 的 UE 控制面上下文。重复注册同一 UE 时保持现有上下文。"""
+        """Register and store the Agent's UE control plane context. Keeps the existing context when the same UE is registered again."""
 
         if item.ue_id in self.ues:
             return
@@ -359,7 +359,7 @@ class MultiAgentRanScenario:
         )
 
     def _create_service(self, item, intent: AgentIntent, index: int) -> str:
-        """根据一个 Intent 构建完整业务上下文,返回 service_instance_id。"""
+        """Build the full service context from an Intent and return the service_instance_id."""
 
         service_instance_id = f"service_{intent.intent_id}"
         ue_state = self.ues[item.ue_id].state
@@ -380,12 +380,12 @@ class MultiAgentRanScenario:
         traffic = build_ip_traffic(ue_request, session)
         qos_flow = build_qos_flow(ue_request, session)
         drb = map_qos_flow_to_drb(qos_flow, ue_request)
-        # 函数式批仅作口径/统计;实体管道从原 traffic 每 tick 消费。
-        # 用副本构建批,避免消耗 traffic.remaining_bytes 导致 UL 实体
-        # inflow 无数据(实体切换遗留:UL 队列恒空、永不获调度)。
+        # The functional batch is only for accounting/statistics; the entity pipeline consumes from the original traffic each tick.
+        # Build the batch from a copy so traffic.remaining_bytes is not consumed, which would leave the UL entity
+        # inflow empty (legacy of the entity switch: UL queue stays empty and never gets scheduled).
         pdcp_batch = build_pdcp_batch(replace(traffic), drb)
         is_downlink = ue_request.direction == "DL"
-        # xizhe 实体管道(PDCP/RLC 实体;函数式 build_* 保留为兼容口径)
+        # xizhe entity pipeline (PDCP/RLC entities; functional build_* kept as a compatibility accounting path)
         pdcp_entity = PdcpEntity(
             drb_id=drb.drb_id,
             qfi=drb.qfi,
@@ -399,13 +399,13 @@ class MultiAgentRanScenario:
             direction=drb.direction,
             mode=drb.rlc_mode,
         )
-        # GTP-U 隧道(UL/DL 都建立;UL 用于 N3 交付统计,DL 用于缓冲-转发)
+        # GTP-U tunnel (both UL/DL created; UL for N3 delivery accounting, DL for buffer-and-forward)
         tunnel = self.upf.create_tunnel(ue_state.ue_id, session.pdu_session_id, ue_request.direction)
         if is_downlink:
-            # 下行:DN 数据经 N6 到达 UPF 缓冲(UE 挂起期间不丢);
-            # 每 tick 由 N3 流转填充 gNB 侧 RLC 队列(实体 enqueue_bytes)。
-            # 注意:缓冲与队列使用同一口径(pdcp_batch.output_bytes),
-            # 初始队列清空(数据全部在 UPF 缓冲),避免双倍入队。
+            # Downlink: DN data arrives at the UPF buffer via N6 (not lost while the UE is suspended);
+            # each tick, N3 flow fills the gNB-side RLC queue (entity enqueue_bytes).
+            # Note: buffer and queue use the same accounting (pdcp_batch.output_bytes),
+            # and the initial queue is emptied (all data sits in the UPF buffer) to avoid double enqueueing.
             self.upf.receive_from_dn(ue_state.ue_id, session.pdu_session_id, pdcp_batch.output_bytes)
             dl_queue = replace(build_rlc_queue(pdcp_batch, drb), queued_bytes=0, retransmission_bytes=0)
             rlc_queue = replace(rlc_queue_placeholder(ue_request, drb))
@@ -413,12 +413,12 @@ class MultiAgentRanScenario:
             dl_queue = None
             rlc_queue = build_rlc_queue(pdcp_batch, drb)
 
-        # RRC 建立:业务需要无线承载 → IDLE/INACTIVE → CONNECTED。
+        # RRC setup: the service needs a radio bearer → IDLE/INACTIVE → CONNECTED.
         self.amf.establish_rrc(ue_state)
 
         agent_context = self.agents.get(item.agent_id)
         if agent_context is None:
-            # 理论不可达:_build_contexts 总会先注册 AgentContext;此处兜底保证不变量。
+            # Theoretically unreachable: _build_contexts always registers AgentContext first; this fallback guards the invariant.
             agent_context = AgentContext(
                 agent_id=item.agent_id,
                 state=AgentStateSnapshot(
@@ -465,13 +465,13 @@ class MultiAgentRanScenario:
         return service_instance_id
 
     def submit_intent(self, intent: AgentIntent, *, selected_access: str = "5g") -> str:
-        """运行中提交一个新的业务意图,返回 service_instance_id。
+        """Submit a new service intent at runtime and return the service_instance_id.
 
-        校验:
-        - agent_id 必须属于场景建立时冻结的 Agent 集合。
-        - intent_id 必须全局唯一。
-        - requested_payload_bytes 必须为正。
-        提交后若场景此前已 completed,会重新激活 step 循环。
+        Validation:
+        - agent_id must belong to the Agent set frozen at scenario setup.
+        - intent_id must be globally unique.
+        - requested_payload_bytes must be positive.
+        If the scenario had previously completed, submission reactivates the step loop.
         """
 
         if intent.agent_id not in self.agent_ids:
@@ -493,7 +493,7 @@ class MultiAgentRanScenario:
         return self._create_service(item, intent, self._next_service_index())
 
     def _next_service_index(self) -> int:
-        """为动态提交的业务分配稳定且唯一的 UE IPv4 索引。"""
+        """Allocate a stable, unique UE IPv4 index for dynamically submitted services."""
 
         index = getattr(self, "_service_index_counter", len(self.service_order))
         self._service_index_counter = index + 1
@@ -504,7 +504,7 @@ class MultiAgentRanScenario:
         if service.dl_queue is not None:
             return self._execute_downlink_tick(service, channel, allocation, tick)
         if service.rlc is not None:
-            # xizhe 实体管道:on_grant 分段 → PHY → on_transmission_result
+            # xizhe entity pipeline: on_grant segmentation → PHY → on_transmission_result
             transmission = self._execute_rlc_entity_tick(service, channel, allocation, tick)
         else:
             transmission = transmit(
@@ -516,7 +516,7 @@ class MultiAgentRanScenario:
             service.rlc_queue = apply_transmission_to_rlc(service.rlc_queue, transmission)
         ru_result = receive_radio(transmission)
         n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, service.session)))
-        # 上行经 UPF 实体(N3 到达 → N6 交付 DN;带 GTP-U 隧道开销统计)
+        # Uplink via the UPF entity (N3 arrival → N6 delivery to DN; with GTP-U tunnel overhead accounting)
         n6 = forward_n6(self.upf.forward_to_dn(n3, service.session, target=service.ue_request.target))
         ul_tunnel = self.upf.tunnel_of(service.ue_id, service.session.pdu_session_id, "UL")
         if ul_tunnel is not None:
@@ -591,14 +591,14 @@ class MultiAgentRanScenario:
         return state
 
     def _execute_downlink_tick(self, service, channel, allocation, tick: int) -> dict[str, object]:
-        """下行 tick:DN 侧数据经 gNB 无线链路交付到 UE。
+        """Downlink tick: DN-side data is delivered to the UE over the gNB radio link.
 
-        与上行对称:传输成功字节 = UE 接收字节;完成 = DL 队列清空。
-        N3/N6 为零值占位(数据由 DN 直达 gNB,不经 UE 上行转发)。
+        Symmetric to uplink: successful transmission bytes = bytes received by the UE; completion = DL queue drained.
+        N3/N6 are zero-value placeholders (data goes from DN directly to gNB, not via UE uplink forwarding).
         """
 
         if service.rlc is not None:
-            # xizhe 实体管道:on_grant 分段 → PHY → on_transmission_result
+            # xizhe entity pipeline: on_grant segmentation → PHY → on_transmission_result
             transmission = self._execute_rlc_entity_tick(service, channel, allocation, tick)
         else:
             transmission = transmit(
@@ -692,7 +692,7 @@ class MultiAgentRanScenario:
         return state
 
     def _maybe_suspend_rrc(self, service) -> None:
-        """该 UE 无活跃业务时挂起 RRC:CONNECTED→INACTIVE(3GPP 业务间隙行为)。"""
+        """Suspend RRC when the UE has no active services: CONNECTED→INACTIVE (3GPP service-gap behavior)."""
 
         ue_context = self.ues.get(service.ue_id)
         if ue_context is None:
@@ -802,7 +802,7 @@ class MultiAgentRanScenario:
         }
 
     def _agent_state_with_cp(self, agent_id: str) -> dict[str, object]:
-        """Agent 快照 + 该 Agent UE 的 CM/RRC 控制面状态(前端展示)。"""
+        """Agent snapshot + CM/RRC control plane state of the Agent's UE (for frontend display)."""
 
         snapshot = asdict(self.agents[agent_id].state)
         for ue_context in self.ues.values():
@@ -813,8 +813,8 @@ class MultiAgentRanScenario:
         return snapshot
 
     def _congestion_metrics(self, service_states: list[dict[str, object]]) -> dict[str, object]:
-        """拥塞度指标(0608 需求:网络拥塞判断):
-        prb_ratio=本 tick PRB 占用率;queue_bytes=活跃队列积压总量。"""
+        """Congestion metrics (0608 requirement: network congestion determination):
+        prb_ratio=PRB utilization this tick; queue_bytes=total backlog of active queues."""
 
         total_prbs = float(getattr(self.gnb, "total_prbs", 106) or 106)
         allocated = 0
@@ -862,7 +862,7 @@ class MultiAgentRanScenario:
             "slice_usage": slice_usage,
             "congestion": self._congestion_metrics(service_states),
             "progress": progress,
-            # 兼容旧预览：只映射首个 Service，后续前端应读取 service_states。
+            # Legacy preview compatibility: map only the first Service; future frontends should read service_states.
             "result": primary.get("result", {}),
             "ue_request": primary.get("ue_request", {}),
             "access": primary.get("access", {}),
@@ -923,7 +923,7 @@ class MultiAgentRanScenario:
 
     @staticmethod
     def _update_payload_counters(service) -> None:
-        """按原始 PDCP batch 比例映射协议结果，防止 header 被计为应用 payload。"""
+        """Map protocol results proportionally to the original PDCP batch, preventing headers from being counted as application payload."""
 
         counters = service.counters
         protocol_total = service.pdcp_batch.output_bytes
@@ -991,7 +991,7 @@ class MultiAgentRanScenario:
                 for service_id in self.intents[intent_id].service_instance_ids
             ]
             if not service_ids:
-                # 无任何已提交 Intent(动态模式):不派生生命周期状态,保留 provider 状态。
+                # No intents submitted (dynamic mode): do not derive lifecycle state; keep the provider state.
                 continue
             derived_status = "COMPLETED" if all(
                 self.services[item].status in TERMINAL_SERVICE_STATUSES for item in service_ids
@@ -1035,12 +1035,12 @@ class MultiAgentRanScenario:
             )
 
 
-# 兼容已有导入；新代码统一使用 MultiAgentRanScenario。
+# Compatibility for existing imports; new code should use MultiAgentRanScenario uniformly.
 RanUploadScenario = MultiAgentRanScenario
 
 
 def _mock_ue_ip(index: int) -> str:
-    """为当前 mock 分配互不冲突的私网 IPv4 地址。"""
+    """Allocate non-conflicting private IPv4 addresses for the current mock."""
 
     third_octet = index // 240
     fourth_octet = 15 + index % 240
@@ -1050,7 +1050,7 @@ def _mock_ue_ip(index: int) -> str:
 
 
 def rlc_queue_placeholder(ue_request: UERequest, drb: Drb) -> RlcQueue:
-    """DL 业务的 UL 占位队列(0 字节):保持 ServiceContext 结构一致,不参与调度竞争。"""
+    """UL placeholder queue (0 bytes) for DL services: keeps ServiceContext structure consistent and does not compete for scheduling."""
 
     return RlcQueue(
         ue_id=drb.ue_id,

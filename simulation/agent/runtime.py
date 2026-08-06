@@ -1,9 +1,9 @@
-"""AgentRuntime:单个 Agent 的状态推进(规划 → 移动 → 提交意图 → 等待业务)。
+"""AgentRuntime: state progression of a single agent (planning -> moving -> submitting intents -> waiting for service).
 
-约束:
-- 只在 PLANNING 时调用计划提供者(仿真开始或收到业务完成事件后)。
-- WALKING 中不产生任何网络流量;NETWORK_ACTIVE 中坐标保持不变。
-- 每个 Agent 同时最多一个活跃意图。
+Constraints:
+- The plan provider is only called in PLANNING (at simulation start or after a service-completed event).
+- No network traffic while WALKING; position stays unchanged in NETWORK_ACTIVE.
+- Each agent has at most one active intent at a time.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from .planning import AgentPlanProvider, validate_plan
 from .adapters.ran_intent_gateway import RanIntentGateway
 from .state_machine import AgentStateMachine
 
-MAX_PLAN_RETRIES = 1  # 计划校验/导航失败后的重试次数。
+MAX_PLAN_RETRIES = 1  # Retry count after plan validation/navigation failure.
 
 
 class AgentRuntime:
@@ -46,7 +46,7 @@ class AgentRuntime:
         self.completed_intents: list[dict] = []
         self._plan_retries = 0
 
-    # ------------------------------------------------------------------ tick 推进
+    # ------------------------------------------------------------------ tick progression
 
     def step(self, tick: int) -> None:
         state = self.state_machine.state
@@ -58,9 +58,9 @@ class AgentRuntime:
             self._do_walking(tick)
         elif state == "NETWORK_PENDING":
             self._do_submit(tick)
-        # NETWORK_ACTIVE / DONE / FAILED:等待外部事件,不做任何推进。
+        # NETWORK_ACTIVE / DONE / FAILED: wait for external events; no progression.
 
-    # ------------------------------------------------------------------ 状态动作
+    # ------------------------------------------------------------------ state actions
 
     def _enter_planning(self, tick: int) -> None:
         self.error = None
@@ -73,13 +73,13 @@ class AgentRuntime:
             current_building = self._current_building_id()
             if current_building is not None:
                 building = self.navigation.semantic_index.get_area(current_building)
-                prefix = building.path.lower()  # catalog 的 key 均为小写。
+                prefix = building.path.lower()  # catalog keys are all lowercase.
                 filtered = [
                     name
                     for name in catalog
                     if name == prefix or name.startswith(prefix + " / ")
                 ]
-                # 排除当前所在区域(含建筑本体),保证 LLM 必须选择同建筑内其他区域。
+                # Exclude the current area (including the building itself) so the LLM must pick another area in the same building.
                 current_room = self.current_room()
                 exclude: set[str] = set()
                 if current_room:
@@ -88,7 +88,7 @@ class AgentRuntime:
                         exclude.add(room.path.lower())
                         exclude.add(room.area_id.lower())
                 remaining = [name for name in filtered if name not in exclude]
-                if remaining:  # 排除后为空时回退全建筑 catalog。
+                if remaining:  # Fall back to the full building catalog when nothing remains after exclusion.
                     catalog = remaining
                 else:
                     catalog = filtered
@@ -114,7 +114,7 @@ class AgentRuntime:
         self._plan_retries = 0
 
         if plan.stay:
-            # 不动移动模板:就地在 spawn 位置提交意图,直接跳过 WALKING。
+            # No-movement template: submit the intent in place at the spawn position, skipping WALKING entirely.
             self.waypoints = []
             self.waypoint_index = 0
             self.destination_id = plan.destination_ref or "stay_at_spawn"
@@ -136,7 +136,7 @@ class AgentRuntime:
         if self._plan_retries < MAX_PLAN_RETRIES:
             self._plan_retries += 1
             self.error = error
-            # 重试:重新进入 PLANNING 请求新计划。
+            # Retry: re-enter PLANNING to request a new plan.
             return
         self.error = error
         self.state_machine.transition("plan_failed", tick)
@@ -182,7 +182,7 @@ class AgentRuntime:
                 tick=tick,
                 ue_id=self.definition.ue_id or f"{self.definition.agent_id}_phone",
             )
-        except Exception as exc:  # noqa: BLE001 - 提交失败记录到状态帧。
+        except Exception as exc:  # noqa: BLE001 - record submission failure into the state frame.
             self.error = f"intent submit failed: {exc}"
             self.state_machine.transition("plan_failed", tick)
             return
@@ -190,10 +190,10 @@ class AgentRuntime:
         self.active_service_id = service_id
         self.state_machine.transition("intent_submitted", tick)
 
-    # ------------------------------------------------------------------ 外部事件
+    # ------------------------------------------------------------------ external events
 
     def on_intent_terminal(self, intent_id: str, succeeded: bool, tick: int) -> None:
-        """RAN 业务终态回调:仅在 NETWORK_ACTIVE 且意图匹配时响应。"""
+        """RAN service-terminal callback: only responds in NETWORK_ACTIVE and when the intent matches."""
 
         if self.state_machine.state != "NETWORK_ACTIVE":
             return
@@ -216,7 +216,7 @@ class AgentRuntime:
         self.active_service_id = None
 
     def _current_building_id(self) -> str | None:
-        """当前所在建筑(最顶层区域)ID;户外为 None。"""
+        """ID of the current building (top-level area); None when outdoors."""
 
         area = self.navigation.semantic_index.find_area_at(self.position)
         while area is not None and area.parent_id is not None:
@@ -229,7 +229,7 @@ class AgentRuntime:
     def current_room(self) -> str | None:
         return self.navigation.current_room(self.position)
 
-    # ------------------------------------------------------------------ 快照
+    # ------------------------------------------------------------------ snapshot
 
     def to_snapshot(self, tick: int) -> AgentSnapshot:
         machine = self.state_machine
@@ -252,7 +252,7 @@ class AgentRuntime:
 
 
 def _intent_id_of(service_instance_id: str) -> str:
-    """从 service_instance_id 反推 intent_id:service_{intent_id}。"""
+    """Derive intent_id from service_instance_id: service_{intent_id}."""
 
     if service_instance_id.startswith("service_"):
         return service_instance_id[len("service_") :]

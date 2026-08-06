@@ -1,8 +1,10 @@
-"""参考样本:ChannelMeasurement + 分层采样生成器(环节四)。
+"""Reference samples: ChannelMeasurement + stratified sampling generator (phase 4).
 
-无真实测量时的退路:用高保真模型(3GPP + 独立 shadow 实现)生成
-synthetic reference samples(文档 8.4:只能称为 reference samples,
-不宣称实测校准)。分层覆盖:户外 LOS/NLOS、O2I 浅/深层、室内单/多墙。
+Fallback when no real measurements exist: generate synthetic reference samples
+with a high-fidelity model (3GPP + an independent shadow implementation) (doc
+8.4: they can only be called reference samples, not claimed as measured
+calibration). Stratified coverage: outdoor LOS/NLOS, shallow/deep O2I, indoor
+single/multi-wall.
 """
 from __future__ import annotations
 
@@ -16,7 +18,7 @@ from ran.radio.channel_pipeline import evaluate_channel_path_loss
 
 @dataclass(slots=True)
 class ChannelMeasurement:
-    """单个参考测量点(大尺度,已对快衰落平均)。"""
+    """A single reference measurement point (large-scale, averaged over fast fading)."""
 
     measurement_id: str
     receiver_x_map: float
@@ -30,8 +32,8 @@ class ChannelMeasurement:
     brick_wall_count: int
     glass_wall_count: int
     drywall_wall_count: int
-    physical_path_loss_db: float  # 物理先验(3GPP)预测
-    measured_path_loss_db: float  # reference 观测(= 物理 + 独立 shadow 实现)
+    physical_path_loss_db: float  # physical prior (3GPP) prediction
+    measured_path_loss_db: float  # reference observation (= physical + independent shadow implementation)
     measured_rsrp_dbm: float
     source: str = "synthetic"
 
@@ -50,7 +52,7 @@ def _material_counts(geometry: PropagationGeometry) -> tuple[int, int, int]:
 
 
 def layer_of(geometry: PropagationGeometry) -> str:
-    """参考采样分层键(文档 8.3)。"""
+    """Stratification key for reference sampling (doc 8.3)."""
 
     link = geometry.link_type
     if link == "outdoor_los":
@@ -76,7 +78,8 @@ def build_reference_measurements(
     seed: int = 42,
     tx_power_dbm: float | None = None,
 ) -> list[ChannelMeasurement]:
-    """从候选网格点中分层抽取 count 个点,生成 synthetic reference。
+    """Stratified-sample count points from the candidate grid points to generate
+    synthetic references.
 
     candidate_points: [{"x": map_x, "y": map_y, "geometry": PropagationGeometry,
                         "path_loss_db": float, "shadow_std_db": float}, ...]

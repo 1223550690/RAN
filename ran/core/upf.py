@@ -1,14 +1,14 @@
-"""核心网用户面:UPF 实体 + GTP-U 隧道(3GPP 语义简化)。
+"""Core network user plane: UPF entity + GTP-U tunnels (simplified 3GPP semantics).
 
-路径:DN → N6 → UPF → N3(GTP-U)→ gNB → 无线 → UE(下行)
-     UE → 无线 → gNB → N3(GTP-U)→ UPF → N6 → DN(上行)
+Path: DN → N6 → UPF → N3 (GTP-U) → gNB → radio → UE (downlink)
+      UE → radio → gNB → N3 (GTP-U) → UPF → N6 → DN (uplink)
 
-实体:
-- GtpTunnel:隧道(teid 唯一、GTP-U 开销统计)。
-- Upf:每场景一个;N6 接收(DL 缓冲)、N3 转发、N6 交付(UL 统计)。
-  纯进程内对象,零第三方依赖;GTP-U 只做字节/开销计数,不真正改包。
+Entities:
+- GtpTunnel: tunnel (unique teid, GTP-U overhead accounting).
+- Upf: one per scenario; N6 reception (DL buffering), N3 forwarding, N6 delivery (UL accounting).
+  Pure in-process object, zero third-party dependencies; GTP-U only counts bytes/overhead, never modifies packets.
 
-兼容:模块级 forward_via_upf 保留(等价于无状态统计,旧调用零破坏)。
+Compatibility: module-level forward_via_upf is kept (equivalent to stateless accounting; zero breakage for legacy callers).
 """
 from __future__ import annotations
 
@@ -16,43 +16,44 @@ from dataclasses import dataclass, field
 
 from ran.contracts import N3ForwardingResult, N6DeliveryResult, PduSession
 
-# GTP-U 开销:外层 IP(20)+ UDP(8)+ GTP-U(8)= 36 字节/包
+# GTP-U overhead: outer IP (20) + UDP (8) + GTP-U (8) = 36 bytes/packet
 GTP_OVERHEAD_BYTES = 36
-# 仿真 MTU:按 1500B 估算包数(仅用于开销统计)
+# Simulated MTU: estimate packet count at 1500B (for overhead accounting only)
 MTU_BYTES = 1500
 
 
 @dataclass(slots=True)
 class GtpTunnel:
-    """一条 GTP-U 隧道(单一 (UE, PDU Session, 方向) 组合)。"""
+    """A single GTP-U tunnel (one (UE, PDU Session, direction) combination)."""
 
-    tunnel_id: str  # tunnel_id: "{direction}_{ue_id}_{pdu_session_id}"。
+    tunnel_id: str  # tunnel_id: "{direction}_{ue_id}_{pdu_session_id}".
     teid: int
     direction: str
     pdu_session_id: int
-    ue_id: str = ""  # ue_id: 隧道所属 UE(多 UE 隔离 key)。
-    peer_address: str = "gnb"  # peer_address: 对端(仿真符号地址)。
-    gtp_overhead_bytes: int = GTP_OVERHEAD_BYTES  # gtp_overhead_bytes: 每包 GTP-U 开销。
-    overhead_total_bytes: int = 0  # overhead_total_bytes: 累计开销(统计用)。
+    ue_id: str = ""  # ue_id: UE owning the tunnel (isolation key for multiple UEs).
+    peer_address: str = "gnb"  # peer_address: peer (symbolic address in simulation).
+    gtp_overhead_bytes: int = GTP_OVERHEAD_BYTES  # gtp_overhead_bytes: GTP-U overhead per packet.
+    overhead_total_bytes: int = 0  # overhead_total_bytes: cumulative overhead (for statistics).
 
 
 class Upf:
-    """核心网用户面功能:隧道管理、DL 缓冲(N6 接收)、N3 转发、UL 交付。"""
+    """Core network user plane function: tunnel management, DL buffering (N6 receive), N3 forwarding, UL delivery."""
 
     def __init__(self, *, n3_bandwidth_mbps: float | None = None) -> None:
         self.tunnels: dict[str, GtpTunnel] = {}
-        self.buffers: dict[str, int] = {}  # (ue_id, pdu_session_id) -> UPF 侧 DL 缓冲字节
+        self.buffers: dict[str, int] = {}  # (ue_id, pdu_session_id) -> DL buffered bytes on the UPF side
         self._next_teid = 1000
-        self.n3_bandwidth_mbps = n3_bandwidth_mbps  # None=瞬时到达
+        self.n3_bandwidth_mbps = n3_bandwidth_mbps  # None=instant arrival
 
-    # ---------------------------------------------------------------- 隧道
+    # ---------------------------------------------------------------- Tunnels
 
     def create_tunnel(self, ue_id: str, pdu_session_id: int, direction: str) -> GtpTunnel:
-        """为 (UE, PDU Session, 方向) 建立 GTP-U 隧道。
+        """Create a GTP-U tunnel for (UE, PDU Session, direction).
 
-        注意:key 必须含 ue_id——多 UE 场景下各 UE 的 pdu_session_id
-        均从 1 起分配,仅用 session id 会导致隧道/缓冲相互覆盖
-        (模板二三个 video_download 同时跑时数据混入同一队列)。
+        Note: the key must include ue_id -- in multi-UE scenarios each UE's
+        pdu_session_id is allocated from 1, so using only the session id would
+        make tunnels/buffers overwrite each other (data from three concurrent
+        video_download flows in template 2 would mix into the same queue).
         """
 
         tunnel_id = self._tunnel_key(ue_id, pdu_session_id, direction)
@@ -80,7 +81,7 @@ class Upf:
     # ---------------------------------------------------------------- N6 / N3
 
     def receive_from_dn(self, ue_id: str, pdu_session_id: int, bytes_total: int) -> None:
-        """N6:DN 数据到达 → 进入 UPF 缓冲(下行;UE 挂起期间数据不丢)。"""
+        """N6: data from DN arrives → enters UPF buffer (downlink; no data loss while UE is suspended)."""
 
         key = f"{ue_id}:{pdu_session_id}"
         self.buffers[key] = self.buffers.get(key, 0) + bytes_total
@@ -95,7 +96,7 @@ class Upf:
         tick_ms: float = 200.0,
         max_bytes: int | None = None,
     ) -> int:
-        """N3:UPF 缓冲 → gNB(下行)。返回实际转发业务字节;受 N3 带宽与缓冲量约束。"""
+        """N3: UPF buffer → gNB (downlink). Returns the actually forwarded traffic bytes; bounded by N3 bandwidth and buffer contents."""
 
         key = f"{tunnel.ue_id}:{tunnel.pdu_session_id}"
         available = self.buffers.get(key, 0)
@@ -107,7 +108,7 @@ class Upf:
             limit = min(limit, capacity)
         tx = min(available, limit)
         self.buffers[key] = available - tx
-        # GTP-U 开销统计:按 MTU 估算包数
+        # GTP-U overhead accounting: estimate packet count by MTU
         packets = (tx + MTU_BYTES - 1) // MTU_BYTES
         tunnel.overhead_total_bytes += packets * tunnel.gtp_overhead_bytes
         return tx
@@ -119,7 +120,7 @@ class Upf:
         *,
         target: str,
     ) -> N6DeliveryResult:
-        """N3 到达 UPF(上行)→ N6 交付 DN。走隧道实例(存在时),语义同模块函数。"""
+        """N3 arrival at UPF (uplink) → N6 delivery to DN. Uses the tunnel instance (when present); semantics match the module function."""
 
         tunnel = self.tunnel_of(session.ue_id, session.pdu_session_id, "UL")
         if tunnel is not None:
@@ -135,6 +136,6 @@ class Upf:
 
 
 def forward_via_upf(n3_result: N3ForwardingResult, session: PduSession, *, target: str) -> N6DeliveryResult:
-    """兼容入口:无状态 UPF 统计(等价于 Upf().forward_to_dn)。"""
+    """Compatibility entry point: stateless UPF accounting (equivalent to Upf().forward_to_dn)."""
 
     return Upf().forward_to_dn(n3_result, session, target=target)

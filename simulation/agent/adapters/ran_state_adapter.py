@@ -1,7 +1,7 @@
-"""RAN 状态适配器:实现 ran.orchestration.AgentStateProvider 协议。
+"""RAN state adapter: implements the ran.orchestration.AgentStateProvider protocol.
 
-从 AgentRegistry 读取各 Agent 运行时状态,转换为 ran.contracts.AgentStateSnapshot。
-无副作用:只读快照,不触发 LLM、移动或意图提交。
+Reads each agent's runtime state from AgentRegistry and converts it to ran.contracts.AgentStateSnapshot.
+Side-effect free: read-only snapshot; does not trigger LLM calls, movement, or intent submission.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from ..registry import AgentRegistry
 
 
 class SimulationAgentStateProvider:
-    """把 Agent 子系统状态桥接为 RAN 可读的 AgentStateSnapshot。"""
+    """Bridge the agent subsystem state into an AgentStateSnapshot readable by RAN."""
 
     def __init__(self, registry: AgentRegistry) -> None:
         self.registry = registry

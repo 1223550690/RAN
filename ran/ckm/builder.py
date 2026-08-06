@@ -1,4 +1,4 @@
-"""混合 CKM 构建器(环节四~八组装):启动时一次生成,缓存复用。"""
+"""Hybrid CKM builder (assembling phases 4-8): generated once at startup, cache reused."""
 from __future__ import annotations
 
 import hashlib
@@ -23,7 +23,7 @@ from ran.radio.geometry import PropagationGeometry, analyze_propagation_geometry
 
 @dataclass(slots=True)
 class CkmConfig:
-    """channel_model.json 中 scenes.<id>.ckm 配置。"""
+    """Configuration for scenes.<id>.ckm in channel_model.json."""
 
     enabled: bool = True
     grid_scale_m: float = 10.0
@@ -36,14 +36,14 @@ class CkmConfig:
     residual_max_neighbors: int = 8
     residual_prior_std_db: float = 6.0
     residual_reference_distance_m: float = 50.0
-    residual_method: str = "gp"  # residual_method: "gp"(Matérn 3/2 Kriging,默认)/ "idw"。
+    residual_method: str = "gp"  # residual_method: "gp" (Matérn 3/2 Kriging, default) / "idw".
     residual_length_scale_m: float = 50.0
     residual_signal_std_db: float = 6.0
     residual_noise_std_db: float = 1.0
     beam_enabled: bool = True
     beam_codebook: list[BeamConfig] = field(default_factory=default_codebook)
     nlos_gain_cap_db: float | None = -3.0
-    target_build_seconds: float = 15.0  # 性能预算;超时自动降级粗网格
+    target_build_seconds: float = 15.0  # performance budget; on timeout automatically degrades to a coarser grid
 
     @staticmethod
     def from_dict(data: dict | None) -> "CkmConfig":
@@ -88,11 +88,12 @@ class CkmConfig:
 
 
 def _building_bounds(scene) -> list[tuple[float, float, float, float]]:
-    """顶层 indoor 建筑区域 bounds(全局坐标)。
+    """Bounds of top-level indoor building areas (global coordinates).
 
-    只保留 metadata.space == indoor 的区域——绿地/球场/网络站点等
-    outdoor 区域不是建筑,不能进"室内细网格"(曾导致户外点被当作
-    indoor 采样,receiver_space 与实际传播几何矛盾)。
+    Only areas with metadata.space == indoor are kept -- outdoor areas such as
+    green spaces/fields/network sites are not buildings and must not enter the
+    "fine indoor grid" (this once caused outdoor points to be sampled as
+    indoor, contradicting the actual propagation geometry's receiver_space).
     """
 
     bounds = []
@@ -114,7 +115,7 @@ def _sample_grid_points(
     grid_scale_m: float,
     indoor_refine_scale_m: float,
 ) -> list[dict]:
-    """双层采样:户外粗网格 + 建筑内细网格。返回 [{"x": .., "y": .., "indoor": bool}]。"""
+    """Two-layer sampling: coarse outdoor grid + fine indoor grid. Returns [{"x": .., "y": .., "indoor": bool}]."""
 
     bounds = _building_bounds(scene)
     if not bounds:
@@ -127,12 +128,16 @@ def _sample_grid_points(
     points: list[dict] = []
 
     def in_building(x: float, y: float) -> bool:
-        # 半开区间:右/上边界点算户外(避免 bounds 边界带出现覆盖空洞:
-        # 户外点被当室内跳过、室内网格又到不了边界 → 25m 降采样空洞)
+        # Half-open interval: right/top boundary points count as outdoor
+        # (avoiding coverage holes along the bounds boundary strip: outdoor
+        # points skipped as indoor while the indoor grid cannot reach the
+        # boundary → 25m downsampling holes)
         return any(b[0] <= x < b[2] and b[1] <= y < b[3] for b in bounds)
 
-    # 户外粗网格(跳过建筑内部);从地图原点 0 覆盖到 2000(viewBox 边界),
-    # 保证全图无白条(此前范围止于 bounds±margin,左上与右/下边缘缺失)。
+    # Coarse outdoor grid (skipping building interiors); covers from map origin
+    # 0 to 2000 (the viewBox boundary) so the full map has no blank strips
+    # (previously the range stopped at bounds±margin, leaving the top-left and
+    # right/bottom edges missing).
     map_extent = 2000.0
     x = 0.0
     while x <= map_extent:
@@ -143,7 +148,7 @@ def _sample_grid_points(
             y += grid_scale_m
         x += grid_scale_m
 
-    # 室内细网格(建筑 bounds 内)
+    # Fine indoor grid (inside building bounds)
     for bx0, by0, bx1, by1 in bounds:
         x = bx0
         while x <= bx1:
@@ -156,7 +161,7 @@ def _sample_grid_points(
 
 
 def _compute_point_batch(payload):
-    """并行 worker:计算一批网格点的几何 + 3GPP 物理先验(Windows spawn 可 pickle)。"""
+    """Parallel worker: compute geometry + 3GPP physical prior for a batch of grid points (pickle-safe for Windows spawn)."""
 
     scene, gnb, policy, coordinate_view, points = payload
     import math
@@ -203,16 +208,18 @@ def _compute_point_batch(payload):
 
 
 def _write_heatmap(ckm: HybridCkm, scene_id: str, scale_m: float = 25.0, output_dir=None) -> None:
-    """写轻量热力图文件(25m 降采样,前端叠加用;室内细网格优先)。
+    """Write a lightweight heatmap file (25m downsampled, for frontend overlay; fine indoor grid takes priority).
 
-    坐标输出标准网格原点(key×scale,非覆盖点的原始采样坐标)——保证
-    相邻色块连续铺设(点间距恒等于 scale,前端按固定尺寸绘制无缝)。
+    Coordinates are output at the standard grid origin (key×scale, not the raw
+    sample coordinates of covered points) -- this guarantees adjacent color
+    blocks tile seamlessly (point spacing is always exactly scale; the frontend
+    draws with a fixed size).
     """
 
     grid: dict[tuple[int, int], HybridCKMCell] = {}
     for cell in ckm.cells:
         key = (round(cell.x_map / scale_m), round(cell.y_map / scale_m))
-        # 后写覆盖:cells 顺序户外先、室内后 → 室内点优先
+        # Later writes overwrite: cells are ordered outdoor-first, indoor-last → indoor points win
         grid[key] = cell
     points = [
         {
@@ -241,7 +248,7 @@ def build_hybrid_ckm(
     ckm_config: CkmConfig | None = None,
     calibration_version: str = "ckm-v7",
 ) -> HybridCkm | None:
-    """构建(或从缓存加载)混合 CKM;失败返回 None(调用方回退 shadow)。"""
+    """Build (or load from cache) the hybrid CKM; returns None on failure (the caller falls back to shadow)."""
 
     if ckm_config is None:
         ckm_config = CkmConfig()
@@ -260,7 +267,7 @@ def build_hybrid_ckm(
         policy_hash=policy_hash,
         scene_hash=scene_hash,
     )
-    # 缓存命中
+    # Cache hit
     if ckm_config.cache_enabled:
         path = cache_path(scene_id)
         if path.exists():
@@ -276,7 +283,7 @@ def build_hybrid_ckm(
                 pass
 
     t0 = time.time()
-    # 坐标标定视图(几何分析需要米制距离)
+    # Coordinate calibration view (geometry analysis needs metric distances)
     calibration = None
     from ran.radio.coordinate_calibration import load_coordinate_calibration
 
@@ -303,8 +310,10 @@ def build_hybrid_ckm(
     if not raw_points:
         return None
 
-    # 每点:几何 + 3GPP 物理先验(复用现有 pipeline,含 fallback 语义)。
-    # 并行:ProcessPool(spawn)多 worker 分块计算;预算内提交尽可能多的块。
+    # Per point: geometry + 3GPP physical prior (reusing the existing pipeline,
+    # including fallback semantics).
+    # Parallel: ProcessPool (spawn) computes chunks with multiple workers;
+    # submit as many chunks as fit within the budget.
     candidate_points: list[dict] = []
     tx_power = gnb.tx_power_dbm
     antenna_gain = min(12.0, 10.0 * math.log10(max(1, gnb.antenna_elements)) * 0.5)
@@ -323,8 +332,9 @@ def build_hybrid_ckm(
         for i in range(0, len(raw_points), chunk)
     ]
     n_workers = 8
-    # 预算容量 = 目标秒数 × 并行吞吐(单点 ~1.2ms,每 worker ~800 点/s);
-    # 默认配置(8 万点)可在预算内全量完成。
+    # Budget capacity = target seconds × parallel throughput (~1.2ms/point,
+    # ~800 points/s per worker); the default configuration (~80k points)
+    # completes fully within the budget.
     budget_points = int(ckm_config.target_build_seconds * 800 * n_workers)
     with ProcessPoolExecutor(max_workers=n_workers) as pool:
         futures = []
@@ -339,9 +349,9 @@ def build_hybrid_ckm(
             try:
                 candidate_points.extend(future.result())
             except Exception as exc:
-                print(f"[ckm] 并行采样批次失败(跳过): {exc}", file=sys.stderr, flush=True)
+                print(f"[ckm] parallel sampling batch failed (skipped): {exc}", file=sys.stderr, flush=True)
 
-    # 参考样本(分层)→ 校准
+    # Reference samples (stratified) → calibration
     references = build_reference_measurements(
         scene=scene,
         gnb=gnb,
@@ -382,7 +392,7 @@ def build_hybrid_ckm(
             prior_std_db=ckm_config.residual_prior_std_db,
         )
 
-    # cells 转换(快:IDW 残差 + 校准 + beam;候选点已采样完毕,转换不设时限)
+    # Cell conversion (fast: IDW residual + calibration + beam; candidate points are already sampled, so conversion has no time limit)
     cells: list[HybridCKMCell] = []
     for point in candidate_points:
         geometry: PropagationGeometry = point["geometry"]
@@ -415,7 +425,7 @@ def build_hybrid_ckm(
                 best_beam_rsrp = selection.effective_received_power_dbm
                 beam_margin = selection.beam_margin_db
 
-        # receiver_space 以传播几何的权威分类为准(采样标记只用于选择网格密度)
+        # receiver_space follows the propagation geometry's authoritative classification (the sampling flag only selects grid density)
         receiver_space = str(getattr(geometry, "receiver_space", "") or "").lower()
         if receiver_space not in ("indoor", "outdoor"):
             receiver_space = "indoor" if point["indoor"] else "outdoor"
@@ -448,7 +458,7 @@ def build_hybrid_ckm(
                 shadow_std_db=shadow_std,
             )
         )
-        # 转换阶段不设时限(候选点已算完,这里只有轻量计算)
+        # No time limit for the conversion phase (candidate points are already computed; only lightweight work remains)
     
     ckm = HybridCkm(
         scene_id=scene_id,

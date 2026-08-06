@@ -194,10 +194,12 @@ def analyze_propagation_geometry(
     exterior_crossings = [crossing for crossing in exterior_crossings if crossing is not None]
     interior_crossings = [_is_interior(crossing) for crossing in effective_crossings]
     interior_crossings = [crossing for crossing in interior_crossings if crossing is not None]
-    # O2I 兜底:建筑 bounds 边界无外墙墙段时(场景只画了内墙),用
-    # 链路与建筑 bounds 的交点合成一个 exterior crossing——bounds 即
-    # 权威建筑轮廓;否则 O2I 链路抛 InconsistentGeometryLinkError 并
-    # fallback legacy FSPL(低损耗,室内信号虚高)。
+    # O2I fallback: when the building bounds boundary has no exterior wall
+    # segments (the scene only draws interior walls), synthesize an exterior
+    # crossing from the link's intersection with the building bounds -- the
+    # bounds are the authoritative building outline; otherwise the O2I link
+    # raises InconsistentGeometryLinkError and falls back to legacy FSPL
+    # (low loss, which inflates indoor signal strength).
     if link_type == LINK_OUTDOOR_TO_INDOOR and not exterior_crossings and receiver_building_id:
         synthesized = _synthesize_bounds_exterior_crossing(
             scene=scene,
@@ -650,10 +652,13 @@ def _synthesize_bounds_exterior_crossing(
     gnb_position: Position,
     receiver_position: Position,
 ) -> PropagationSurfaceCrossing | None:
-    """O2I 无外墙墙段时,用链路与建筑 bounds 的交点合成 exterior crossing。
+    """Synthesize an exterior crossing from the link's intersection with the
+    building bounds when the O2I link has no exterior wall segment.
 
-    建筑 bounds 是权威建筑轮廓(场景编辑器定义);损耗值由 O2I profile
-    计算,合成 crossing 只提供"外墙存在"与交点/距离信息。
+    The building bounds are the authoritative building outline (defined by the
+    scene editor); the loss value is computed by the O2I profile, and the
+    synthesized crossing only provides the "exterior wall exists" fact along
+    with the intersection/distance information.
     """
 
     def find_area(node, area_id: str):
@@ -676,14 +681,16 @@ def _synthesize_bounds_exterior_crossing(
     bx, by = receiver_position.x, receiver_position.y
     dx, dy = bx - ax, by - ay
 
-    # Liang-Barsky 线段-矩形裁剪:求链路与矩形第一个交点(进入点),
-    # 正确处理接收点在边界/链路穿过角点等边界情形。
+    # Liang-Barsky line-segment/rectangle clipping: find the link's first
+    # intersection (entry point) with the rectangle, correctly handling edge
+    # cases such as the receiver lying on the boundary or the link passing
+    # through a corner.
     t0, t1 = 0.0, 1.0
     p_q = [(-dx, ax - x0), (dx, x1 - ax), (-dy, ay - y0), (dy, y1 - ay)]
     for p, q in p_q:
         if abs(p) < 1e-12:
             if q < 0:
-                return None  # 平行且在矩形外
+                return None  # parallel and outside the rectangle
             continue
         r = q / p
         if p < 0:
@@ -697,7 +704,7 @@ def _synthesize_bounds_exterior_crossing(
     if t0 > t1:
         return None
     entry_point = (ax + t0 * dx, ay + t0 * dy)
-    # 命中的边(进入点所在边,含容差)
+    # Hit edge (the edge containing the entry point, with tolerance)
     edges = [
         ((x0, y0), (x1, y0)),  # bottom
         ((x1, y0), (x1, y1)),  # right
@@ -722,7 +729,7 @@ def _synthesize_bounds_exterior_crossing(
         area_name=name,
         intersection=entry_point,
         distance_from_gnb_map_units=distance,
-        penetration_loss_db=0.0,  # 穿透损耗由 O2I profile 计算
+        penetration_loss_db=0.0,  # penetration loss is computed by the O2I profile
         segment=(hit_edge[0], hit_edge[1]),
         distance_from_gnb_m=None,
         is_effective=True,

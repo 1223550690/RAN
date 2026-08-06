@@ -1,11 +1,11 @@
-"""Agent 子系统:LLM/模板引导 Agent 移动并产生网络意图。
+"""Agent subsystem: LLM/template-guided agents that move and produce network intents.
 
-模块边界:
-- 契约与定义:contracts.py / definitions.py
-- 计划来源:planning/(模板确定性、LLM 自动指挥)
-- 导航:navigation/(语义索引、房间图、A*、碰撞、评分)
-- 运行时:state_machine.py / runtime.py / registry.py
-- RAN 对接:adapters/(状态只读适配、意图提交网关)
+Module boundaries:
+- Contracts and definitions: contracts.py / definitions.py
+- Plan sources: planning/ (deterministic templates, LLM auto-direction)
+- Navigation: navigation/ (semantic index, room graph, A*, collision, scoring)
+- Runtime: state_machine.py / runtime.py / registry.py
+- RAN integration: adapters/ (read-only state adaptation, intent submission gateway)
 """
 
 from .contracts import (

@@ -72,7 +72,7 @@ class SimulationLoop:
         return " | ".join(lines)
 
     def format_agent_frame_lines(self, frame) -> str:
-        """输出每个 Agent 的简要状态:状态 / 活动 / 位置 / 目标。"""
+        """Output a brief status per agent: state / activity / position / destination."""
 
         parts = []
         for agent in frame.agents:
@@ -133,7 +133,7 @@ class SimulationLoop:
         return [status_line, traffic_line]
 
     def format_multi_agent_state_lines(self, ran_state: dict, service_states: list[dict]) -> list[str]:
-        """为每个业务输出完整单 tick 行，并追加一行全局聚合信息。"""
+        """Output one full per-tick line per service, plus a line of global aggregated info."""
 
         gnb = ran_state.get("gnb", {})
         position = gnb.get("position", {}) if isinstance(gnb, dict) else {}
@@ -213,12 +213,12 @@ class SimulationLoop:
             del self.console[:-120]
 
     def wait_if_paused(self) -> None:
-        # 内存控制(内置服务器 -p 模式)
+        # In-memory control (built-in server, -p mode)
         if self.control is not None:
             while self.control.paused:
                 self.write_preview_state(now_seconds=self.state.tick * self.clock.tick_ms / 1000)
                 time.sleep(0.1)
-        # 文件控制通道(独立 preview_server 模式):outputs/simulation_control.json
+        # File control channel (standalone preview_server mode): outputs/simulation_control.json
         control_file = Path("outputs") / "simulation_control.json"
         while True:
             try:

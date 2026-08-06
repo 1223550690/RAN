@@ -1,4 +1,4 @@
-"""调度算法测试(tr22068):4 算法分配正确性、PRB 守恒、空队列、Java round-trip。"""
+"""Scheduler algorithm tests (tr22068): allocation correctness of the 4 algorithms, PRB conservation, empty queues, Java round-trip."""
 from __future__ import annotations
 
 import unittest
@@ -119,7 +119,7 @@ class SchedulerAlgorithmTests(unittest.TestCase):
         channels = {"ue_a": _channel("ue_a", cqi=14), "ue_b": _channel("ue_b", cqi=4)}
         result = maxThroughputDLScheduling(channel_by_ue=channels, request=_request(queues, channels=list(channels.values())), active=queues)
         by_ue = {a.ue_id: a for a in result}
-        # 高 CQI 的 UE 应获得更多 PRB 或至少不低
+        # the high-CQI UE should receive at least as many PRBs as the low-CQI one
         self.assertGreaterEqual(by_ue["ue_a"].prbs, by_ue["ue_b"].prbs)
 
     def test_grant_based_ul_bounded_by_queue(self) -> None:
@@ -169,13 +169,13 @@ class JavaAdapterRoundTripTests(unittest.TestCase):
         self.assertEqual(rebuilt.scheduler_request_id, request.scheduler_request_id)
         self.assertEqual(rebuilt.tick, request.tick)
         self.assertEqual(rebuilt.contract_version, request.contract_version)
-        self.assertEqual(len(rebuilt.allocations), 0)  # 无 Java 后端时为空决策
+        self.assertEqual(len(rebuilt.allocations), 0)  # empty decision when no Java backend
 
     def test_java_adapter_falls_back_on_missing_java(self) -> None:
         adapter = JavaSchedulerAdapter()
         request = _request([_queue("ue_a", 1, 50_000)])
         result = adapter.allocate(request)
-        # Java 不可用 → fallback 到 PythonBaselineScheduler
+        # Java unavailable -> fall back to PythonBaselineScheduler
         self.assertIsInstance(result.allocations, list)
         self.assertGreaterEqual(len(result.allocations), 0)
 

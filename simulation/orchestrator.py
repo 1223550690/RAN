@@ -1,14 +1,14 @@
-"""SimulationOrchestrator:协调 Agent 子系统与 RAN 场景。
+"""SimulationOrchestrator: coordinates the agent subsystem with the RAN scenario.
 
-每 tick 流程:
-1. 检查 RAN 业务终态,通知对应 Agent(NETWORK_ACTIVE → PLANNING)。
-2. 推进所有 Agent(规划/移动/提交意图)。
-3. 推进 RAN 场景(处理新提交的意图与活跃队列)。
-4. 汇总 AgentStateFrame。
+Per-tick flow:
+1. Check RAN service terminal states and notify the corresponding agents (NETWORK_ACTIVE -> PLANNING).
+2. Advance all agents (planning/moving/submitting intents).
+3. Advance the RAN scenario (process newly submitted intents and active queues).
+4. Aggregate the AgentStateFrame.
 
-依赖顺序说明:registry 需要 gateway 才能提交意图,gateway 需要 scenario,
-scenario 需要 registry 的状态适配器——因此 registry 先构建(gateway 后挂载),
-scenario 使用 registry 的只读适配器,最后构建 gateway 并 attach 回 registry。
+Dependency order: the registry needs the gateway to submit intents, the gateway needs the scenario,
+and the scenario needs the registry's state adapter - so the registry is built first (gateway attached later),
+the scenario uses the registry's read-only adapter, and finally the gateway is built and attached back to the registry.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ TERMINAL_SERVICE_STATUSES = {"COMPLETED", "FAILED"}
 
 
 def _intent_direction(intent_type: str) -> str:
-    """意图类型 → 传输方向(下行类返回 DL,其余 UL)。"""
+    """Intent type -> transport direction (DL for downlink-type intents, UL otherwise)."""
 
     if intent_type in ("video_download", "file_download", "web_browse", "game_download"):
         return "DL"
@@ -62,7 +62,7 @@ class SimulationOrchestrator:
             agent_radius=agent_radius,
             seed=seed,
         )
-        # 1) 先建 registry(无 gateway),供状态适配器使用。
+        # 1) Build the registry first (without a gateway) for the state adapter to use.
         self.registry = AgentRegistry(
             agent_definition,
             plan_provider=plan_provider,
@@ -71,7 +71,7 @@ class SimulationOrchestrator:
             speed_m_per_tick=speed_m_per_tick,
             same_building_only=same_building_only,
         )
-        # 2) 建 RAN 场景,挂载只读状态适配器。
+        # 2) Build the RAN scenario and attach the read-only state adapter.
         ran_definition = build_runtime_agent_definition(
             agent_definition.simulation_id,
             list(zip(self.registry.agent_ids, self.registry.ue_ids)),
@@ -85,13 +85,13 @@ class SimulationOrchestrator:
             n3_bandwidth_mbps=n3_bandwidth_mbps,
             max_waiting_ticks=max_waiting_ticks,
         )
-        # 3) 建意图网关并挂载回 registry。
+        # 3) Build the intent gateway and attach it back to the registry.
         self.gateway = RanIntentGateway(self.scenario, intent_profiles=intent_profiles)
         self.registry.attach_gateway(self.gateway)
         self._service_prev_status: dict[str, str] = {}
         self.ran_state: dict | None = None
 
-    # ------------------------------------------------------------------ tick 推进
+    # ------------------------------------------------------------------ tick progression
 
     def step(self, tick: int) -> AgentStateFrame:
         self._notify_terminal_services(tick)
@@ -102,9 +102,9 @@ class SimulationOrchestrator:
         return frame
 
     def _build_plan_summary(self) -> list[dict]:
-        """静态任务清单(模板模式):每 agent 的有序任务(类型/方向/序号/总数)。
+        """Static task list (template mode): each agent's ordered tasks (type/direction/index/total).
 
-        前端任务面板以此渲染任务列表,动态进度由 ran_state.service_states 对齐。
+        The frontend task panel renders the task list from this; dynamic progress is aligned via ran_state.service_states.
         """
 
         summary: list[dict] = []
@@ -123,7 +123,7 @@ class SimulationOrchestrator:
         return summary
 
     def _notify_terminal_services(self, tick: int) -> None:
-        """检测 RAN 业务进入终态,通知对应 Agent 回到 PLANNING。"""
+        """Detect RAN services entering a terminal state and notify the corresponding agent back to PLANNING."""
 
         for service_id, service in list(self.scenario.services.items()):
             status = service.status
@@ -140,14 +140,14 @@ class SimulationOrchestrator:
                     tick=tick,
                 )
 
-    # ------------------------------------------------------------------ 状态接口
+    # ------------------------------------------------------------------ state interface
 
     def get_agent_states(self, *, tick: int) -> list[AgentStateSnapshot]:
-        """实现 ran AgentStateProvider 兼容的只读快照接口(无副作用)。"""
+        """Implement the read-only snapshot interface compatible with ran AgentStateProvider (side-effect free)."""
 
         return SimulationAgentStateProvider(self.registry).get_agent_states(tick=tick)
 
     def snapshot(self, tick: int) -> AgentStateFrame:
-        """当前 Agent 状态帧,不推进仿真。"""
+        """Current agent state frame without advancing the simulation."""
 
         return self.registry.snapshot_frame(tick)

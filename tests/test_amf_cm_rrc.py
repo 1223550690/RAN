@@ -1,4 +1,4 @@
-"""AMF CM/RRC 状态机测试(3GPP 语义简化)。"""
+"""AMF CM/RRC state machine tests (simplified 3GPP semantics)."""
 import unittest
 
 from ran.contracts import UEState, Position
@@ -24,7 +24,7 @@ class TestAmfCmRrc(unittest.TestCase):
         ue = amf.register_ue(make_ue())
         self.assertEqual(ue.rm_state, RM_REGISTERED)
         self.assertEqual(ue.cm_state, CM_CONNECTED)
-        self.assertEqual(ue.rrc_state, RRC_IDLE)  # RRC 不随注册建立
+        self.assertEqual(ue.rrc_state, RRC_IDLE)  # RRC is not established by registration
 
     def test_register_ue_validation(self):
         amf = Amf()
@@ -44,16 +44,16 @@ class TestAmfCmRrc(unittest.TestCase):
     def test_rrc_lifecycle(self):
         amf = Amf()
         ue = amf.register_ue(make_ue())
-        # 业务开始:RRC Setup
+        # service start: RRC Setup
         amf.establish_rrc(ue)
         self.assertEqual(ue.rrc_state, RRC_CONNECTED)
-        # 业务结束:RRC Suspend → INACTIVE
+        # service end: RRC Suspend -> INACTIVE
         amf.suspend_rrc(ue)
         self.assertEqual(ue.rrc_state, RRC_INACTIVE)
-        # 下一业务:RRC Resume → CONNECTED
+        # next service: RRC Resume -> CONNECTED
         amf.establish_rrc(ue)
         self.assertEqual(ue.rrc_state, RRC_CONNECTED)
-        # 显式释放 → IDLE
+        # explicit release -> IDLE
         amf.release_rrc(ue)
         self.assertEqual(ue.rrc_state, RRC_IDLE)
 
@@ -68,19 +68,19 @@ class TestAmfCmRrc(unittest.TestCase):
         amf = Amf()
         ue = amf.register_ue(make_ue())
         amf.establish_rrc(ue)
-        amf.establish_rrc(ue)  # 已 CONNECTED,幂等
+        amf.establish_rrc(ue)  # already CONNECTED, idempotent
         self.assertEqual(ue.rrc_state, RRC_CONNECTED)
 
     def test_invalid_rrc_transition(self):
         amf = Amf()
         ue = amf.register_ue(make_ue())
-        # IDLE 不能直接挂起
+        # IDLE cannot be suspended directly
         with self.assertRaises(ValueError):
             amf.suspend_rrc(ue)
-        # INACTIVE 不能直接释放到…(release 合法);测试非法:INACTIVE 时 setup 已由 establish_rrc 处理为 resume
+        # INACTIVE cannot go straight to... (release is legal); invalid case: setup on INACTIVE is handled as resume by establish_rrc
         amf.establish_rrc(ue)
         amf.suspend_rrc(ue)
-        # 已 IDLE 时 release 幂等
+        # release on IDLE is idempotent
         ue2 = amf.release_rrc(ue)
         self.assertEqual(ue2.rrc_state, RRC_IDLE)
 
@@ -115,13 +115,13 @@ class TestAmfCmRrc(unittest.TestCase):
         self.assertEqual(ue.cm_state, CM_CONNECTED)
 
     def test_legacy_values_normalized(self):
-        # 旧值 "IDLE"/"CONNECTED" 可进入迁移(兼容 boyu 测试构造)
+        # legacy values "IDLE"/"CONNECTED" are accepted for transitions (compat with boyu test fixtures)
         amf = Amf()
         ue = make_ue()
         ue.rm_state = "REGISTERED"
         ue.cm_state = "CONNECTED"
         ue.rrc_state = "CONNECTED"
-        amf.release_rrc(ue)  # CONNECTED → IDLE(经归一化)
+        amf.release_rrc(ue)  # CONNECTED -> IDLE (via normalisation)
         self.assertEqual(ue.rrc_state, RRC_IDLE)
 
 

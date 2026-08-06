@@ -1,8 +1,8 @@
-"""确定性模板计划提供者:按定义中的有序计划依次出队。
+"""Deterministic template plan provider: dequeues the ordered plans from the definition one by one.
 
-- 每个 Agent 独立游标,按 (destination_ref, intent_type) 顺序返回。
-- 计划耗尽后:loop_policy="stop" 返回 None(Agent 结束);"repeat" 从头循环。
-- 同一输入永远产生同一输出(可复现测量)。
+- Each agent has an independent cursor; plans are returned in (destination_ref, intent_type) order.
+- When plans are exhausted: loop_policy="stop" returns None (agent ends); "repeat" loops from the start.
+- The same input always produces the same output (reproducible measurements).
 """
 
 from __future__ import annotations

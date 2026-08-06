@@ -50,8 +50,8 @@ class ChannelModelPolicy:
     o2i_profiles: dict[str, O2IBuildingProfile] = field(default_factory=dict)
     penetration_residual_db: float = 0.0
     unconfigured_building_policy: str = "legacy_fallback"
-    noise_figure_db: float = 7.0  # noise_figure_db: 接收机噪声系数(环节十,默认 3GPP 典型值)。
-    ckm_config: dict | None = None  # ckm_config: 混合 CKM 配置(hybrid mode 使用)。
+    noise_figure_db: float = 7.0  # noise_figure_db: receiver noise figure (phase 10, default 3GPP typical value).
+    ckm_config: dict | None = None  # ckm_config: hybrid CKM configuration (used in hybrid mode).
 
     @property
     def allow_extrapolation(self) -> bool:

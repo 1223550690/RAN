@@ -1,4 +1,4 @@
-"""计划提供者集合:模板(确定性)与 LLM(自动指挥)两种模式。"""
+"""Plan provider collection: template (deterministic) and LLM (auto-direction) modes."""
 
 from .llm_provider import LlmAgentPlanProvider
 from .provider import AgentPlanProvider

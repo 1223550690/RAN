@@ -1,8 +1,8 @@
-"""Agent 仿真定义的加载与默认模板。
+"""Loading and default templates for agent simulation definitions.
 
-- load_agent_simulation_definition: 从 configs/agents/*.json 加载可复现模板。
-- build_default_three_agent_definition: 与旧三 Agent 测试对齐的默认定义
-  (固定出生点 + 有序计划),用于模板模式下的流程测量与结果复现。
+- load_agent_simulation_definition: loads a reproducible template from configs/agents/*.json.
+- build_default_three_agent_definition: default definition aligned with the legacy three-agent
+  tests (fixed spawn points + ordered plans), used for flow measurement and result reproduction in template mode.
 """
 
 from __future__ import annotations
@@ -18,9 +18,9 @@ from .contracts import (
 
 
 def load_agent_simulation_definition(path: str | Path) -> AgentSimulationDefinition:
-    """从 JSON 文件加载 Agent 仿真定义。
+    """Load an agent simulation definition from a JSON file.
 
-    文件结构:
+    File structure:
     {
       "simulation_id": str,
       "seed": int,
@@ -64,7 +64,7 @@ def load_agent_simulation_definition(path: str | Path) -> AgentSimulationDefinit
 
 
 def build_default_three_agent_definition() -> AgentSimulationDefinition:
-    """默认三 Agent 定义:角色覆盖学生/教师/工作人员,出生点分布在 potions_teacher_office 场景内。"""
+    """Default three-agent definition: roles cover student/teacher/staff, with spawn points spread across the potions_teacher_office scene."""
 
     agents = (
         AgentSpawnDefinition(

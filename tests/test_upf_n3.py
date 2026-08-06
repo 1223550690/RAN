@@ -1,4 +1,4 @@
-"""UPF / N3 GTP 隧道实体测试:隧道管理、N6 接收缓冲、N3 转发、开销统计、UL 交付。"""
+"""UPF / N3 GTP tunnel entity tests: tunnel management, N6 receive buffering, N3 forwarding, overhead accounting, UL delivery."""
 from __future__ import annotations
 
 import unittest
@@ -18,7 +18,7 @@ class UpfTunnelTests(unittest.TestCase):
         self.assertEqual(t3.tunnel_id, "ul_ue_a_1")
         self.assertNotEqual(t1.teid, t2.teid)
         self.assertNotEqual(t1.teid, t3.teid)
-        # 幂等:同一 session+方向复用隧道
+        # idempotent: same session+direction reuses the tunnel
         self.assertIs(upf.create_tunnel("ue_a", 1, "DL"), t1)
 
     def test_receive_from_dn_buffers(self) -> None:
@@ -33,9 +33,9 @@ class UpfTunnelTests(unittest.TestCase):
         upf.receive_from_dn("ue_a", 7, 10000)
         tunnel = upf.create_tunnel("ue_a", 7, "DL")
         tx = upf.forward_to_gnb(tunnel)
-        self.assertEqual(tx, 10000)  # 瞬时到达
+        self.assertEqual(tx, 10000)  # instantaneous arrival
         self.assertEqual(upf.buffered_bytes("ue_a", 7), 0)
-        # 开销:10000/1500 → 7 包 × 36 = 252
+        # overhead: 10000/1500 -> 7 packets x 36 = 252
         self.assertEqual(tunnel.overhead_total_bytes, 7 * 36)
 
     def test_forward_to_gnb_n3_bandwidth_limits(self) -> None:
@@ -87,7 +87,7 @@ class UpfTunnelTests(unittest.TestCase):
         self.assertEqual(result.delivered_bytes, 4000)
         self.assertEqual(result.dnn, "internet")
         self.assertEqual(result.target, "video_server")
-        # 开销统计:4000/1500 → 3 包 × 36 = 108
+        # overhead accounting: 4000/1500 -> 3 packets x 36 = 108
         self.assertEqual(tunnel.overhead_total_bytes, 3 * 36)
 
     def test_module_function_compat(self) -> None:

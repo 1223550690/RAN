@@ -9,23 +9,23 @@ from .common import Direction, Position
 class GnbSite:
     """Project implementation detail.
 
-    输入字段:
-    - 主要来自地图编辑器中的 gnb_001 element.state_details。
+    Input fields:
+    - Mainly from the gnb_001 element.state_details in the map editor.
 
-    输出用途:
-    - ChannelModel、OFDM/PHY、scheduler 资源总量使用。
+    Output usage:
+    - Consumed by ChannelModel, OFDM/PHY, and scheduler resource totals.
     """
 
-    gnb_id: str  # gnb_id: 基站标识。
-    position: Position  # position: 基站在地图中的全局坐标。
-    carrier_freq_mhz: float  # carrier_freq_mhz: 载波频率。
-    bandwidth_mhz: float  # bandwidth_mhz: 带宽。
-    tx_power_dbm: float  # tx_power_dbm: 发射功率。
-    total_prbs: int  # total_prbs: 当前载波可用 PRB 总数。
-    antenna_elements: int  # antenna_elements: 天线阵元数，MVP 只用于简化增益。
-    mimo_layers: int  # mimo_layers: 最大 MIMO 层数。
-    nominal_pusch: int = 0  # nominal_pusch: PUSCH 标称发射功率(tr22068 扩展,可选)。
-    gscn: int = 0  # gscn: GSCN 频点(tr22068 扩展,可选)。
+    gnb_id: str  # gnb_id: base station identifier.
+    position: Position  # position: global coordinates of the base station on the map.
+    carrier_freq_mhz: float  # carrier_freq_mhz: carrier frequency.
+    bandwidth_mhz: float  # bandwidth_mhz: bandwidth.
+    tx_power_dbm: float  # tx_power_dbm: transmit power.
+    total_prbs: int  # total_prbs: total PRBs available on the current carrier.
+    antenna_elements: int  # antenna_elements: number of antenna elements; MVP uses it only for simplified gain.
+    mimo_layers: int  # mimo_layers: maximum number of MIMO layers.
+    nominal_pusch: int = 0  # nominal_pusch: nominal PUSCH transmit power (tr22068 extension, optional).
+    gscn: int = 0  # gscn: GSCN frequency point (tr22068 extension, optional).
 
 
 @dataclass(slots=True)
@@ -38,7 +38,7 @@ class ChannelState:
     direction: Direction
     distance_m: float
     ue_area_id: str | None
-    ue_space_type: str  # ue_space_type: indoor/outdoor。
+    ue_space_type: str  # ue_space_type: indoor/outdoor.
     walls_crossed: list[str] = field(default_factory=list)
     wall_loss_db: float = 0.0
     total_path_loss_db: float = 0.0
@@ -65,11 +65,11 @@ class ChannelState:
     indoor_loss_db: float | None = None
     shadow_fading_std_db: float | None = None
     penetration_loss_std_db: float | None = None
-    prediction_std_db: float | None = None  # prediction_std_db: 混合 CKM 预测不确定度(hybrid 模式)。
-    beam_id: str | None = None  # beam_id: 选中的 Beam(hybrid 模式)。
-    beam_gain_db: float = 0.0  # beam_gain_db: Beam 方向增益(hybrid 模式)。
-    beam_azimuth_deg: float | None = None  # beam_azimuth_deg: 选中 Beam 方位角。
-    beam_margin_db: float | None = None  # beam_margin_db: 第一/第二 Beam 增益差。
+    prediction_std_db: float | None = None  # prediction_std_db: hybrid CKM prediction uncertainty (hybrid mode).
+    beam_id: str | None = None  # beam_id: selected beam (hybrid mode).
+    beam_gain_db: float = 0.0  # beam_gain_db: beam directional gain (hybrid mode).
+    beam_azimuth_deg: float | None = None  # beam_azimuth_deg: azimuth of the selected beam.
+    beam_margin_db: float | None = None  # beam_margin_db: gain difference between the first/second beam.
     is_extrapolated: bool = False
     path_loss_warnings: list[str] = field(default_factory=list)
     fallback_reason: str | None = None
@@ -91,11 +91,11 @@ class ChannelState:
 
 @dataclass(slots=True)
 class MacAllocation:
-    """Scheduler 为一个 UE DRB 返回的 MAC 资源分配。"""
+    """MAC resource allocation returned by the Scheduler for one UE DRB."""
 
     ue_id: str
     drb_id: int
-    qfi: int  # qfi: QoS Flow。
+    qfi: int  # qfi: QoS Flow.
     slice_id: str
     direction: Direction
     prbs: int
@@ -104,7 +104,7 @@ class MacAllocation:
     scheduled_bytes: int
     expected_error_rate: float
     is_retransmission: bool = False
-    allocation_id: str = ""  # allocation_id: 全局可追踪的分配标识(可选,向后兼容旧构造)。
+    allocation_id: str = ""  # allocation_id: globally traceable allocation identifier (optional, backward compatible with legacy constructors).
 
 
 @dataclass(slots=True)
@@ -115,19 +115,19 @@ class TransmissionResult:
     ue_id: str
     gnb_id: str
     drb_id: int
-    qfi: int  # qfi: QoS Flow。
-    slice_id: str  # slice_id: 切片标识。
-    direction: Direction  # direction: UL 或 DL。
-    attempted_bytes: int  # attempted_bytes: 尝试发送字节。
-    successful_bytes: int  # successful_bytes: 成功送达无线接收端字节。
-    failed_bytes: int  # failed_bytes: 无线失败字节。
-    effective_sinr_db: float  # effective_sinr_db: 本次有效 SINR。
-    mcs: int  # mcs: 使用 MCS。
-    prbs: int  # prbs: 使用 PRB。
-    layers: int  # layers: 使用 MIMO 层数。
-    harq_ack: bool  # harq_ack: 是否无需 HARQ 重传。
-    harq_retx_bytes: int  # harq_retx_bytes: 进入 HARQ 快速重传字节。
-    rlc_retx_bytes: int  # rlc_retx_bytes: 进入 RLC 重传字节。
-    dropped_bytes: int  # dropped_bytes: 最终丢弃字节。
-    transmission_delay_ms: float  # transmission_delay_ms: PHY/MAC 基础时延。
-    power_report: float = 0.0  # power_report: UE 功率余量(tr22068 扩展,可选)。
+    qfi: int  # qfi: QoS Flow.
+    slice_id: str  # slice_id: slice identifier.
+    direction: Direction  # direction: UL or DL.
+    attempted_bytes: int  # attempted_bytes: bytes attempted to send.
+    successful_bytes: int  # successful_bytes: bytes successfully delivered to the radio receiver.
+    failed_bytes: int  # failed_bytes: bytes failed over the radio.
+    effective_sinr_db: float  # effective_sinr_db: effective SINR of this transmission.
+    mcs: int  # mcs: MCS used.
+    prbs: int  # prbs: PRBs used.
+    layers: int  # layers: MIMO layers used.
+    harq_ack: bool  # harq_ack: whether no HARQ retransmission is needed.
+    harq_retx_bytes: int  # harq_retx_bytes: bytes entering HARQ fast retransmission.
+    rlc_retx_bytes: int  # rlc_retx_bytes: bytes entering RLC retransmission.
+    dropped_bytes: int  # dropped_bytes: bytes finally dropped.
+    transmission_delay_ms: float  # transmission_delay_ms: base PHY/MAC latency.
+    power_report: float = 0.0  # power_report: UE power headroom (tr22068 extension, optional).

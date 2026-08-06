@@ -1,4 +1,4 @@
-"""混合 CKM + Beamforming 单元测试:校准、残差、Beam、CKM 构建/查询/缓存。"""
+"""Hybrid CKM + Beamforming unit tests: calibration, residual, beam, CKM build/query/cache."""
 from __future__ import annotations
 
 import os
@@ -18,10 +18,10 @@ from structure.scene_registry import build_scene
 
 class CalibrationTests(unittest.TestCase):
     def test_recovers_known_coefficients(self) -> None:
-        # 手工构造:y = 2 + 3·brick + 1.5·glass - 0.5·nlos
+        # hand-built: y = 2 + 3*brick + 1.5*glass - 0.5*nlos
         rows = []
         y = []
-        # 正交特征(避免共线性吸收系数)
+        # orthogonal features (avoid collinearity absorbing coefficients)
         for i in range(20):
             brick = float(i % 3)
             glass = float((i // 3) % 3)
@@ -39,7 +39,7 @@ class CalibrationTests(unittest.TestCase):
         self.assertLess(params.calibration_rmse_db, 1e-6)
 
     def test_ridge_stabilizes_small_samples(self) -> None:
-        # 7 特征(与 FEATURE_NAMES 对齐);小样本下 Ridge 仍产出有限系数
+        # 7 features (aligned with FEATURE_NAMES); Ridge still yields finite coefficients on small samples
         rows = [[1.0, float(i), 0.0, 0.0, 0.0, 0.0, 0.0] for i in range(3)]
         y = [1.0, 2.0, 3.0]
         params = fit_calibration(feature_rows=rows, residual_db=y, ridge_lambda=0.1)
@@ -113,7 +113,7 @@ class GaussianProcessResidualTests(unittest.TestCase):
     def test_gp_cholesky_solve_recovers_known_system(self) -> None:
         from ran.ckm.residual import _cholesky, _solve_cholesky
 
-        # 3x3 SPD 系统:A x = b,解 x = [1, 2, 3]
+        # 3x3 SPD system: A x = b, solution x = [1, 2, 3]
         a = [[4.0, 1.0, 0.0], [1.0, 3.0, 1.0], [0.0, 1.0, 2.0]]
         b = [1.0 * 4 + 2.0 * 1, 1.0 * 1 + 2.0 * 3 + 3.0 * 1, 2.0 * 1 + 3.0 * 2]
         lower = _cholesky(a)
@@ -134,7 +134,7 @@ class BeamTests(unittest.TestCase):
     def test_select_best_beam_chooses_aligned_beam(self) -> None:
         gnb = load_gnb_site_from_scene(build_scene("bristol_topology"))
         codebook = default_codebook()
-        # UE 在 gNB 正东(0° 方位)
+        # UE due east of the gNB (0-degree azimuth)
         selection = select_best_beam(
             gnb=gnb,
             ue_x=gnb.position.x + 100.0,
@@ -146,7 +146,7 @@ class BeamTests(unittest.TestCase):
             path_loss_db=100.0,
         )
         assert selection is not None
-        self.assertEqual(selection.beam_id, "b0")  # 0° 波束
+        self.assertEqual(selection.beam_id, "b0")  # 0-degree beam
         self.assertGreater(selection.beam_gain_db, 10.0)
 
     def test_nlos_gain_capped(self) -> None:
@@ -209,7 +209,7 @@ class CkmTests(unittest.TestCase):
         self.assertGreater(cell.hybrid_path_loss_db, 0.0)
         self.assertGreater(cell.prediction_std_db, 0.0)
 
-        # 缓存往返(临时目录)
+        # cache round-trip (temporary directory)
         with tempfile.TemporaryDirectory() as directory:
             from ran.ckm.ckm import cache_path
             import json as _json
@@ -232,7 +232,7 @@ class CkmTests(unittest.TestCase):
         self.assertIsNone(ckm)
 
     def test_green_space_queries_as_outdoor(self) -> None:
-        """绿地(Royal Fort North Green 等)不得被当作 indoor 建筑采样。"""
+        """Green spaces (Royal Fort North Green etc.) must not be sampled as indoor buildings."""
 
         scene = build_scene("bristol_topology")
         gnb = load_gnb_site_from_scene(scene)
@@ -241,7 +241,7 @@ class CkmTests(unittest.TestCase):
         from ran.ckm.builder import _building_bounds
 
         bounds = _building_bounds(scene)
-        # 绿地 bounds 不得出现在建筑列表
+        # green-space bounds must not appear in the building list
         green = None
         for area in scene.areas:
             meta = getattr(area, "metadata", {}) or {}
@@ -262,14 +262,14 @@ class CkmTests(unittest.TestCase):
         ckm = build_hybrid_ckm(scene=scene, gnb=gnb, policy=policy, ckm_config=config)
         self.assertIsNotNone(ckm)
         assert ckm is not None
-        # 绿地中心查询必须是 outdoor
+        # green-space centre queries must be outdoor
         cell = ckm.query(500.0, 800.0)
         self.assertIsNotNone(cell)
         assert cell is not None
         self.assertEqual(cell.receiver_space, "outdoor")
 
     def test_heatmap_grid_is_continuous(self) -> None:
-        """热力图色块必须连续铺设(相邻 key 间距恒等于 scale,无透明缝隙)。"""
+        """Heatmap cells must tile contiguously (adjacent key spacing always equals scale; no transparent seams)."""
 
         scene = build_scene("bristol_topology")
         gnb = load_gnb_site_from_scene(scene)
@@ -295,22 +295,22 @@ class CkmTests(unittest.TestCase):
             _write_heatmap(ckm, "bristol_topology", scale_m=25.0, output_dir=_Path(directory))
             data = _json.loads((_Path(directory) / "ckm_heatmap_bristol_topology.json").read_text(encoding="utf-8"))
             points = sorted(data["points"], key=lambda p: (p["y"], p["x"]))
-            # 所有点必须落在 25m 格原点上
+            # every point must land on a 25m grid origin
             for p in points:
                 self.assertAlmostEqual(p["x"] % 25.0, 0.0, places=6)
                 self.assertAlmostEqual(p["y"] % 25.0, 0.0, places=6)
-            # 按行检查 x 方向 key 连续(无空 key → 前端固定尺寸绘制无缝)
+            # per-row check that x-direction keys are contiguous (no empty keys -> seamless fixed-size rendering)
             by_row: dict[float, list[float]] = {}
             for p in points:
                 by_row.setdefault(p["y"], []).append(p["x"])
             for y, xs in by_row.items():
                 xs = sorted(xs)
                 keys = [int(round(x / 25.0)) for x in xs]
-                self.assertEqual(len(keys), len(set(keys)), f"行 y={y} 存在重复 key")
+                self.assertEqual(len(keys), len(set(keys)), f"row y={y} has duplicate keys")
                 self.assertEqual(
                     max(keys) - min(keys) + 1,
                     len(keys),
-                    f"行 y={y} 存在空 key(渲染缝隙): keys={keys}",
+                    f"row y={y} has empty keys (rendering seams): keys={keys}",
                 )
 
 

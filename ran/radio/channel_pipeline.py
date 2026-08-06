@@ -77,7 +77,8 @@ def evaluate_channel_path_loss(
 ) -> ChannelPathLossEvaluation:
     """Evaluate Calibration -> Geometry -> 3GPP with a legacy-safe selection.
 
-    geometry: 可选——调用方已算好传播几何时复用(避免重复计算,CKM 批量构建用)。
+    geometry: optional -- reuse the propagation geometry when the caller has
+        already computed it (avoids duplicate computation; used by CKM batch builds).
     """
 
     if policy.mode == MODE_LEGACY:
@@ -261,8 +262,9 @@ def _evaluated(
     ue_height=None,
     penetration_profile=None,
 ) -> ChannelPathLossEvaluation:
-    # 选择 3GPP 评估值作为运行值:3gpp_preferred 与 hybrid 均以 3GPP 为先验;
-    # shadow 模式保留 legacy 为运行值(仅评估,用于对照)。
+    # Select the 3GPP evaluation as the running value: both 3gpp_preferred and
+    # hybrid use 3GPP as the prior; shadow mode keeps legacy as the running
+    # value (evaluation only, for comparison).
     active = policy.mode in (MODE_3GPP_PREFERRED, MODE_HYBRID)
     return ChannelPathLossEvaluation(
         mode=policy.mode,

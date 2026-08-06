@@ -1,4 +1,4 @@
-"""SDAP 实体(SdapMapper)测试:DRB 映射、幂等、会话释放、模块级兼容入口。"""
+"""SDAP entity (SdapMapper) tests: DRB mapping, idempotency, session release, module-level compat entry."""
 from __future__ import annotations
 
 import unittest
@@ -53,7 +53,7 @@ class SdapMapperTests(unittest.TestCase):
         request = _request()
         qos = _qos(request)
         drb1 = self.mapper.map(qos, request)
-        drb2 = self.mapper.map(qos, request)  # 同一 flow → 幂等
+        drb2 = self.mapper.map(qos, request)  # same flow -> idempotent
         self.assertEqual(drb1.drb_id, drb2.drb_id)
         self.assertEqual(drb1.ue_id, request.ue_id)
         self.assertEqual(drb1.qfi, qos.qfi)
@@ -65,7 +65,7 @@ class SdapMapperTests(unittest.TestCase):
         qos2 = _qos(request, qfi=2)
         drb1 = self.mapper.map(qos1, request)
         drb2 = self.mapper.map(qos2, request)
-        # 3GPP 语义:同会话多 QoS flow 可共享 DRB(qfi_list);至少映射必须稳定存在
+        # 3GPP semantics: multiple QoS flows in one session may share a DRB (qfi_list); mapping must stay stable
         self.assertIsInstance(drb1, Drb)
         self.assertIsInstance(drb2, Drb)
         self.assertEqual(drb1.ue_id, drb2.ue_id)
@@ -81,7 +81,7 @@ class SdapMapperTests(unittest.TestCase):
         qos = _qos(request)
         drb = self.mapper.map(qos, request)
         self.mapper.release_session(request.ue_id, qos.pdu_session_id)
-        # 释放后重新映射 → 新 DRB(会话已清理)
+        # re-map after release -> new DRB (session was cleaned up)
         drb2 = self.mapper.map(qos, request)
         self.assertIsInstance(drb2, Drb)
 
@@ -113,7 +113,7 @@ class SdapMapperTests(unittest.TestCase):
         qos = _qos(request)
         drb = map_qos_flow_to_drb(qos, request)
         self.assertIsInstance(drb, Drb)
-        # 幂等:再次调用返回同一 DRB(默认 mapper 有状态)
+        # idempotent: second call returns the same DRB (default mapper keeps state)
         drb2 = map_qos_flow_to_drb(qos, request)
         self.assertEqual(drb.drb_id, drb2.drb_id)
 

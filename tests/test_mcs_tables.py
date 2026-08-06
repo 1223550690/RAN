@@ -1,4 +1,4 @@
-"""标准 CQI/MCS/BLER 表测试(环节十一):查表正确性、单调性、边界。"""
+"""Standard CQI/MCS/BLER table tests (phase 11): lookup correctness, monotonicity, boundaries."""
 from __future__ import annotations
 
 import unittest
@@ -30,13 +30,13 @@ class McsTableTests(unittest.TestCase):
         self.assertEqual(sinr_to_cqi(100.0), MAX_CQI)
 
     def test_mcs_spectral_efficiency_monotonic(self) -> None:
-        # 标准表整体递增(MCS 15→16 码率换算有 ~0.2% 回退,允许小波动)
+        # standard table is monotonic overall (MCS 15->16 code-rate conversion has a ~0.2% dip; small jitter allowed)
         self.assertLess(mcs_spectral_efficiency(0), mcs_spectral_efficiency(27))
         for mcs in range(MAX_MCS):
             self.assertGreater(mcs_spectral_efficiency(mcs), 0.0)
 
     def test_mcs_table_matches_38_214(self) -> None:
-        # TS 38.214 表 5.1.3.1-1 关键点:MCS 0=0.2344, MCS 9=1.3262, MCS 27=5.5547
+        # TS 38.214 Table 5.1.3.1-1 key points: MCS 0=0.2344, MCS 9=1.3262, MCS 27=5.5547
         self.assertAlmostEqual(mcs_spectral_efficiency(0), 0.234375, places=5)
         self.assertAlmostEqual(mcs_spectral_efficiency(9), 340 / 1024 * 4, places=5)
         self.assertAlmostEqual(mcs_spectral_efficiency(27), 948 / 1024 * 6, places=5)
@@ -62,10 +62,10 @@ class McsTableTests(unittest.TestCase):
         self.assertGreaterEqual(sinr_to_bler(100.0, 16), 0.001)
 
     def test_transport_bytes_uses_standard_table(self) -> None:
-        # 20 PRB, MCS 10(16QAM 490/1024), 2 层, slot 时长 200ms
+        # 20 PRBs, MCS 10 (16QAM 490/1024), 2 layers, 200 ms slot
         bytes_per_slot = estimate_transport_bytes(prbs=20, mcs=10, layers=2, slot_ms=200)
         eff = mcs_spectral_efficiency(10)
-        expected = int(20 * 168 * eff * 2 / 8 * 200)  # slot_ms 单位 ms,容量按 tick 时长累积
+        expected = int(20 * 168 * eff * 2 / 8 * 200)  # slot_ms in ms; capacity accumulates over the tick duration
         self.assertEqual(bytes_per_slot, expected)
 
 

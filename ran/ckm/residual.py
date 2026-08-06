@@ -1,8 +1,8 @@
-"""空间残差模型(环节六):IDW 插值 + 距离衰减方差(零依赖首版)。
+"""Spatial residual model (phase 6): IDW interpolation + distance-decaying variance (zero-dependency first version).
 
 residual_i = measured_pl_i - calibrated_physical_pl_i
 residual_mean(x) = Σ w_i·r_i / Σ w_i          w_i = 1/d(x,x_i)²
-residual_std(x)  = 加权样本方差 + (d_min/d_ref)²·σ_prior²(未测区域不确定性增长)
+residual_std(x)  = weighted sample variance + (d_min/d_ref)²·σ_prior² (uncertainty grows in unmeasured areas)
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ class ResidualPoint:
 
 
 class IdwResidualModel:
-    """IDW 空间残差:参考点少时回退纯物理先验(mean=0, std=prior)。"""
+    """IDW spatial residual: falls back to the pure physical prior when reference points are scarce (mean=0, std=prior)."""
 
     def __init__(
         self,
@@ -46,7 +46,7 @@ class IdwResidualModel:
     def predict(self, x_map: float, y_map: float) -> ResidualPrediction:
         if not self.points:
             return ResidualPrediction(0.0, self.prior_std_db, float("inf"), 0)
-        # 按距离排序取近邻
+        # Sort by distance and take the nearest neighbors
         scored = sorted(
             ((p, math.hypot(p.x_map - x_map, p.y_map - y_map)) for p in self.points),
             key=lambda item: item[1],
@@ -68,7 +68,7 @@ class IdwResidualModel:
 
 
 def _cholesky(a: list[list[float]]) -> list[list[float]]:
-    """零依赖 Cholesky 分解(下三角)。"""
+    """Zero-dependency Cholesky decomposition (lower triangular)."""
 
     n = len(a)
     lower = [[0.0] * n for _ in range(n)]
@@ -83,7 +83,7 @@ def _cholesky(a: list[list[float]]) -> list[list[float]]:
 
 
 def _solve_cholesky(lower: list[list[float]], b: list[float]) -> list[float]:
-    """L·Lᵀ x = b 求解(前代 + 回代)。"""
+    """Solve L·Lᵀ x = b (forward substitution + back substitution)."""
 
     n = len(lower)
     y = [0.0] * n
@@ -96,10 +96,11 @@ def _solve_cholesky(lower: list[list[float]], b: list[float]) -> list[float]:
 
 
 class GaussianProcessResidualModel:
-    """GP(Kriging)空间残差(文档 10.2 推荐):Matérn 3/2 核 + 固定超参。
+    """GP (Kriging) spatial residual (recommended by doc 10.2): Matérn 3/2 kernel + fixed hyperparameters.
 
-    零依赖(手写 Cholesky,样本 ≤80);预测方差反映未测区域不确定性,
-    比 IDW 更正规(协方差结构由核函数刻画)。
+    Zero-dependency (hand-written Cholesky, ≤80 samples); the predictive
+    variance reflects uncertainty in unmeasured areas and is more principled
+    than IDW (the covariance structure is captured by the kernel).
     """
 
     def __init__(
@@ -140,7 +141,7 @@ class GaussianProcessResidualModel:
         self._lower = _cholesky(k)
         y = [p.residual_db for p in self.points]
         self._alpha = _solve_cholesky(self._lower, y)
-        # K⁻¹ 列(用于预测方差)
+        # K⁻¹ columns (for predictive variance)
         self._kinv = [
             _solve_cholesky(self._lower, [1.0 if i == j else 0.0 for j in range(n)])
             for i in range(n)

@@ -1,4 +1,4 @@
-"""多 Agent 场景定义、状态来源和运行上下文。"""
+"""Multi-Agent scenario definitions, state sources, and run contexts."""
 
 from .agent_state import AgentStateProvider, MockAgentStateProvider
 from .contexts import AgentContext, IntentContext, ServiceContext, ServiceCounters, UeContext

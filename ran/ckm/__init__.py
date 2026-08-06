@@ -1,4 +1,4 @@
-"""混合 CKM + Beamforming(环节四~八):参考样本、校准、空间残差、CKM、Beam。"""
+"""Hybrid CKM + Beamforming (phases 4-8): reference samples, calibration, spatial residuals, CKM, beam."""
 
 from .beam import BeamConfig, BeamSelection, beam_gain_db, default_codebook, select_best_beam
 from .builder import CkmConfig, build_hybrid_ckm
