@@ -177,6 +177,10 @@ class MultiAgentRanScenario:
         #Allow signals to propagate
         self.updateSignals()
 
+        for signal in self.transitSignals:
+            if signal.arrived and signal.direction == "DL":
+                self.receiveDownlinkMessage(signal.destinationId, signal.content, signal.senderId)
+
         channel_by_service = {}
         channel_by_link = {}
         for service in active_services:
@@ -267,8 +271,14 @@ class MultiAgentRanScenario:
 
 
     def updateSignals(self):
+        for signal in self.transitSignals:
+            signal.ticksInTransit += 1
+            if(signal.ticksInTransit == signal.estimatedArrivalTick):
+                signal.arrived = True
+
+    def receiveDownlinkMessage(self, receiving_ue, message, sender):
+        print(self.ues[receiving_ue]+ " got a message from "+ self.ues[sender] +" saying: "+message +"\n")
         return 0
-    
     # ------------------------------------------------------------- Entity pipeline helpers (xizhe)
 
     def _rlc_queue_state(self, service) -> RlcQueue:
@@ -308,6 +318,20 @@ class MultiAgentRanScenario:
             rlc_mode=service.rlc.mode,
         )
         service.rlc.on_transmission_result(transmission)
+        newSignal = Signal(
+            tickSent=tick
+            estimatedArrivalTick: int
+            arrived: bool
+            senderId: str
+            destinationId:str
+            gnb_id: str
+            drb_id: int
+            content: str
+            direction: Direction  # direction: UL or DL.
+            ticksInTransit: int
+            size: int
+                
+        )
         return transmission
 
     def get_agent_states(self, *, tick: int) -> list[dict[str, object]]:

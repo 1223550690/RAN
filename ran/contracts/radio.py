@@ -136,7 +136,9 @@ class Signal:
 
     tickSent: int
     estimatedArrivalTick: int
-    ue_id: str
+    arrived: bool
+    senderId: str
+    destinationId:str
     gnb_id: str
     drb_id: int
     content: str
