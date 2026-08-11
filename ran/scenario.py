@@ -15,6 +15,8 @@ from ran.contracts import (
     UERequest,
     N3ForwardingResult,
     N6DeliveryResult,
+    TransmissionResult,
+    Signal
 )
 from ran.core import Amf, Upf, deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue
 from ran.gnb import build_scheduler_request, forward_to_n3, receive_radio
@@ -81,6 +83,7 @@ class MultiAgentRanScenario:
         self._ensure_hybrid_ckm()
         self.agents: dict[str, AgentContext] = {}
         self.intents: dict[str, IntentContext] = {}
+        self.transitSignals: dict[str, Signal] = {}
         self.ues: dict[str, UeContext] = {}
         self.services: dict[str, ServiceContext] = {}
         self.service_order: list[str] = []
@@ -131,15 +134,17 @@ class MultiAgentRanScenario:
         except Exception as exc:  # CKM failure must not block the simulation (fall back to shadow)
             print(f"[ckm] hybrid CKM build failed, falling back to shadow: {exc}", file=sys.stderr, flush=True)
 
+    
     def step(self, tick: int) -> dict[str, object]:
         """Advance one tick: aggregate all active queues, schedule once, then execute per service."""
 
-        if self.completed:
-            # Even with no active services, keep refreshing the RAN-side Agent copies to avoid stale nested snapshots
-            # (the completed fast path used to skip re-reading Agent coordinates, so the preview page
-            #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
-            self._update_agent_states(tick)
-            return self.snapshot(tick=tick, status="completed")
+        # if self.completed:
+        #     # Even with no active services, keep refreshing the RAN-side Agent copies to avoid stale nested snapshots
+        #     # (the completed fast path used to skip re-reading Agent coordinates, so the preview page
+        #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
+        #     self._update_agent_states(tick)
+        #     return self.snapshot(tick=tick, status="completed")
+
 
         self._update_agent_states(tick)
         active_services = [
@@ -147,9 +152,9 @@ class MultiAgentRanScenario:
             for service_id in self.service_order
             if self.services[service_id].status not in TERMINAL_SERVICE_STATUSES
         ]
-        if not active_services:
-            self.completed = True
-            return self.snapshot(tick=tick, status="completed")
+        # if not active_services:
+        #     self.completed = True
+        #     return self.snapshot(tick=tick, status="completed")
 
         # N3 flow: UPF buffer → gNB DL queue (downlink; instantaneous arrival by default, bounded by n3 bandwidth).
         # Placed before scheduling so this scheduling window can see downlink data that has reached the gNB.
@@ -165,11 +170,12 @@ class MultiAgentRanScenario:
                             service.dl_queue.queued_bytes += n3_tx
                     service.upf_buffered_bytes = self.upf.buffered_bytes(service.ue_id, service.session.pdu_session_id)
                     service.n3_gtp_overhead_bytes = dl_tunnel.overhead_total_bytes
-
         # UL inflow: entity pipeline PDCP→RLC enqueue (before scheduling, so this tick's new data is visible)
         for service in active_services:
             if service.rlc is not None and service.dl_queue is None:
                 service.rlc.enqueue(service.pdcp.process(service.traffic, tick=tick))
+        #Allow signals to propagate
+        self.updateSignals()
 
         channel_by_service = {}
         channel_by_link = {}
@@ -259,6 +265,10 @@ class MultiAgentRanScenario:
         self.last_state = state
         return state
 
+
+    def updateSignals(self):
+        return 0
+    
     # ------------------------------------------------------------- Entity pipeline helpers (xizhe)
 
     def _rlc_queue_state(self, service) -> RlcQueue:
