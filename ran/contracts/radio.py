@@ -132,18 +132,28 @@ class TransmissionResult:
     transmission_delay_ms: float  # transmission_delay_ms: base PHY/MAC latency.
     power_report: float = 0.0  # power_report: UE power headroom (tr22068 extension, optional).
 
+@dataclass(slots=True)
+class SignalPayload:
+    data:str
+    destinationUe:str = None
+    senderUe:str = None
+
+
+@dataclass(slots=True)
+class SignalHeader:
+    senderIp: str
+    destinationServer:str
+    size: int
+
+
+@dataclass(slots=True)
 class Signal:
 
     tickSent: int
     estimatedArrivalTick: int
     arrived: bool
-    senderId: str
-    destinationId:str
-    gnb_id: str
-    drb_id: int
-    content: str
     direction: Direction  # direction: UL or DL.
     ticksInTransit: int
-    size: int
-    
+    payload: SignalPayload
+    header: SignalHeader
 

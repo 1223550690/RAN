@@ -79,6 +79,7 @@ class ServiceContext:
     drb: Drb
     pdcp_batch: PdcpBatch
     rlc_queue: RlcQueue
+    content: ServiceContent
     dl_queue: RlcQueue | None = None  # dl_queue: gNB-side queue for downlink services (None for UL services).
     pdcp: object | None = None  # pdcp: xizhe PDCP entity (when running the entity pipeline).
     rlc: object | None = None  # rlc: xizhe RLC entity (when running the entity pipeline).
@@ -90,3 +91,11 @@ class ServiceContext:
     waiting_ticks: int = 0  # waiting_ticks: cumulative ticks spent waiting for allocation (aids congestion/failure detection).
     counters: ServiceCounters = field(default_factory=ServiceCounters)
     last_state: dict[str, object] | None = None
+
+
+@dataclass(slots=True)
+class ServiceContent:
+    """Data communicated by the service"""
+    recipient: str
+    data: str
+    sender: str

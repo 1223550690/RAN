@@ -25,6 +25,9 @@ class AgentIntent:
     duration_seconds: float | None = None  # duration_seconds: duration of continuous services (e.g. video_call); None for data-volume-terminated services.
     qos_hint: dict | None = None  # qos_hint: QoS parameter hint; defaults are used by build_ue_request when absent.
     direction: str = "UL"  # direction: traffic direction UL/DL (integration extension, defaults to uplink, backward compatible).
+    recipient: str | None = None
+    content: str | None = None
+    sender: str | None = None
 
 
 @dataclass(slots=True)

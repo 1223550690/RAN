@@ -69,6 +69,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 content_type="video",
                 service_type="video_upload",
                 requested_payload_bytes=100 * 1024 * 1024,
+                sender= "student_a_phone",
             ),
         ),
         AgentScenarioDefinition(
@@ -79,10 +80,13 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 agent_id="student_b",
                 agent_pos=Position(340.0, 300.0),
                 action="send_message",
-                target="chat_server",
+                target="message_server",
                 content_type="text",
                 service_type="message",
                 requested_payload_bytes=4 * 1024,
+                recipient="student_c_phone",
+                sender= "student_b_phone",
+                content="hello!"
             ),
         ),
         AgentScenarioDefinition(
@@ -97,6 +101,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 content_type="video",
                 service_type="video_call",
                 requested_payload_bytes=1 * 1024 * 1024,
+                sender= "student_c_phone",
             ),
         ),
     )

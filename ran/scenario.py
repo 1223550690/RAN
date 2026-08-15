@@ -16,7 +16,9 @@ from ran.contracts import (
     N3ForwardingResult,
     N6DeliveryResult,
     TransmissionResult,
-    Signal
+    Signal,
+    SignalPayload,
+    SignalHeader
 )
 from ran.core import Amf, Upf, deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue
 from ran.gnb import build_scheduler_request, forward_to_n3, receive_radio
@@ -30,6 +32,7 @@ from ran.orchestration import (
     ServiceContext,
     UeContext,
     build_default_three_agent_definition,
+    ServiceContent,
 )
 from ran.protocol import (
     PdcpEntity,
@@ -83,7 +86,7 @@ class MultiAgentRanScenario:
         self._ensure_hybrid_ckm()
         self.agents: dict[str, AgentContext] = {}
         self.intents: dict[str, IntentContext] = {}
-        self.transitSignals: dict[str, Signal] = {}
+        self.transitSignals: list[Signal]=[]
         self.ues: dict[str, UeContext] = {}
         self.services: dict[str, ServiceContext] = {}
         self.service_order: list[str] = []
@@ -175,11 +178,19 @@ class MultiAgentRanScenario:
             if service.rlc is not None and service.dl_queue is None:
                 service.rlc.enqueue(service.pdcp.process(service.traffic, tick=tick))
         #Allow signals to propagate
-        self.updateSignals()
-
+        self.updateSignals(tick)
+        
         for signal in self.transitSignals:
             if signal.arrived and signal.direction == "DL":
-                self.receiveDownlinkMessage(signal.destinationId, signal.content, signal.senderId)
+                self.receiveDownlinkMessage(signal)
+            elif signal.arrived and signal.direction == "UL":
+                self.receiveUplinkMessage(signal)
+
+        newSignals = []
+        for signal in self.transitSignals:
+            if signal.arrived != True:
+                newSignals.append(signal)
+        self.transitSignals = newSignals
 
         channel_by_service = {}
         channel_by_link = {}
@@ -258,6 +269,11 @@ class MultiAgentRanScenario:
         self.completed = all(
             service.status in TERMINAL_SERVICE_STATUSES for service in self.services.values()
         )
+        if self.completed:
+            for signal in self.transitSignals:
+                if signal.arrived == False:
+                    self.completed = False
+                    break
         state = self._compose_state(
             tick=tick,
             status="completed" if self.completed else "running",
@@ -270,14 +286,22 @@ class MultiAgentRanScenario:
         return state
 
 
-    def updateSignals(self):
+    def updateSignals(self, tick):
         for signal in self.transitSignals:
             signal.ticksInTransit += 1
-            if(signal.ticksInTransit == signal.estimatedArrivalTick):
+            if(signal.estimatedArrivalTick == tick):
                 signal.arrived = True
 
-    def receiveDownlinkMessage(self, receiving_ue, message, sender):
-        print(self.ues[receiving_ue]+ " got a message from "+ self.ues[sender] +" saying: "+message +"\n")
+    def receiveUplinkMessage(self, signal):
+        #Triggers backhaul and stores data for future downlink to UEs
+        sender = signal.header.senderIp
+        destination = signal.header.destinationServer
+        print("the GNB got a message from "+sender +" intended for "+str(destination))
+        return 0
+
+    def receiveDownlinkMessage(self, signal):
+        # print("\n")
+        # print(receiving_ue+ " got a message from "+ sender +" saying: "+message +"\n")
         return 0
     # ------------------------------------------------------------- Entity pipeline helpers (xizhe)
 
@@ -318,20 +342,6 @@ class MultiAgentRanScenario:
             rlc_mode=service.rlc.mode,
         )
         service.rlc.on_transmission_result(transmission)
-        newSignal = Signal(
-            tickSent=tick
-            estimatedArrivalTick: int
-            arrived: bool
-            senderId: str
-            destinationId:str
-            gnb_id: str
-            drb_id: int
-            content: str
-            direction: Direction  # direction: UL or DL.
-            ticksInTransit: int
-            size: int
-                
-        )
         return transmission
 
     def get_agent_states(self, *, tick: int) -> list[dict[str, object]]:
@@ -494,6 +504,11 @@ class MultiAgentRanScenario:
             upf_buffered_bytes=self.upf.buffered_bytes(ue_state.ue_id, session.pdu_session_id),
             n3_tunnel_id=tunnel.tunnel_id,
             status="ACTIVE",
+            content= ServiceContent(
+                recipient= intent.recipient,
+                data= intent.content,
+                sender= intent.sender,
+            ),
         )
         self.service_order.append(service_instance_id)
         return service_instance_id
@@ -548,6 +563,25 @@ class MultiAgentRanScenario:
                 rlc_mode=service.rlc_queue.rlc_mode,
             )
             service.rlc_queue = apply_transmission_to_rlc(service.rlc_queue, transmission)
+        estimated_delay = 2 #temporary 
+        newSignal = Signal(
+                tickSent=tick,
+                estimatedArrivalTick= tick +estimated_delay,
+                arrived=False,
+                direction="UL",
+                ticksInTransit=0,
+                payload= SignalPayload(
+                    data=service.content.data,
+                    destinationUe=service.content.recipient,
+                    senderUe=service.content.sender,
+                ),
+                header= SignalHeader(
+                    senderIp = service.traffic.src_ip,
+                    destinationServer = service.traffic.dst_ip,
+                    size= allocation.scheduled_bytes,
+                ),
+            )
+        self.transitSignals.append(newSignal)
         ru_result = receive_radio(transmission)
         n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, service.session)))
         # Uplink via the UPF entity (N3 arrival → N6 delivery to DN; with GTP-U tunnel overhead accounting)
