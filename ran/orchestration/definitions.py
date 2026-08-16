@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from ran.contracts import AgentIntent, Position
 from ran.contracts.ue import SelectedAccess
+from ran.contracts.server import WebServer, MessageServer, IotServer, Server, VideoServer, GamingServer, CallServer 
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +23,7 @@ class RanScenarioDefinition:
 
     simulation_id: str  # simulation_id: global identifier of one simulation run.
     agents: tuple[AgentScenarioDefinition, ...]  # agents: fixed set of Agents in the scenario.
+    servers: list[Server]
 
     def __post_init__(self) -> None:
         if not self.simulation_id:
@@ -70,6 +72,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 service_type="video_upload",
                 requested_payload_bytes=100 * 1024 * 1024,
                 sender= "student_a_phone",
+                content= "Video of a cat meowing",
             ),
         ),
         AgentScenarioDefinition(
@@ -105,7 +108,33 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             ),
         ),
     )
-    return RanScenarioDefinition(simulation_id="ran_multi_agent_demo_001", agents=definitions)
+    servers = (
+        GamingServer(
+            name = "Chess_server",
+            address = "10.20.2.20",
+            playerWins = {},
+            
+        ),
+        MessageServer(
+            name = "whatsapp_server",
+            address = "10.20.3.30",
+            messagesToBeSent = [],
+        ),
+        CallServer(
+            name = "skype_server",
+            address = "10.20.4.40",
+            streams = [],
+        ),
+        VideoServer(
+            name = "youtube_server",
+            address = "10.20.1.80",
+            videos = {},
+        ),
+    )
+    serverDict = {}
+    for server in servers:
+        serverDict.update({server.address: server})
+    return RanScenarioDefinition(simulation_id="ran_multi_agent_demo_001", agents=definitions, servers=serverDict)
 
 
 def _require_unique(field_name: str, values: list[str]) -> None:

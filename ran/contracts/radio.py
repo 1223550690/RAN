@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .common import Direction, Position
+from typing import Literal
 
+requestTypes = Literal["REQUEST, UPLOAD"]
 
 @dataclass(slots=True)
 class GnbSite:
@@ -137,18 +139,19 @@ class SignalPayload:
     data:str
     destinationUe:str = None
     senderUe:str = None
+    requestType: requestTypes = None
+    endOfMessage: bool = False
 
 
 @dataclass(slots=True)
 class SignalHeader:
     senderIp: str
-    destinationServer:str
+    destinationIp:str
     size: int
-
+    
 
 @dataclass(slots=True)
 class Signal:
-
     tickSent: int
     estimatedArrivalTick: int
     arrived: bool
@@ -156,4 +159,6 @@ class Signal:
     ticksInTransit: int
     payload: SignalPayload
     header: SignalHeader
+
+
 

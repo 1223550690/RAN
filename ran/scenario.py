@@ -92,10 +92,11 @@ class MultiAgentRanScenario:
         self.service_order: list[str] = []
         self.completed = False
         self.ticks_executed = 0
+        self.servers = self.definition.servers
         self.last_state: dict[str, object] | None = None
-
         initial_states = self._read_agent_states(tick=0)
         self._build_contexts(initial_states)
+
 
     def _ensure_hybrid_ckm(self) -> None:
         """Hybrid channel mode: build (or load from cache) a hybrid CKM at simulation startup and attach it to scene.
@@ -140,7 +141,7 @@ class MultiAgentRanScenario:
     
     def step(self, tick: int) -> dict[str, object]:
         """Advance one tick: aggregate all active queues, schedule once, then execute per service."""
-
+        print(tick)
         # if self.completed:
         #     # Even with no active services, keep refreshing the RAN-side Agent copies to avoid stale nested snapshots
         #     # (the completed fast path used to skip re-reading Agent coordinates, so the preview page
@@ -203,6 +204,26 @@ class MultiAgentRanScenario:
             )
             channel_by_service[service.service_instance_id] = channel
             channel_by_link[(channel.ue_id, channel.gnb_id, channel.direction)] = channel
+        #separate uplink and downlink schedule requests
+        for server in self.servers:
+            if server.requiresDL:
+                
+                request = UERequest(
+                    ue_id=ue_id,
+                    agent_id=f"agent_{ue_id}",
+                    position=Position(10.0, 20.0),
+                    direction=direction,  # type: ignore[arg-type]
+                    selected_access="5g",
+                    access_type="3gpp",
+                    target=target,
+                    dnn=dnn,
+                    pdu_session_type="IPv4",
+                    service_type=service_type,
+                    requested_payload_bytes=size_bytes,
+                    qos_hint=qos_hint or {},
+                    )
+                build_request(direction="DL", service_type="video_stream")
+        traffic = self.factory.build(request, self._session(request))
 
         scheduler_request = build_scheduler_request(
             simulation_id=self.simulation_id,
@@ -295,8 +316,12 @@ class MultiAgentRanScenario:
     def receiveUplinkMessage(self, signal):
         #Triggers backhaul and stores data for future downlink to UEs
         sender = signal.header.senderIp
-        destination = signal.header.destinationServer
+        destination = signal.header.destinationIp
         print("the GNB got a message from "+sender +" intended for "+str(destination))
+        self.servers[destination].receive(signal)
+        if signal.payload.endOfMessage:
+            print("End of message")
+            print(self.servers)
         return 0
 
     def receiveDownlinkMessage(self, signal):
@@ -563,25 +588,7 @@ class MultiAgentRanScenario:
                 rlc_mode=service.rlc_queue.rlc_mode,
             )
             service.rlc_queue = apply_transmission_to_rlc(service.rlc_queue, transmission)
-        estimated_delay = 2 #temporary 
-        newSignal = Signal(
-                tickSent=tick,
-                estimatedArrivalTick= tick +estimated_delay,
-                arrived=False,
-                direction="UL",
-                ticksInTransit=0,
-                payload= SignalPayload(
-                    data=service.content.data,
-                    destinationUe=service.content.recipient,
-                    senderUe=service.content.sender,
-                ),
-                header= SignalHeader(
-                    senderIp = service.traffic.src_ip,
-                    destinationServer = service.traffic.dst_ip,
-                    size= allocation.scheduled_bytes,
-                ),
-            )
-        self.transitSignals.append(newSignal)
+        
         ru_result = receive_radio(transmission)
         n3 = build_n3_result(apply_backhaul(forward_to_n3(ru_result, service.session)))
         # Uplink via the UPF entity (N3 arrival → N6 delivery to DN; with GTP-U tunnel overhead accounting)
@@ -623,6 +630,26 @@ class MultiAgentRanScenario:
             self._update_payload_counters(service)
             service.status = "COMPLETED"
             self._maybe_suspend_rrc(service)
+        estimated_delay = 11 #temporary 
+        newSignal = Signal(
+                tickSent=tick,
+                estimatedArrivalTick= tick +estimated_delay,
+                arrived=False,
+                direction="UL",
+                ticksInTransit=0,
+                payload= SignalPayload(
+                    data=service.content.data,
+                    destinationUe=service.content.recipient,
+                    senderUe=service.content.sender,
+                    endOfMessage = True if service.status == "COMPLETED" else False,
+                ),
+                header= SignalHeader(
+                    senderIp = service.traffic.src_ip,
+                    destinationIp = service.traffic.dst_ip,
+                    size= allocation.scheduled_bytes,
+                ),
+            )
+        self.transitSignals.append(newSignal)
 
         qos = calculate_qos(
             requested_bytes=service.traffic.total_bytes,
@@ -707,6 +734,27 @@ class MultiAgentRanScenario:
             self._update_payload_counters(service)
             service.status = "COMPLETED"
             self._maybe_suspend_rrc(service)
+
+        estimated_delay = 11 #temporary 
+        newSignal = Signal(
+                tickSent=tick,
+                estimatedArrivalTick= tick +estimated_delay,
+                arrived=False,
+                direction="DL",
+                ticksInTransit=0,
+                payload= SignalPayload(
+                    data=service.content.data,
+                    destinationUe=service.content.recipient,
+                    senderUe=service.content.sender,
+                    endOfMessage = True if service.status == "COMPLETED" else False,
+                ),
+                header= SignalHeader(
+                    senderIp = service.traffic.src_ip,
+                    destinationIp = service.traffic.dst_ip,
+                    size= allocation.scheduled_bytes,
+                ),
+            )
+        self.transitSignals.append(newSignal)
 
         n3 = N3ForwardingResult(
             tunnel_id=f"dl_{service.session.pdu_session_id}",
