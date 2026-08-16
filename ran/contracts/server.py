@@ -54,9 +54,8 @@ class Request:
 class Server:
     name: str
     address:str
-    bufferOut = []
-    service :str
-    requiresDL: bool = False
+    bufferOut:list
+    requiresDL: bool
 
 @dataclass(slots=True)
 class VideoServer(Server):

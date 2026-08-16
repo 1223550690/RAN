@@ -206,24 +206,23 @@ class MultiAgentRanScenario:
             channel_by_link[(channel.ue_id, channel.gnb_id, channel.direction)] = channel
         #separate uplink and downlink schedule requests
         for server in self.servers:
-            if server.requiresDL:
-                
-                request = UERequest(
-                    ue_id=ue_id,
-                    agent_id=f"agent_{ue_id}",
-                    position=Position(10.0, 20.0),
-                    direction=direction,  # type: ignore[arg-type]
-                    selected_access="5g",
-                    access_type="3gpp",
-                    target=target,
-                    dnn=dnn,
-                    pdu_session_type="IPv4",
-                    service_type=service_type,
-                    requested_payload_bytes=size_bytes,
-                    qos_hint=qos_hint or {},
-                    )
-                build_request(direction="DL", service_type="video_stream")
-        traffic = self.factory.build(request, self._session(request))
+            if self.servers[server].requiresDL:
+                for message in self.servers.bufferOut:
+                    request = UERequest(
+                        ue_id=message.recipient,
+                        agent_id=f"agent_{message.recipient}",
+                        position=Position(10.0, 20.0),
+                        direction="DL", 
+                        selected_access="5g",
+                        access_type="3gpp",
+                        target=self.servers[server].address,
+                        dnn="internet",
+                        pdu_session_type="IPv4",
+                        service_type=message.serviceType,
+                        requested_payload_bytes=message.size,
+                        qos_hint={},
+                        )
+                    traffic = self.factory.build(request, self._session(request))
 
         scheduler_request = build_scheduler_request(
             simulation_id=self.simulation_id,

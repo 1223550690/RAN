@@ -113,22 +113,29 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             name = "Chess_server",
             address = "10.20.2.20",
             playerWins = {},
-            
+            bufferOut = [],
+            requiresDL = False,
         ),
         MessageServer(
             name = "whatsapp_server",
             address = "10.20.3.30",
             messagesToBeSent = [],
+            bufferOut = [],
+            requiresDL = False,
         ),
         CallServer(
             name = "skype_server",
             address = "10.20.4.40",
             streams = [],
+            bufferOut = [],
+            requiresDL = False,
         ),
         VideoServer(
             name = "youtube_server",
             address = "10.20.1.80",
             videos = {},
+            bufferOut = [],
+            requiresDL = False,
         ),
     )
     serverDict = {}
