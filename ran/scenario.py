@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, replace
 from typing import Any
+import random
 
 from ran.access import select_access
 from ran.contracts import (
@@ -18,9 +19,10 @@ from ran.contracts import (
     TransmissionResult,
     Signal,
     SignalPayload,
-    SignalHeader
+    SignalHeader,
+    UEState
 )
-from ran.core import Amf, Upf, deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue
+from ran.core import Amf, Upf, deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue, SessionManagementFunction
 from ran.gnb import build_scheduler_request, forward_to_n3, receive_radio
 from ran.metrics import build_end_to_end_result, calculate_qos, summarize_slice_usage
 from ran.orchestration import (
@@ -47,7 +49,7 @@ from ran.radio import estimate_channel, load_gnb_site_from_scene, transmit
 from ran.scheduler import JavaSchedulerAdapter
 from ran.slicing import classify_slice
 from ran.slicing.controller import update_slice_policies
-from ran.traffic import build_ip_traffic
+from ran.traffic import build_ip_traffic, IPPacketFactory
 from ran.transport import apply_backhaul, build_n3_result, forward_n6
 from ran.ue import build_demo_ue_state, build_ue_request
 
@@ -95,6 +97,8 @@ class MultiAgentRanScenario:
         self.servers = self.definition.servers
         self.last_state: dict[str, object] | None = None
         initial_states = self._read_agent_states(tick=0)
+        self.factory = IPPacketFactory()
+        self.smf = SessionManagementFunction()
         self._build_contexts(initial_states)
 
 
@@ -142,6 +146,7 @@ class MultiAgentRanScenario:
     def step(self, tick: int) -> dict[str, object]:
         """Advance one tick: aggregate all active queues, schedule once, then execute per service."""
         print(tick)
+        print(self.service_order)
         # if self.completed:
         #     # Even with no active services, keep refreshing the RAN-side Agent copies to avoid stale nested snapshots
         #     # (the completed fast path used to skip re-reading Agent coordinates, so the preview page
@@ -205,24 +210,7 @@ class MultiAgentRanScenario:
             channel_by_service[service.service_instance_id] = channel
             channel_by_link[(channel.ue_id, channel.gnb_id, channel.direction)] = channel
         #separate uplink and downlink schedule requests
-        for server in self.servers:
-            if self.servers[server].requiresDL:
-                for message in self.servers.bufferOut:
-                    request = UERequest(
-                        ue_id=message.recipient,
-                        agent_id=f"agent_{message.recipient}",
-                        position=Position(10.0, 20.0),
-                        direction="DL", 
-                        selected_access="5g",
-                        access_type="3gpp",
-                        target=self.servers[server].address,
-                        dnn="internet",
-                        pdu_session_type="IPv4",
-                        service_type=message.serviceType,
-                        requested_payload_bytes=message.size,
-                        qos_hint={},
-                        )
-                    traffic = self.factory.build(request, self._session(request))
+        
 
         scheduler_request = build_scheduler_request(
             simulation_id=self.simulation_id,
@@ -294,6 +282,86 @@ class MultiAgentRanScenario:
                 if signal.arrived == False:
                     self.completed = False
                     break
+        for server in self.servers:
+                    self.servers[server].prepareBuffer()
+                    if self.servers[server].requiresDL:
+                        for message in self.servers[server].bufferOut:
+                            request = UERequest(
+                                ue_id=message.recipient,
+                                agent_id=f"agent_{message.recipient}",
+                                position=Position(10.0, 20.0),
+                                direction="DL", 
+                                selected_access="5g",
+                                access_type="3gpp",
+                                target=self.servers[server].address,
+                                dnn="internet",
+                                pdu_session_type="IPv4",
+                                service_type="message",
+                                requested_payload_bytes=message.size,
+                                qos_hint={},
+                                )
+                            state = UEState(
+                                ue_id=request.ue_id,
+                                agent_id=f"agent_{request.ue_id}",
+                                position=Position(10.0, 20.0),
+                                rm_state="REGISTERED",
+                                cm_state="CONNECTED",
+                                rrc_state="CONNECTED",
+                                allowed_slices=["embb", "urllc", "mmtc"],
+                            )
+                            access = select_access(request, self.gnb)
+                            session = self.smf.establish(ue=state, request=request, slice_id="embb")
+                            traffic = self.factory.build(request, session)
+                            qos_flow = build_qos_flow(request, session)
+                            drb = map_qos_flow_to_drb(qos_flow, request)
+                            pdcp_batch = build_pdcp_batch(replace(traffic), drb)
+                            pdcp_entity = PdcpEntity(
+                                        drb_id=drb.drb_id,
+                                        qfi=drb.qfi,
+                                        slice_id=drb.slice_id,
+                                    )
+                            rlc_entity = RlcEntity(
+                                        ue_id=drb.ue_id,
+                                        drb_id=drb.drb_id,
+                                        qfi=drb.qfi,
+                                        slice_id=drb.slice_id,
+                                        direction=drb.direction,
+                                        mode=drb.rlc_mode,
+                                    )
+                            tunnel = self.upf.create_tunnel(state.ue_id, session.pdu_session_id, request.direction)
+                            self.upf.receive_from_dn(state.ue_id, session.pdu_session_id, pdcp_batch.output_bytes)
+                            dl_queue = replace(build_rlc_queue(pdcp_batch, drb), queued_bytes=0, retransmission_bytes=0)
+                            rlc_queue = replace(rlc_queue_placeholder(request, drb))
+                            service = ServiceContext(
+                                service_instance_id="gnb" +str(random.randint(0,1000)),
+                                intent_id="gnb_dl"+str(random.randint(0,1000)),
+                                intent_type="message",
+                                agent_id=request.agent_id,
+                                ue_id=request.ue_id,
+                                ue_request=request,
+                                access=access,
+                                slice_id="embb",
+                                session=session,
+                                traffic=traffic,
+                                qos_flow=qos_flow,
+                                pdcp=pdcp_entity,
+                                rlc=rlc_entity,
+                                drb=drb,
+                                pdcp_batch=pdcp_batch,
+                                rlc_queue=rlc_queue,
+                                dl_queue=dl_queue,
+                                upf_buffered_bytes=self.upf.buffered_bytes(state.ue_id, session.pdu_session_id),
+                                n3_tunnel_id=tunnel.tunnel_id,
+                                status="ACTIVE",
+                                content= ServiceContent(
+                                    recipient= message.recipient,
+                                    data= message.content,
+                                    sender= message.sender,
+                                ),
+                            )
+                            self.services[service.service_instance_id] = service
+                            self.service_order.append(service.service_instance_id)
+                        self.servers[server].clearBuffer()
         state = self._compose_state(
             tick=tick,
             status="completed" if self.completed else "running",
@@ -303,6 +371,7 @@ class MultiAgentRanScenario:
             slice_usage=summarize_slice_usage(scheduler_result.allocations),
         )
         self.last_state = state
+        
         return state
 
 
@@ -318,14 +387,11 @@ class MultiAgentRanScenario:
         destination = signal.header.destinationIp
         print("the GNB got a message from "+sender +" intended for "+str(destination))
         self.servers[destination].receive(signal)
-        if signal.payload.endOfMessage:
-            print("End of message")
-            print(self.servers)
         return 0
 
     def receiveDownlinkMessage(self, signal):
-        # print("\n")
-        # print(receiving_ue+ " got a message from "+ sender +" saying: "+message +"\n")
+        print("\n")
+        print(signal.header.destinationIp+ " got a message from "+ signal.header.senderIp +" saying: "+signal.payload.data +"\n")
         return 0
     # ------------------------------------------------------------- Entity pipeline helpers (xizhe)
 

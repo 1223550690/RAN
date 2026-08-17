@@ -108,7 +108,7 @@ class SessionManagementFunction:
         profiles = tuple(UpfProfile.from_dict(item) for item in raw["upfs"])
         return cls(smf_id=str(raw.get("smf_id", "smf_001")), upf_profiles=profiles)
 
-    def establish(self, ue: UEState, request: UERequest, *, slice_id: str) -> PduSession:
+    def establish(self, ue: UEState, request: UERequest, slice_id: str) -> PduSession:
         self._validate_request(ue, request, slice_id)
         profile = self._select_upf(request.dnn, slice_id)
         logical_key = (ue.ue_id, request.dnn, slice_id, request.pdu_session_type)

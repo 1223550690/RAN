@@ -56,6 +56,10 @@ class Server:
     address:str
     bufferOut:list
     requiresDL: bool
+    def clearBuffer(self):
+            self.bufferOut = []
+    def prepareBuffer(self):
+        return 0
 
 @dataclass(slots=True)
 class VideoServer(Server):
@@ -90,6 +94,12 @@ class MessageServer(Server):
             sender=signal.payload.senderUe,
             size=signal.header.size,
         ))
+    def prepareBuffer(self):
+        for message in self.messagesToBeSent:
+            self.bufferOut.append(message)
+        self.requiresDL = True
+        self.messagesToBeSent = []
+    
     
 
 @dataclass(slots=True)
