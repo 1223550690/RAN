@@ -119,9 +119,10 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
         MessageServer(
             name = "whatsapp_server",
             address = "10.20.3.30",
-            messagesToBeSent = [],
+            storedMessages = [],
             bufferOut = [],
             requiresDL = False,
+            collectedSignals = [],
         ),
         CallServer(
             name = "skype_server",

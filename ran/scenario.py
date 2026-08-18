@@ -99,6 +99,7 @@ class MultiAgentRanScenario:
         initial_states = self._read_agent_states(tick=0)
         self.factory = IPPacketFactory()
         self.smf = SessionManagementFunction()
+        self.ipByUe = {}
         self._build_contexts(initial_states)
 
 
@@ -145,8 +146,6 @@ class MultiAgentRanScenario:
     
     def step(self, tick: int) -> dict[str, object]:
         """Advance one tick: aggregate all active queues, schedule once, then execute per service."""
-        print(tick)
-        print(self.service_order)
         # if self.completed:
         #     # Even with no active services, keep refreshing the RAN-side Agent copies to avoid stale nested snapshots
         #     # (the completed fast path used to skip re-reading Agent coordinates, so the preview page
@@ -312,6 +311,7 @@ class MultiAgentRanScenario:
                             access = select_access(request, self.gnb)
                             session = self.smf.establish(ue=state, request=request, slice_id="embb")
                             traffic = self.factory.build(request, session)
+                            traffic.dst_ip = self.ipByUe[message.recipient]
                             qos_flow = build_qos_flow(request, session)
                             drb = map_qos_flow_to_drb(qos_flow, request)
                             pdcp_batch = build_pdcp_batch(replace(traffic), drb)
@@ -512,6 +512,7 @@ class MultiAgentRanScenario:
             ue_ip=_mock_ue_ip(index),
         )
         traffic = build_ip_traffic(ue_request, session)
+        self.ipByUe.update({ue_state.ue_id: traffic.src_ip})
         qos_flow = build_qos_flow(ue_request, session)
         drb = map_qos_flow_to_drb(qos_flow, ue_request)
         # The functional batch is only for accounting/statistics; the entity pipeline consumes from the original traffic each tick.

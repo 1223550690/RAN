@@ -18,11 +18,9 @@ class PythonBaselineScheduler:
 
     def allocate(self, request: SchedulerRequest) -> SchedulerResult:
         """Project implementation detail."""
-
         active = [queue for queue in request.rlc_queues if queue.queued_bytes + queue.retransmission_bytes > 0]
         if not active:
             return _build_result(request, allocations=[], debug={"reason": "no_active_queue"})
-
         channel_by_ue = {state.ue_id: state for state in request.channel_states}
         policy_by_slice = {policy.slice_id: policy for policy in request.slice_policies}
         weights: dict[tuple[str, int], float] = {}

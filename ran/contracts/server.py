@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from .radio import Signal
 import random
 
 
@@ -58,6 +59,7 @@ class Server:
     requiresDL: bool
     def clearBuffer(self):
             self.bufferOut = []
+            self.requiresDL = False
     def prepareBuffer(self):
         return 0
 
@@ -86,19 +88,32 @@ class GamingServer(Server):
 
 @dataclass(slots=True)
 class MessageServer(Server):
-    messagesToBeSent: list[Message]
+    storedMessages: list[Message]
+    collectedSignals: list[Signal]
     def receive(self, signal):
-        self.messagesToBeSent.append(Message(
-            content=signal.payload.data,
-            recipient=signal.payload.destinationUe,
-            sender=signal.payload.senderUe,
-            size=signal.header.size,
-        ))
+        self.collectedSignals.append(signal)
+        if signal.payload.endOfMessage:
+            signal.payload.endOfMessage = False
+            size = 0
+            newSignals = []
+            for collectedSignal in self.collectedSignals:
+                if collectedSignal.payload == signal.payload:
+                    size += collectedSignal.header.size
+                else:
+                    newSignals.append(collectedSignal)
+            self.storedMessages.append(Message(
+                content=signal.payload.data,
+                recipient=signal.payload.destinationUe,
+                sender=signal.payload.senderUe,
+                size=size,
+            ))
+            self.collectedSignals = newSignals
+
     def prepareBuffer(self):
-        for message in self.messagesToBeSent:
+        for message in self.storedMessages:
             self.bufferOut.append(message)
         self.requiresDL = True
-        self.messagesToBeSent = []
+        self.storedMessages = []
     
     
 
