@@ -72,7 +72,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 service_type="video_upload",
                 requested_payload_bytes=100 * 1024 * 1024,
                 sender= "student_a_phone",
-                content= "My Cat: A Video of a cat meowing",
+                content= "My Cat:A video of a cat meowing",
             ),
         ),
         AgentScenarioDefinition(
@@ -107,6 +107,22 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 sender= "student_c_phone",
             ),
         ),
+        AgentScenarioDefinition(
+                    agent_id="student_d",
+                    ue_id="student_d_phone",
+                    intent=AgentIntent(
+                        intent_id="intent_video_upload_002",
+                        agent_id="student_d",
+                        agent_pos=Position(100.0, 480.0),
+                        action="upload",
+                        target="youtube_server",
+                        content_type="video",
+                        service_type="video_upload",
+                        requested_payload_bytes=50 * 1024 * 1024,
+                        sender= "student_d_phone",
+                        content= "My Dog:A video of a dog barking",
+                    ),
+                ),
     )
     servers = (
         GamingServer(

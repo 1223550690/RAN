@@ -29,6 +29,8 @@ class AgentIntent:
     content: str | None = None
     sender: str | None = None
 
+    
+
 
 @dataclass(slots=True)
 class AgentStateSnapshot:

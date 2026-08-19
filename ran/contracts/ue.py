@@ -4,11 +4,21 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from .common import Direction, Position
+from .radio import Signal
+import math
 
 
 AccessType = Literal["3gpp", "non_3gpp"]
 SelectedAccess = Literal["5g", "wifi", "auto"]
+DownlinkServiceTypes = Literal["message", "video", "error", "reading", "call_stream", "result"]
 
+@dataclass(slots=True)
+class UEOutput:
+    sourceServer: str
+    serviceType: DownlinkServiceTypes
+    content: str
+    size: int
+    sourceUe: str = None
 
 @dataclass(slots=True)
 class UEState:
@@ -28,6 +38,7 @@ class UEState:
     ue_id: str  # ue_id: UE/handset identifier.
     agent_id: str  # agent_id: identifier of the bound Agent.
     position: Position  # position: UE's current map coordinates.
+    signalBuffer: list[Signal]
     cmax_transmit: int = 23  # cmax_transmit: UE maximum transmit power in dBm (tr22068 PHR extension, optional).
     ue_pusch: int = 10  # ue_pusch: nominal PUSCH parameter (tr22068 extension, optional).
     rm_state: str = "DEREGISTERED"  # rm_state: 5GC registration state.
@@ -36,6 +47,25 @@ class UEState:
     
     ue_ip: str | None = None  # ue_ip: IP obtained by the UE in the PDU session.
     allowed_slices: list[str] = field(default_factory=list)  # allowed_slices: slices the UE is allowed to use.
+    def receive(self, signal):
+            self.signalBuffer.append(signal)
+            if signal.payload.endOfMessage:
+                        size = 0
+                        newSignals = []
+                        for collectedSignal in self.signalBuffer:
+                            if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
+                                size += collectedSignal.header.size
+                            else:
+                                newSignals.append(collectedSignal)
+                        self.signalBuffer = newSignals
+                        print(self.ue_id + " recieved a message from "+signal.header.senderIp + " containing a "+ signal.payload.service_type + " of content: "+ signal.payload.data + " and size: "+str(size))
+                        return(UEOutput(
+                            sourceServer=signal.header.senderIp,
+                            serviceType=signal.payload.service_type,
+                            content=signal.payload.data,
+                            size=size,
+                            sourceUe=signal.payload.senderUe,
+                        ))
 
 
 @dataclass(slots=True)

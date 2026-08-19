@@ -24,6 +24,7 @@ class Message:
     recipient: str
     sender: str
     size: int
+    service_type: str
 
 @dataclass(slots=True)
 class Video:
@@ -107,7 +108,8 @@ class VideoServer(Server):
             video.content,
             recipient=signal.payload.senderUe,
             sender=video.creator,
-            size= video.size
+            size= video.size,
+            service_type="video"
         ))
     def prepareBuffer(self):
             if len(self.videosToLeave) != 0:
@@ -149,6 +151,7 @@ class MessageServer(Server):
                 recipient=signal.payload.destinationUe,
                 sender=signal.payload.senderUe,
                 size=size -overhead,
+                service_type="message"
             ))
             self.collectedSignals = newSignals
 

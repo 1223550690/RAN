@@ -57,6 +57,7 @@ from ran.ue import build_demo_ue_state, build_ue_request
 TERMINAL_SERVICE_STATUSES = {"COMPLETED", "FAILED"}
 
 
+
 class MultiAgentRanScenario:
     """RAN scenario orchestrator for a fixed Agent set; protocol details are refined by the individual modules."""
 
@@ -155,27 +156,28 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
-        if (tick == 23):
-            self.ipByUe.update({"agent_d_phone": "10.20.0.18"})
-            self.servers["10.20.1.80"].receive(Signal(
-                tickSent= 12,
-                estimatedArrivalTick= 23,
-                arrived=True,
-                direction= "UL",
-                ticksInTransit= 11,
-                payload= SignalPayload(
-                    data="My Cat",
-                    service_type = "video_stream",
-                    senderUe = "agent_d_phone",
-                    endOfMessage = True,
-                ),
-                header= SignalHeader(
-                    senderIp = "10.20.0.18",
-                    destinationIp = "10.20.1.80",
-                    size=4*1024,
-                    sessionId = 1,
-                ),
-            ))
+        # if (tick == 23):
+        #     self.ipByUe.update({"student_d_phone": "10.20.0.18"})
+        #     self.ueByIp.update({"10.20.0.18":"student_d_phone"})
+        #     self.servers["10.20.1.80"].receive(Signal(
+        #         tickSent= 12,
+        #         estimatedArrivalTick= 23,
+        #         arrived=True,
+        #         direction= "UL",
+        #         ticksInTransit= 11,
+        #         payload= SignalPayload(
+        #             data="My Cat",
+        #             service_type = "video_stream",
+        #             senderUe = "student_d_phone",
+        #             endOfMessage = True,
+        #         ),
+        #         header= SignalHeader(
+        #             senderIp = "10.20.0.18",
+        #             destinationIp = "10.20.1.80",
+        #             size=4*1024,
+        #             sessionId = 1,
+        #         ),
+        #     ))
         self._update_agent_states(tick)
         active_services = [
             self.services[service_id]
@@ -317,7 +319,7 @@ class MultiAgentRanScenario:
                                 target=self.servers[server].address,
                                 dnn="internet",
                                 pdu_session_type="IPv4",
-                                service_type="message",
+                                service_type=message.service_type,
                                 requested_payload_bytes=message.size,
                                 qos_hint={},
                                 )
@@ -329,6 +331,7 @@ class MultiAgentRanScenario:
                                 cm_state="CONNECTED",
                                 rrc_state="CONNECTED",
                                 allowed_slices=["embb", "urllc", "mmtc"],
+                                signalBuffer = None,
                             )
                             access = select_access(request, self.gnb)
                             session = self.smf.establish(ue=state, request=request, slice_id="embb")
@@ -357,7 +360,7 @@ class MultiAgentRanScenario:
                             service = ServiceContext(
                                 service_instance_id="gnb" +str(random.randint(0,1000)),
                                 intent_id="gnb_dl"+str(random.randint(0,1000)),
-                                intent_type="message",
+                                intent_type=message.service_type,
                                 agent_id=request.agent_id,
                                 ue_id=request.ue_id,
                                 ue_request=request,
@@ -407,13 +410,12 @@ class MultiAgentRanScenario:
         #Triggers backhaul and stores data for future downlink to UEs
         sender = signal.header.senderIp
         destination = signal.header.destinationIp
-        print("the GNB got a message from "+sender +" intended for "+str(destination))
         self.servers[destination].receive(signal)
         return 0
 
     def receiveDownlinkMessage(self, signal):
-        print("\n")
-        print(signal.header.destinationIp+ " got a message from "+ signal.header.senderIp +" saying: "+signal.payload.data +"\n")
+        recieverUe = self.ueByIp[signal.header.destinationIp]
+        self.ues[recieverUe].state.receive(signal)
         return 0
     # ------------------------------------------------------------- Entity pipeline helpers (xizhe)
 
