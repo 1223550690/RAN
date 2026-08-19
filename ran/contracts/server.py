@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from .radio import Signal
-import random
+import random, math
 
 
 @dataclass(slots=True)
@@ -102,11 +102,12 @@ class MessageServer(Server):
                     size += collectedSignal.header.size
                 else:
                     newSignals.append(collectedSignal)
+            overhead = max(1, math.ceil(size /1500)) * 2
             self.storedMessages.append(Message(
                 content=signal.payload.data,
                 recipient=signal.payload.destinationUe,
                 sender=signal.payload.senderUe,
-                size=size,
+                size=size -overhead,
             ))
             print(size)
             self.collectedSignals = newSignals
