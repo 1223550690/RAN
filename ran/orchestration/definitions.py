@@ -72,7 +72,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 service_type="video_upload",
                 requested_payload_bytes=100 * 1024 * 1024,
                 sender= "student_a_phone",
-                content= "Video of a cat meowing",
+                content= "My Cat: A Video of a cat meowing",
             ),
         ),
         AgentScenarioDefinition(
@@ -115,6 +115,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             playerWins = {},
             bufferOut = [],
             requiresDL = False,
+            collectedSignals = [],
         ),
         MessageServer(
             name = "whatsapp_server",
@@ -130,13 +131,16 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             streams = [],
             bufferOut = [],
             requiresDL = False,
+            collectedSignals = [],
         ),
         VideoServer(
             name = "youtube_server",
             address = "10.20.1.80",
             videos = {},
+            videosToLeave = [],
             bufferOut = [],
             requiresDL = False,
+            collectedSignals = [],
         ),
     )
     serverDict = {}

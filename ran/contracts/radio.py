@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from .common import Direction, Position
 from typing import Literal
 
-requestTypes = Literal["REQUEST, UPLOAD"]
+
 
 @dataclass(slots=True)
 class GnbSite:
@@ -137,10 +137,11 @@ class TransmissionResult:
 @dataclass(slots=True)
 class SignalPayload:
     data:str
+    service_type: str
     destinationUe:str = None
     senderUe:str = None
-    requestType: requestTypes = None
     endOfMessage: bool = False
+
 
 
 @dataclass(slots=True)
@@ -148,7 +149,7 @@ class SignalHeader:
     senderIp: str
     destinationIp:str
     size: int
-    sessionId: str
+    sessionId: int
     
 
 @dataclass(slots=True)

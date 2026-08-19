@@ -155,7 +155,27 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
-
+        if (tick == 23):
+            self.ipByUe.update({"agent_d_phone": "10.20.0.18"})
+            self.servers["10.20.1.80"].receive(Signal(
+                tickSent= 12,
+                estimatedArrivalTick= 23,
+                arrived=True,
+                direction= "UL",
+                ticksInTransit= 11,
+                payload= SignalPayload(
+                    data="My Cat",
+                    service_type = "video_stream",
+                    senderUe = "agent_d_phone",
+                    endOfMessage = True,
+                ),
+                header= SignalHeader(
+                    senderIp = "10.20.0.18",
+                    destinationIp = "10.20.1.80",
+                    size=4*1024,
+                    sessionId = 1,
+                ),
+            ))
         self._update_agent_states(tick)
         active_services = [
             self.services[service_id]
@@ -714,6 +734,7 @@ class MultiAgentRanScenario:
                     destinationUe=service.content.recipient,
                     senderUe=service.content.sender,
                     endOfMessage = True if service.status == "COMPLETED" else False,
+                    service_type = service.intent_type
                 ),
                 header= SignalHeader(
                     senderIp = service.traffic.src_ip,
@@ -820,6 +841,7 @@ class MultiAgentRanScenario:
                     destinationUe=service.content.recipient,
                     senderUe=service.content.sender,
                     endOfMessage = True if service.status == "COMPLETED" else False,
+                    service_type = service.intent_type
                 ),
                 header= SignalHeader(
                     senderIp = service.traffic.src_ip,

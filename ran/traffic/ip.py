@@ -54,7 +54,7 @@ DEFAULT_ENDPOINTS: tuple[EndpointProfile, ...] = (
         ip="10.20.1.80",
         protocol="TCP",
         port=443,
-        service_types=frozenset({"video_upload", "video_stream", "video_browse"}),
+        service_types=frozenset({"video_upload", "video_stream", "video_browse", "video_delete"}),
     ),
     EndpointProfile(
         target="web_server",
