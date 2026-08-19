@@ -100,6 +100,9 @@ class MultiAgentRanScenario:
         self.factory = IPPacketFactory()
         self.smf = SessionManagementFunction()
         self.ipByUe = {}
+        self.ueByIp = {}
+        self.serversByIp = {}
+        self.ipByServers = {}
         self._build_contexts(initial_states)
 
 
@@ -152,7 +155,6 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
-
 
         self._update_agent_states(tick)
         active_services = [
@@ -474,6 +476,9 @@ class MultiAgentRanScenario:
                 )
                 continue
             self._create_service(item, item.intent, index)
+        for server in self.definition.servers:
+            self.serversByIp.update({self.servers[server].address: self.servers[server].name})
+            self.ipByServers.update({self.servers[server].name: self.servers[server].address})
 
     def _register_ue(self, item, agent_state) -> None:
         """Register and store the Agent's UE control plane context. Keeps the existing context when the same UE is registered again."""
@@ -513,6 +518,7 @@ class MultiAgentRanScenario:
         )
         traffic = build_ip_traffic(ue_request, session)
         self.ipByUe.update({ue_state.ue_id: traffic.src_ip})
+        self.ueByIp.update({traffic.src_ip: ue_state.ue_id})
         qos_flow = build_qos_flow(ue_request, session)
         drb = map_qos_flow_to_drb(qos_flow, ue_request)
         # The functional batch is only for accounting/statistics; the entity pipeline consumes from the original traffic each tick.
@@ -712,7 +718,8 @@ class MultiAgentRanScenario:
                 header= SignalHeader(
                     senderIp = service.traffic.src_ip,
                     destinationIp = service.traffic.dst_ip,
-                    size= allocation.scheduled_bytes,
+                    size=delivered_protocol_this_tick,
+                    sessionId= service.session.pdu_session_id
                 ),
             )
         self.transitSignals.append(newSignal)
@@ -817,7 +824,8 @@ class MultiAgentRanScenario:
                 header= SignalHeader(
                     senderIp = service.traffic.src_ip,
                     destinationIp = service.traffic.dst_ip,
-                    size= allocation.scheduled_bytes,
+                    size= delivered_protocol_this_tick,
+                    sessionId= service.session.pdu_session_id
                 ),
             )
         self.transitSignals.append(newSignal)

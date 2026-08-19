@@ -110,7 +110,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
     )
     servers = (
         GamingServer(
-            name = "Chess_server",
+            name = "chess_server",
             address = "10.20.2.20",
             playerWins = {},
             bufferOut = [],

@@ -148,6 +148,7 @@ class SignalHeader:
     senderIp: str
     destinationIp:str
     size: int
+    sessionId: str
     
 
 @dataclass(slots=True)

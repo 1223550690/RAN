@@ -61,6 +61,7 @@ class PythonBaselineScheduler:
                     is_retransmission=queue.retransmission_bytes > 0,
                 )
             )
+        print(request.rlc_queues)
         return _build_result(request, allocations=allocations, debug={"implementation": "python_baseline"})
 
 

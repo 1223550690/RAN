@@ -88,16 +88,17 @@ class GamingServer(Server):
 
 @dataclass(slots=True)
 class MessageServer(Server):
+    #use ips of the sender to differentiate signals, composed with the session ids to distinguish between messages sent by the same person. 
     storedMessages: list[Message]
     collectedSignals: list[Signal]
     def receive(self, signal):
         self.collectedSignals.append(signal)
         if signal.payload.endOfMessage:
-            signal.payload.endOfMessage = False
             size = 0
             newSignals = []
+            print(self.collectedSignals)
             for collectedSignal in self.collectedSignals:
-                if collectedSignal.payload == signal.payload:
+                if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
                     size += collectedSignal.header.size
                 else:
                     newSignals.append(collectedSignal)
@@ -107,6 +108,7 @@ class MessageServer(Server):
                 sender=signal.payload.senderUe,
                 size=size,
             ))
+            print(size)
             self.collectedSignals = newSignals
 
     def prepareBuffer(self):
