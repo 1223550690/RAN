@@ -156,28 +156,68 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
-        # if (tick == 23):
-        #     self.ipByUe.update({"student_d_phone": "10.20.0.18"})
-        #     self.ueByIp.update({"10.20.0.18":"student_d_phone"})
-        #     self.servers["10.20.1.80"].receive(Signal(
-        #         tickSent= 12,
-        #         estimatedArrivalTick= 23,
+        # print(tick)
+        # if (tick == 30):
+        #     self.servers["10.20.2.20"].receive(Signal(
+        #         tickSent= 19,
+        #         estimatedArrivalTick= 30,
         #         arrived=True,
         #         direction= "UL",
         #         ticksInTransit= 11,
         #         payload= SignalPayload(
-        #             data="My Cat",
-        #             service_type = "video_stream",
-        #             senderUe = "student_d_phone",
+        #             data=None,
+        #             service_type = "accept_challenge",
+        #             senderUe = "student_a_phone",
+        #             destinationUe= "student_d_phone",
         #             endOfMessage = True,
         #         ),
         #         header= SignalHeader(
-        #             senderIp = "10.20.0.18",
+        #             senderIp = "10.20.0.15",
         #             destinationIp = "10.20.1.80",
         #             size=4*1024,
-        #             sessionId = 1,
+        #             sessionId = 2,
         #         ),
         #     ))
+        # if (tick == 42):
+        #             self.servers["10.20.2.20"].receive(Signal(
+        #                 tickSent= 31,
+        #                 estimatedArrivalTick= 42,
+        #                 arrived=True,
+        #                 direction= "UL",
+        #                 ticksInTransit= 11,
+        #                 payload= SignalPayload(
+        #                     data=None,
+        #                     service_type = "check_stats",
+        #                     senderUe = "student_a_phone",
+        #                     endOfMessage = True,
+        #                 ),
+        #                 header= SignalHeader(
+        #                     senderIp = "10.20.0.15",
+        #                     destinationIp = "10.20.1.80",
+        #                     size=4*1024,
+        #                     sessionId = 2,
+        #                 ),
+        #             ))
+        # if (tick == 42):
+        #                     self.servers["10.20.2.20"].receive(Signal(
+        #                         tickSent= 31,
+        #                         estimatedArrivalTick= 42,
+        #                         arrived=True,
+        #                         direction= "UL",
+        #                         ticksInTransit= 11,
+        #                         payload= SignalPayload(
+        #                             data=None,
+        #                             service_type = "check_stats",
+        #                             senderUe = "student_d_phone",
+        #                             endOfMessage = True,
+        #                         ),
+        #                         header= SignalHeader(
+        #                             senderIp = "10.20.0.18",
+        #                             destinationIp = "10.20.1.80",
+        #                             size=4*1024,
+        #                             sessionId = 2,
+        #                         ),
+        #                     ))
         self._update_agent_states(tick)
         active_services = [
             self.services[service_id]
@@ -232,8 +272,6 @@ class MultiAgentRanScenario:
             )
             channel_by_service[service.service_instance_id] = channel
             channel_by_link[(channel.ue_id, channel.gnb_id, channel.direction)] = channel
-        #separate uplink and downlink schedule requests
-        
 
         scheduler_request = build_scheduler_request(
             simulation_id=self.simulation_id,

@@ -65,6 +65,8 @@ class Server:
     def prepareBuffer(self):
         return 0
 
+    
+
 @dataclass(slots=True)
 class VideoServer(Server):
     videos: dict[str, Video]
@@ -126,10 +128,133 @@ class WebServer(Server):
 @dataclass(slots=True)
 class GamingServer(Server):
     playerWins: dict[str, int]
+    messages: list[Message]
+    pendingChallenges: dict[str:list[str]]
+    supportedGame: str
+    def receive(self, signal):
+        self.collectedSignals.append(signal)
+        if signal.payload.endOfMessage:
+            size = 0
+            newSignals = []
+            for collectedSignal in self.collectedSignals:
+                if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
+                    size += collectedSignal.header.size
+                else:
+                    newSignals.append(collectedSignal)
+
+            match collectedSignal.payload.service_type:
+                case "make_challenge":
+                    self.requestGame(signal.payload.senderUe, signal.payload.destinationUe, signal.payload.data)
+                case "accept_challenge":
+                    self.validateChallenge(signal.payload.destinationUe, signal.payload.senderUe)
+                case "check_stats":
+                    self.checkResults(signal.payload.senderUe)
+            self.collectedSignals = newSignals
+    def checkResults(self, player):
+        if player in self.playerWins:
+            self.messages.append(Message(
+                                content="You have won "+str(self.playerWins[player])+ " times!",
+                                recipient=player,
+                                sender=None,
+                                size= 2*1024,
+                                service_type="result"
+                                ))
+        else:
+            self.messages.append(Message(
+                                content="No wins are logged for this player, try challenging someone!",
+                                recipient=player,
+                                sender=None,
+                                size= 2*1024,
+                                service_type="error"
+                                ))
     def calculateWinner(self, players):
-        winner = players(random.randint(0, len(players)-1))
-        self.playerwins.update({winner: self.playerwins[winner]+1})
-        return winner
+        winner = players[random.randint(0, len(players)-1)]
+        if winner in self.playerWins:
+            self.playerWins.update({winner: self.playerWins[winner]+1})
+        else:
+            self.playerWins.update({winner: 1})
+        losers = []
+        for player in players:
+            if player != winner:
+                losers.append(player)
+        return winner, losers
+    def requestGame(self, challenger, challenged, message):
+        if challenger in self.pendingChallenges:
+            seen = False
+            for challenge in self.pendingChallenges[challenger]:
+                if challenge == challenged:
+                    seen = True
+            if (not seen):
+                self.messages.append(Message(
+                            content=message,
+                            recipient=challenged,
+                            sender=challenger,
+                            size= 2*1024,
+                            service_type="challenge"
+                        ))
+                self.pendingChallenges[challenger].append(challenged)  
+            else:
+                self.messages.append(Message(
+                                content="You have already challenged this player, please wait for their response",
+                                recipient=challenger,
+                                sender=None,
+                                size= 2*1024,
+                                service_type="error"
+                                ))
+        self.pendingChallenges.update({challenger:[challenged]})
+        self.messages.append(Message(
+                                    content=message,
+                                    recipient=challenged,
+                                    sender=challenger,
+                                    size= 2*1024,
+                                    service_type="challenge"
+                                ))
+
+    def validateChallenge(self, challenger, challenged):
+        if challenger in self.pendingChallenges:
+            seen = False
+            for challenge in self.pendingChallenges[challenger]:
+                if challenge == challenged:
+                    seen = True
+                    if seen:
+                        winner, losers = self.calculateWinner(players=[challenger, challenged])
+                        self.messages.append(Message(
+                                            content="Congratulations, you have won the game against: " +losers[0],
+                                            recipient=winner,
+                                            sender=None,
+                                            size= 2*1024,
+                                            service_type="result"
+                                            ))
+                        self.messages.append(Message(
+                                            content="Unfortunately, you have lost the game against: " +winner,
+                                            recipient=losers[0],
+                                            sender=None,
+                                            size= 2*1024,
+                                            service_type="result"
+                                            ))
+                    else:
+                        self.messages.append(Message(
+                                            content="This player has not challenged you, perhaps send them a challenge yourself?",
+                                            recipient=challenger,
+                                            sender=None,
+                                            size= 2*1024,
+                                            service_type="error"
+                                            ))
+        else:
+            self.messages.append(Message(
+                                content="This player has not challenged you, perhaps send them a challenge yourself?",
+                                recipient=challenger,
+                                sender=None,
+                                size= 2*1024,
+                                service_type="error"
+                                ))
+    def prepareBuffer(self):
+                if len(self.messages) != 0:
+                    for message in self.messages:
+                        self.bufferOut.append(message)
+                    self.requiresDL = True
+                    self.messages = []
+
 
 @dataclass(slots=True)
 class MessageServer(Server):

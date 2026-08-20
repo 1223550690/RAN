@@ -108,21 +108,22 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             ),
         ),
         AgentScenarioDefinition(
-                    agent_id="student_d",
-                    ue_id="student_d_phone",
-                    intent=AgentIntent(
-                        intent_id="intent_video_upload_002",
-                        agent_id="student_d",
-                        agent_pos=Position(100.0, 480.0),
-                        action="upload",
-                        target="youtube_server",
-                        content_type="video",
-                        service_type="video_upload",
-                        requested_payload_bytes=50 * 1024 * 1024,
-                        sender= "student_d_phone",
-                        content= "My Dog:A video of a dog barking",
-                    ),
-                ),
+            agent_id="student_d",
+            ue_id="student_d_phone",
+            intent=AgentIntent(
+                intent_id="chess_test_001",
+                agent_id="student_d",
+                agent_pos=Position(100.0, 480.0),
+                action="upload",
+                target="gaming_server",
+                content_type="challenge",
+                service_type="make_challenge",
+                requested_payload_bytes=50 * 1024 * 1024,
+                sender= "student_d_phone",
+                content= "Play a game with me?",
+                recipient="student_a_phone",
+            ),
+        ),
     )
     servers = (
         GamingServer(
@@ -132,6 +133,9 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             bufferOut = [],
             requiresDL = False,
             collectedSignals = [],
+            messages = [],
+            pendingChallenges = {},
+            supportedGame = "chess"
         ),
         MessageServer(
             name = "whatsapp_server",

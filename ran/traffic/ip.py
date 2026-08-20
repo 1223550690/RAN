@@ -70,7 +70,7 @@ DEFAULT_ENDPOINTS: tuple[EndpointProfile, ...] = (
         ip="10.20.2.20",
         protocol="UDP",
         port=3074,
-        service_types=frozenset({"game", "gaming"}),
+        service_types=frozenset({"make_challenge", "gaming", "accept_challenge", "make_move"}),
     ),
     EndpointProfile(
         target="message_server",
@@ -103,6 +103,7 @@ class IPPacketFactory:
     """Build validated UL/DL IP flow batches from UE and PDU-session state."""
 
     def __init__(self, endpoints: Iterable[EndpointProfile] = DEFAULT_ENDPOINTS) -> None:
+        endpoints = DEFAULT_ENDPOINTS
         endpoint_list = tuple(endpoints)
         endpoint_map = {endpoint.target: endpoint for endpoint in endpoint_list}
         if not endpoint_map:
@@ -212,7 +213,7 @@ class IPPacketFactory:
             except ValueError as exc:
                 known = ", ".join(sorted(self._endpoints))
                 raise IPTrafficError(f"unknown target {request.target!r}; configured targets: {known}") from exc
-            protocol = "UDP" if request.service_type in {"game", "video_call", "voice_call", "telemetry"} else "TCP"
+            protocol = "UDP" if request.service_type in {"gaming", "video_call", "voice_call", "telemetry"} else "TCP"
             port = 3478 if protocol == "UDP" else 443
             endpoint = EndpointProfile(
                 target=request.target,
