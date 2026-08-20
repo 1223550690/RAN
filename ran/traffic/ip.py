@@ -103,7 +103,6 @@ class IPPacketFactory:
     """Build validated UL/DL IP flow batches from UE and PDU-session state."""
 
     def __init__(self, endpoints: Iterable[EndpointProfile] = DEFAULT_ENDPOINTS) -> None:
-        endpoints = DEFAULT_ENDPOINTS
         endpoint_list = tuple(endpoints)
         endpoint_map = {endpoint.target: endpoint for endpoint in endpoint_list}
         if not endpoint_map:

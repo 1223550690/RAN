@@ -49,7 +49,7 @@ from ran.radio import estimate_channel, load_gnb_site_from_scene, transmit
 from ran.scheduler import JavaSchedulerAdapter
 from ran.slicing import classify_slice
 from ran.slicing.controller import update_slice_policies
-from ran.traffic import build_ip_traffic, IPPacketFactory
+from ran.traffic import build_ip_traffic, IPPacketFactory, EndpointProfile
 from ran.transport import apply_backhaul, build_n3_result, forward_n6
 from ran.ue import build_demo_ue_state, build_ue_request
 
@@ -98,7 +98,18 @@ class MultiAgentRanScenario:
         self.servers = self.definition.servers
         self.last_state: dict[str, object] | None = None
         initial_states = self._read_agent_states(tick=0)
-        self.factory = IPPacketFactory()
+        endpoints = []
+        for serverId in self.servers:
+            server = self.servers[serverId]
+            endpoints.append(EndpointProfile(
+                target=server.name,
+                dnn=server.dnn,
+                ip=server.address,
+                protocol=server.protocol,
+                port=server.port,
+                service_types=server.service_types,
+            ))
+        self.factory = IPPacketFactory(endpoints)
         self.smf = SessionManagementFunction()
         self.ipByUe = {}
         self.ueByIp = {}
@@ -156,68 +167,68 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
-        # print(tick)
-        # if (tick == 30):
-        #     self.servers["10.20.2.20"].receive(Signal(
-        #         tickSent= 19,
-        #         estimatedArrivalTick= 30,
-        #         arrived=True,
-        #         direction= "UL",
-        #         ticksInTransit= 11,
-        #         payload= SignalPayload(
-        #             data=None,
-        #             service_type = "accept_challenge",
-        #             senderUe = "student_a_phone",
-        #             destinationUe= "student_d_phone",
-        #             endOfMessage = True,
-        #         ),
-        #         header= SignalHeader(
-        #             senderIp = "10.20.0.15",
-        #             destinationIp = "10.20.1.80",
-        #             size=4*1024,
-        #             sessionId = 2,
-        #         ),
-        #     ))
-        # if (tick == 42):
-        #             self.servers["10.20.2.20"].receive(Signal(
-        #                 tickSent= 31,
-        #                 estimatedArrivalTick= 42,
-        #                 arrived=True,
-        #                 direction= "UL",
-        #                 ticksInTransit= 11,
-        #                 payload= SignalPayload(
-        #                     data=None,
-        #                     service_type = "check_stats",
-        #                     senderUe = "student_a_phone",
-        #                     endOfMessage = True,
-        #                 ),
-        #                 header= SignalHeader(
-        #                     senderIp = "10.20.0.15",
-        #                     destinationIp = "10.20.1.80",
-        #                     size=4*1024,
-        #                     sessionId = 2,
-        #                 ),
-        #             ))
-        # if (tick == 42):
-        #                     self.servers["10.20.2.20"].receive(Signal(
-        #                         tickSent= 31,
-        #                         estimatedArrivalTick= 42,
-        #                         arrived=True,
-        #                         direction= "UL",
-        #                         ticksInTransit= 11,
-        #                         payload= SignalPayload(
-        #                             data=None,
-        #                             service_type = "check_stats",
-        #                             senderUe = "student_d_phone",
-        #                             endOfMessage = True,
-        #                         ),
-        #                         header= SignalHeader(
-        #                             senderIp = "10.20.0.18",
-        #                             destinationIp = "10.20.1.80",
-        #                             size=4*1024,
-        #                             sessionId = 2,
-        #                         ),
-        #                     ))
+        print(tick)
+        if (tick == 30):
+            self.servers["10.20.2.20"].receive(Signal(
+                tickSent= 19,
+                estimatedArrivalTick= 30,
+                arrived=True,
+                direction= "UL",
+                ticksInTransit= 11,
+                payload= SignalPayload(
+                    data=None,
+                    service_type = "accept_challenge",
+                    senderUe = "student_a_phone",
+                    destinationUe= "student_d_phone",
+                    endOfMessage = True,
+                ),
+                header= SignalHeader(
+                    senderIp = "10.20.0.15",
+                    destinationIp = "10.20.1.80",
+                    size=4*1024,
+                    sessionId = 2,
+                ),
+            ))
+        if (tick == 42):
+                    self.servers["10.20.2.20"].receive(Signal(
+                        tickSent= 31,
+                        estimatedArrivalTick= 42,
+                        arrived=True,
+                        direction= "UL",
+                        ticksInTransit= 11,
+                        payload= SignalPayload(
+                            data=None,
+                            service_type = "check_stats",
+                            senderUe = "student_a_phone",
+                            endOfMessage = True,
+                        ),
+                        header= SignalHeader(
+                            senderIp = "10.20.0.15",
+                            destinationIp = "10.20.1.80",
+                            size=4*1024,
+                            sessionId = 2,
+                        ),
+                    ))
+        if (tick == 42):
+                            self.servers["10.20.2.20"].receive(Signal(
+                                tickSent= 31,
+                                estimatedArrivalTick= 42,
+                                arrived=True,
+                                direction= "UL",
+                                ticksInTransit= 11,
+                                payload= SignalPayload(
+                                    data=None,
+                                    service_type = "check_stats",
+                                    senderUe = "student_d_phone",
+                                    endOfMessage = True,
+                                ),
+                                header= SignalHeader(
+                                    senderIp = "10.20.0.18",
+                                    destinationIp = "10.20.1.80",
+                                    size=4*1024,
+                                    sessionId = 2,
+                                ),
+                            ))
         self._update_agent_states(tick)
         active_services = [
             self.services[service_id]
@@ -287,6 +298,8 @@ class MultiAgentRanScenario:
             slot_ms=self.tick_ms,
         )
         scheduler_result = self.scheduler.allocate(scheduler_request)
+        print(scheduler_result)
+        print("\n")
         self._validate_scheduler_result(scheduler_request, scheduler_result)
         allocation_by_bearer = {
             (allocation.ue_id, allocation.drb_id, allocation.direction): allocation
@@ -576,7 +589,7 @@ class MultiAgentRanScenario:
             slice_id=slice_id,
             ue_ip=_mock_ue_ip(index),
         )
-        traffic = build_ip_traffic(ue_request, session)
+        traffic = build_ip_traffic(factory=self.factory, request=ue_request, session=session)
         self.ipByUe.update({ue_state.ue_id: traffic.src_ip})
         self.ueByIp.update({traffic.src_ip: ue_state.ue_id})
         qos_flow = build_qos_flow(ue_request, session)

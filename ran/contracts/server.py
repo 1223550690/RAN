@@ -59,6 +59,10 @@ class Server:
     bufferOut:list
     requiresDL: bool
     collectedSignals: list[Signal]
+    protocol: str
+    dnn: str
+    port: int
+    service_types: frozenset
     def clearBuffer(self):
             self.bufferOut = []
             self.requiresDL = False
