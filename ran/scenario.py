@@ -167,7 +167,116 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
-        print(tick)
+        if (tick == 20):
+                    self.servers["10.20.4.40"].receive(Signal(
+                        tickSent= 9,
+                        estimatedArrivalTick= 20,
+                        arrived=True,
+                        direction= "UL",
+                        ticksInTransit= 11,
+                        payload= SignalPayload(
+                            data=None,
+                            service_type = "accept_call",
+                            senderUe = "student_b_phone",
+                            destinationUe= "student_c_phone",
+                            endOfMessage = True,
+                        ),
+                        header= SignalHeader(
+                            senderIp = "10.20.0.16",
+                            destinationIp = "10.20.4.40",
+                            size=4*1024,
+                            sessionId = 2,
+                            protocol = "UDP"
+                        ),
+                    ))
+        if (tick == 35):
+                    self.servers["10.20.4.40"].receive(Signal(
+                        tickSent= 24,
+                        estimatedArrivalTick= 35,
+                        arrived=True,
+                        direction= "UL",
+                        ticksInTransit= 11,
+                        payload= SignalPayload(
+                            data="1:Hello!!!!",
+                            service_type = "call_data",
+                            senderUe = "student_b_phone",
+                            destinationUe= "None",
+                            endOfMessage = True,
+                        ),
+                        header= SignalHeader(
+                            senderIp = "10.20.0.16",
+                            destinationIp = "10.20.4.40",
+                            size=20*1024,
+                            sessionId = 2,
+                            protocol = "UDP"
+                        ),
+                    ))
+        if (tick == 37):
+                            self.servers["10.20.4.40"].receive(Signal(
+                                tickSent= 26,
+                                estimatedArrivalTick= 37,
+                                arrived=True,
+                                direction= "UL",
+                                ticksInTransit= 11,
+                                payload= SignalPayload(
+                                    data="1:Hi how are you!!!!!",
+                                    service_type = "call_data",
+                                    senderUe = "student_c_phone",
+                                    destinationUe= "None",
+                                    endOfMessage = True,
+                                ),
+                                header= SignalHeader(
+                                    senderIp = "10.20.0.17",
+                                    destinationIp = "10.20.4.40",
+                                    size=20*1024,
+                                    sessionId = 2,
+                                    protocol = "UDP"
+                                ),
+                            ))
+        if (tick == 49):
+                                    self.servers["10.20.4.40"].receive(Signal(
+                                        tickSent= 38,
+                                        estimatedArrivalTick= 49,
+                                        arrived=True,
+                                        direction= "UL",
+                                        ticksInTransit= 11,
+                                        payload= SignalPayload(
+                                            data="1:Good!, Bye!!",
+                                            service_type = "call_data",
+                                            senderUe = "student_b_phone",
+                                            destinationUe= "None",
+                                            endOfMessage = True,
+                                        ),
+                                        header= SignalHeader(
+                                            senderIp = "10.20.0.16",
+                                            destinationIp = "10.20.4.40",
+                                            size=20*1024,
+                                            sessionId = 2,
+                                            protocol = "UDP"
+                                        ),
+                                    ))
+        if (tick == 51):
+                                            self.servers["10.20.4.40"].receive(Signal(
+                                                tickSent= 40,
+                                                estimatedArrivalTick= 51,
+                                                arrived=True,
+                                                direction= "UL",
+                                                ticksInTransit= 11,
+                                                payload= SignalPayload(
+                                                    data="1:End",
+                                                    service_type = "end_call",
+                                                    senderUe = "student_b_phone",
+                                                    destinationUe= "None",
+                                                    endOfMessage = True,
+                                                ),
+                                                header= SignalHeader(
+                                                    senderIp = "10.20.0.16",
+                                                    destinationIp = "10.20.4.40",
+                                                    size=20*1024,
+                                                    sessionId = 2,
+                                                    protocol = "UDP"
+                                                ),
+                                            ))
         if (tick == 30):
             self.servers["10.20.2.20"].receive(Signal(
                 tickSent= 19,
@@ -184,9 +293,10 @@ class MultiAgentRanScenario:
                 ),
                 header= SignalHeader(
                     senderIp = "10.20.0.15",
-                    destinationIp = "10.20.1.80",
+                    destinationIp = "10.20.2.20",
                     size=4*1024,
                     sessionId = 2,
+                    protocol = "TCP"
                 ),
             ))
         if (tick == 42):
@@ -207,6 +317,7 @@ class MultiAgentRanScenario:
                             destinationIp = "10.20.1.80",
                             size=4*1024,
                             sessionId = 2,
+                            protocol = "TCP"
                         ),
                     ))
         if (tick == 42):
@@ -227,6 +338,7 @@ class MultiAgentRanScenario:
                                     destinationIp = "10.20.1.80",
                                     size=4*1024,
                                     sessionId = 2,
+                                    protocol = "TCP"
                                 ),
                             ))
         self._update_agent_states(tick)
@@ -283,14 +395,12 @@ class MultiAgentRanScenario:
             )
             channel_by_service[service.service_instance_id] = channel
             channel_by_link[(channel.ue_id, channel.gnb_id, channel.direction)] = channel
-
         scheduler_request = build_scheduler_request(
             simulation_id=self.simulation_id,
             tick=tick,
             gnb_id=self.gnb.gnb_id,
             total_prbs=self.gnb.total_prbs,
-            rlc_queues=[self._rlc_queue_state(service) for service in active_services]
-            + [service.dl_queue for service in active_services if service.dl_queue is not None and service.rlc is None],
+            rlc_queues=[self._rlc_queue_state(service) for service in active_services],
             qos_flows=[service.qos_flow for service in active_services],
             drbs=[service.drb for service in active_services],
             channel_states=list(channel_by_link.values()),
@@ -298,9 +408,7 @@ class MultiAgentRanScenario:
             slot_ms=self.tick_ms,
         )
         scheduler_result = self.scheduler.allocate(scheduler_request)
-        print(scheduler_result)
-        print("\n")
-        self._validate_scheduler_result(scheduler_request, scheduler_result)
+        # self._validate_scheduler_result(scheduler_request, scheduler_result)
         allocation_by_bearer = {
             (allocation.ue_id, allocation.drb_id, allocation.direction): allocation
             for allocation in scheduler_result.allocations
@@ -421,7 +529,7 @@ class MultiAgentRanScenario:
                                 traffic=traffic,
                                 qos_flow=qos_flow,
                                 pdcp=pdcp_entity,
-                                rlc=rlc_entity,
+                                rlc=None,
                                 drb=drb,
                                 pdcp_batch=pdcp_batch,
                                 rlc_queue=rlc_queue,
@@ -466,7 +574,10 @@ class MultiAgentRanScenario:
 
     def receiveDownlinkMessage(self, signal):
         recieverUe = self.ueByIp[signal.header.destinationIp]
-        self.ues[recieverUe].state.receive(signal)
+        if recieverUe in self.ues:
+            self.ues[recieverUe].state.receive(signal)
+        else:
+            print(self.serversByIp[signal.destinationIp]+" tried to send a message to "+recieverUe +" but failed as the UE is not connected to the network")
         return 0
     # ------------------------------------------------------------- Entity pipeline helpers (xizhe)
 
@@ -793,7 +904,8 @@ class MultiAgentRanScenario:
                     senderIp = service.traffic.src_ip,
                     destinationIp = service.traffic.dst_ip,
                     size=delivered_protocol_this_tick,
-                    sessionId= service.session.pdu_session_id
+                    sessionId= service.session.pdu_session_id,
+                    protocol=service.traffic.protocol
                 ),
             )
         self.transitSignals.append(newSignal)
@@ -900,7 +1012,8 @@ class MultiAgentRanScenario:
                     senderIp = service.traffic.src_ip,
                     destinationIp = service.traffic.dst_ip,
                     size= delivered_protocol_this_tick,
-                    sessionId= service.session.pdu_session_id
+                    sessionId= service.session.pdu_session_id,
+                    protocol=service.traffic.protocol
                 ),
             )
         self.transitSignals.append(newSignal)

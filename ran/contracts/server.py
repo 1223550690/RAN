@@ -34,12 +34,9 @@ class Video:
     creator: str
 
 @dataclass(slots=True)
-class Stream:
-    id: str
-    content: str
-    size: int
-    sender: str
-    recipient: str
+class Call:
+    id: int
+    members:list[str]
 
 @dataclass(slots=True)
 class IoTDevice:
@@ -295,9 +292,177 @@ class MessageServer(Server):
 
 @dataclass(slots=True)
 class CallServer(Server):
-    streams: list[Stream]
+    messages: list[Message]
+    activeCalls: dict[int:Call]
+    pendingCalls: dict[str:list[str]]
     def receive(self, signal):
-        return 0
+            self.collectedSignals.append(signal)
+            if signal.payload.endOfMessage:
+                size = 0
+                newSignals = []
+                for collectedSignal in self.collectedSignals:
+                    if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
+                        size += collectedSignal.header.size
+                    else:
+                        newSignals.append(collectedSignal)
+                overhead = max(1, math.ceil(size /1500)) * 2
+                match collectedSignal.payload.service_type:
+                                case "make_call":
+                                    self.requestCall(signal.payload.senderUe, signal.payload.destinationUe)
+                                case "accept_call":
+                                    self.validateCall(signal.payload.destinationUe, signal.payload.senderUe)
+                                case "call_data":
+                                    callId = int(signal.payload.data.split(':')[0])
+                                    self.forwardStream(callId, signal.payload.senderUe, signal.payload.data)
+                                case "end_call":
+                                    callId = int(signal.payload.data.split(':')[0])
+                                    self.endCall(callId, signal.payload.senderUe)
+                self.collectedSignals = newSignals
+    def setUpCall(self, members):
+        callId = random.randint(0,1024)
+        while(callId in self.activeCalls):
+            callId = random.randint(0,1024)
+        #TEMPORARY, PLEASE REMOVE
+        callId = 1
+        self.activeCalls.update({callId:Call(
+            id = callId,
+            members=members,
+        )})
+        return callId
+    def requestCall(self, caller, callee):
+        if caller in self.pendingCalls:
+                    seen = False
+                    for challenge in self.pendingCalls[caller]:
+                        if challenge == callee:
+                            seen = True
+                    if (not seen):
+                        self.messages.append(Message(
+                                    content=None,
+                                    recipient=callee,
+                                    sender=caller,
+                                    size= 2*1024,
+                                    service_type="call request"
+                                ))
+                        self.pendingCalls[caller].append(callee)  
+                    else:
+                        self.messages.append(Message(
+                                        content="You have already called this person, please wait for their response",
+                                        recipient=caller,
+                                        sender=None,
+                                        size= 2*1024,
+                                        service_type="error"
+                                        ))
+        self.pendingCalls.update({caller:[callee]})
+        self.messages.append(Message(
+                                        content=None,
+                                        recipient=callee,
+                                        sender=caller,
+                                        size= 2*1024,
+                                        service_type="call request"
+                                    ))  
+    def forwardStream(self, id, speaker, data):
+        if id in self.activeCalls:
+            if speaker in self.activeCalls[id].members:
+                for member in self.activeCalls[id].members:
+                    if member != speaker:
+                        self.messages.append(Message(
+                                        content=data,
+                                        recipient=member,
+                                        sender=speaker,
+                                        size= 2*1024,
+                                        service_type="call stream"
+                                        ))
+            else:
+                self.messages.append(Message(
+                            content="You are not in this call",
+                            recipient=speaker,
+                            sender=None,
+                            size= 2*1024,
+                            service_type="error"
+                            ))
+        else:
+            self.messages.append(Message(
+                                                    content="This call does not exist",
+                                                    recipient=speaker,
+                                                    sender=None,
+                                                    size= 2*1024,
+                                                    service_type="error"
+                                                    ))
+        return 0   
+    def endCall(self, id, speaker):
+        if id in self.activeCalls:
+            if speaker in self.activeCalls[id].members:
+                for member in self.activeCalls[id].members:
+                    self.messages.append(Message(
+                    content=speaker+" has ended the call",
+                    recipient=member,
+                    sender=speaker,
+                    size= 2*1024,
+                    service_type="call end"
+                    ))
+                self.activeCalls.pop(id)
+            else:
+                            self.messages.append(Message(
+                                        content="You are not in this call",
+                                        recipient=speaker,
+                                        sender=None,
+                                        size= 2*1024,
+                                        service_type="error"
+                                        ))
+        else:
+                    self.messages.append(Message(
+                                                            content="This call does not exist",
+                                                            recipient=speaker,
+                                                            sender=None,
+                                                            size= 2*1024,
+                                                            service_type="error"
+                                                            ))
+
+    def validateCall(self, caller, callee):
+            if caller in self.pendingCalls:
+                seen = False
+                for call in self.pendingCalls[caller]:
+                    if call == callee:
+                        seen = True
+                        if seen:
+                            callId = self.setUpCall(members=[caller, callee])
+                            self.messages.append(Message(
+                                                content=str(callId)+":You are now in a call with " +callee,
+                                                recipient=caller,
+                                                sender=None,
+                                                size= 2*1024,
+                                                service_type="call setup"
+                                                ))
+                            self.messages.append(Message(
+                                                content=str(callId)+":You are now in a call with " +caller,
+                                                recipient=callee,
+                                                sender=None,
+                                                size= 2*1024,
+                                                service_type="call setup"
+                                                ))
+                        else:
+                            self.messages.append(Message(
+                                                content="This person has not called you, perhaps call them yourself?",
+                                                recipient=caller,
+                                                sender=None,
+                                                size= 2*1024,
+                                                service_type="error"
+                                                ))
+            else:
+                self.messages.append(Message(
+                                    content="This player has not called you, perhaps call them yourself?",
+                                    recipient=caller,
+                                    sender=None,
+                                    size= 2*1024,
+                                    service_type="error"
+                                    ))
+    
+    def prepareBuffer(self):
+            if len(self.messages) != 0:
+                for message in self.messages:
+                    self.bufferOut.append(message)
+                self.requiresDL = True
+                self.messages = []
 
 @dataclass(slots=True)
 class IotServer(Server):

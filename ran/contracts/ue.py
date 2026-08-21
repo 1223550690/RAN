@@ -10,7 +10,7 @@ import math
 
 AccessType = Literal["3gpp", "non_3gpp"]
 SelectedAccess = Literal["5g", "wifi", "auto"]
-DownlinkServiceTypes = Literal["message", "video", "error", "reading", "call_stream", "result", "challenge"]
+DownlinkServiceTypes = Literal["message", "video", "error", "reading", "call stream", "result", "challenge", "call request", "call end", "call setup"]
 
 @dataclass(slots=True)
 class UEOutput:
@@ -57,8 +57,8 @@ class UEState:
                                 size += collectedSignal.header.size
                             else:
                                 newSignals.append(collectedSignal)
-                        self.signalBuffer = newSignals
-                        print(self.ue_id + " recieved a message from "+signal.header.senderIp + ", sent by "+ str(signal.payload.senderUe)+ " containing a "+ signal.payload.service_type + " of content: "+ signal.payload.data + " and size: "+str(size))
+                        self.signalBuffer = newSignals                        
+                        print(str(self.ue_id) + " recieved a message from "+str(signal.header.senderIp) + ", sent by "+ str(signal.payload.senderUe)+ " containing a "+ str(signal.payload.service_type) + " of content: "+ str(signal.payload.data) + " and size: "+str(size))
                         return(UEOutput(
                             sourceServer=signal.header.senderIp,
                             serviceType=signal.payload.service_type,
