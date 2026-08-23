@@ -6,6 +6,8 @@ from typing import Literal
 from .common import Direction, Position
 from .radio import Signal
 import math
+from .managers import ApplicationManager, TransportManager, IPManager
+from .agent import AgentIntent
 
 
 AccessType = Literal["3gpp", "non_3gpp"]
@@ -44,6 +46,11 @@ class UEState:
     rm_state: str = "DEREGISTERED"  # rm_state: 5GC registration state.
     cm_state: str = "IDLE"  # cm_state: core network connection management state.
     rrc_state: str = "IDLE"  # rrc_state: radio control state between UE and gNB.
+    applicationLayer: ApplicationManager = ApplicationManager()
+    transportLayer: TransportManager = TransportManager()
+    ipLayer: IPManager = IPManager()
+    
+
     
     ue_ip: str | None = None  # ue_ip: IP obtained by the UE in the PDU session.
     allowed_slices: list[str] = field(default_factory=list)  # allowed_slices: slices the UE is allowed to use.
@@ -59,13 +66,12 @@ class UEState:
                                 newSignals.append(collectedSignal)
                         self.signalBuffer = newSignals                        
                         print(str(self.ue_id) + " recieved a message from "+str(signal.header.senderIp) + ", sent by "+ str(signal.payload.senderUe)+ " containing a "+ str(signal.payload.service_type) + " of content: "+ str(signal.payload.data) + " and size: "+str(size))
-                        return(UEOutput(
-                            sourceServer=signal.header.senderIp,
-                            serviceType=signal.payload.service_type,
-                            content=signal.payload.data,
-                            size=size,
-                            sourceUe=signal.payload.senderUe,
-                        ))
+                        self.receiveComplex(signal)
+    def receiveComplex(self, signal):
+        return 0
+    def sendComplex(self, intent:AgentIntent):
+        self.applicationLayer.encode(None, None, None, None)
+         
 
 
 @dataclass(slots=True)
