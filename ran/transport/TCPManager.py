@@ -52,8 +52,18 @@ class TCPManager:
                 data=0
         )
         return 0
-    def makeAck(self):
-        return 0
+    def makeAck(self, src_port, dst_port, serverISN):
+        ackPacket = TCPPacket(
+                        header=self.generateHeader(
+                        src_port=src_port,
+                        dst_port=dst_port,
+                        seq_num=self.generateISN(),
+                        ack_num=serverISN+1,
+                        flags=self.makeFlags(Syn=1, Ack=1),
+                        windowSize=64000
+                        ),
+                        data=0
+                )
     def convertPacket(self):
         return 0
     def generateHeader(self, src_port, dst_port, seq_num, ack_num, flags, windowSize):
