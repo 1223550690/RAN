@@ -206,7 +206,7 @@ class MultiAgentRanScenario:
                         header= SignalHeader(
                             senderIp = "10.20.0.16",
                             destinationIp = "10.20.4.40",
-                            size=20*1024,
+                            size=25*1024,
                             sessionId = 2,
                             protocol = "UDP"
                         ),
@@ -228,7 +228,7 @@ class MultiAgentRanScenario:
                                 header= SignalHeader(
                                     senderIp = "10.20.0.17",
                                     destinationIp = "10.20.4.40",
-                                    size=20*1024,
+                                    size=30*1024,
                                     sessionId = 2,
                                     protocol = "UDP"
                                 ),
@@ -250,7 +250,7 @@ class MultiAgentRanScenario:
                                         header= SignalHeader(
                                             senderIp = "10.20.0.16",
                                             destinationIp = "10.20.4.40",
-                                            size=20*1024,
+                                            size=23*1024,
                                             sessionId = 2,
                                             protocol = "UDP"
                                         ),

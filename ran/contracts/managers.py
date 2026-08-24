@@ -91,7 +91,6 @@ class TransportManager:
             udpData = header+ data
             return udpData
     def generateHeaderUDP(self, src_port, dst_port, data, data_length, srcIp, targetIp):
-        print(data_length)
         header = UDPHeader(
             src_port=src_port,
             dst_port=dst_port,

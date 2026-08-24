@@ -313,7 +313,7 @@ class CallServer(Server):
                                     self.validateCall(signal.payload.destinationUe, signal.payload.senderUe)
                                 case "call_data":
                                     callId = int(signal.payload.data.split(':')[0])
-                                    self.forwardStream(callId, signal.payload.senderUe, signal.payload.data)
+                                    self.forwardStream(callId, signal.payload.senderUe, signal.payload.data, size)
                                 case "end_call":
                                     callId = int(signal.payload.data.split(':')[0])
                                     self.endCall(callId, signal.payload.senderUe)
@@ -360,7 +360,7 @@ class CallServer(Server):
                                         size= 2*1024,
                                         service_type="call request"
                                     ))  
-    def forwardStream(self, id, speaker, data):
+    def forwardStream(self, id, speaker, data, size):
         if id in self.activeCalls:
             if speaker in self.activeCalls[id].members:
                 for member in self.activeCalls[id].members:
@@ -369,7 +369,7 @@ class CallServer(Server):
                                         content=data,
                                         recipient=member,
                                         sender=speaker,
-                                        size= 2*1024,
+                                        size= size,
                                         service_type="call stream"
                                         ))
             else:
