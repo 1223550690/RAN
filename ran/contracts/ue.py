@@ -47,8 +47,6 @@ class UEState:
     cm_state: str = "IDLE"  # cm_state: core network connection management state.
     rrc_state: str = "IDLE"  # rrc_state: radio control state between UE and gNB.
     applicationLayer: ApplicationManager = ApplicationManager()
-    transportLayer: TransportManager = TransportManager()
-    ipLayer: IPManager = IPManager()
     
 
     
