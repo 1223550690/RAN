@@ -167,6 +167,7 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
+        print(tick)
         if (tick == 20):
                     self.servers["10.20.4.40"].receive(Signal(
                         tickSent= 9,
@@ -570,6 +571,7 @@ class MultiAgentRanScenario:
         sender = signal.header.senderIp
         destination = signal.header.destinationIp
         self.servers[destination].receive(signal)
+        # print(str(signal.header.destinationIp) + " recieved a message from "+str(signal.header.senderIp) + ", sent by "+ str(signal.payload.senderUe)+ " containing a "+ str(signal.payload.service_type) + " of content: "+ str(signal.payload.data))
         return 0
 
     def receiveDownlinkMessage(self, signal):
