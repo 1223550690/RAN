@@ -114,6 +114,7 @@ class UDPHeader:
 class ConnectionData:
     localISN: int
     targetISN: int
+    dataToLeave: list[str]
 
 class TransportManager:
     connectionTable: dict[tuple:ConnectionData]
@@ -194,6 +195,7 @@ class TransportManager:
             self.connectionTable.update({(src_port, dst_port, targetIp, srcIp):ConnectionData(
                 localISN=isn,
                 targetISN=0,
+                dataToLeave=None
             )})
             header=self.generateHeaderTCP(
                 src_port=src_port,
@@ -215,6 +217,7 @@ class TransportManager:
         self.connectionTable.update({(src_port, dst_port, targetIp, srcIp):ConnectionData(
                         localISN=localISN,
                         targetISN=otherISN +1,
+                        dataToLeave=None
                     )})
         header=self.generateHeaderTCP(
                         src_port=src_port,
@@ -343,11 +346,15 @@ class ApplicationManager():
     delayedData: dict[tuple: str]
     transportLayer:TransportManager
     ipLayer: IPManager
+    dataBuffer: list[str]
+    messageBuffer: list[str]
     def __init__(self):
         self.connections = {}
         self.delayedData = {}
         self.transportLayer = TransportManager()
         self.ipLayer = IPManager()
+        self.dataBuffer = []
+        self.messageBuffer = []
     def send(self, targetIp, targetPort, targetProtocol, data, source_port, srcIp):
         if targetProtocol == "TCP":
             tcpData = 0
@@ -359,6 +366,8 @@ class ApplicationManager():
                 ipPacket = self.ipLayer.prepareIpPacket(targetIp, srcIp, 0, tcpData, 6)
                 self.connections.update({(source_port, targetPort, targetIp, srcIp):"SYN"})
                 self.delayedData.update({(source_port, targetPort, targetIp, srcIp):data})
+                #Split data up and send it one packet at a time, allows retransmission as data is stored
+                self.connections[(source_port, targetPort, targetIp, srcIp)].dataToLeave = data
             elif (source_port, targetPort, targetIp, srcIp) in self.connections and self.connections[(source_port, targetPort, targetIp, srcIp)] != "CONNECTED":
                 #waiting for connection
                 self.delayedData.update({(source_port, targetPort, targetIp, srcIp):data})
@@ -379,26 +388,43 @@ class ApplicationManager():
             if flags[SYN]=='1' and flags[ACK] !='1': 
                 tcpData = self.transportLayer.makeSynAck(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, otherISN=transheader.seq_num)
                 self.connections.update({(transheader.dst_port, transheader.src_port, srcIp, destIp):"SYN-ACK"})
+                ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                self.messageBuffer.append(ipPacket)
             elif flags[SYN]=='1' and flags[ACK]=='1':
                 tcpData = self.transportLayer.makeAck(transheader.dst_port, transheader.src_port, srcIp, destIp, transheader.seq_num)
                 self.connections.update({(transheader.dst_port, transheader.src_port, srcIp, destIp):"CONNECTED"})
+                ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                self.messageBuffer.append(ipPacket)
 
             elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="FIN_WAIT_1":
                 self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="FIN_WAIT_2"
 
-            elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] !="FIN_WAIT_1":
+            elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="SYN-ACK":
                 self.connections.update({(transheader.dst_port, transheader.src_port, srcIp, destIp):"CONNECTED"})
+                return 0
+            elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="CLOSE_WAIT":
+                self.connections.pop((transheader.dst_port, transheader.src_port, srcIp, destIp))
+                return 0
+            elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="CONNECTED":
+                #track which packets have been acked and prepare for more sending!
+                if data != "":
+                    self.dataBuffer.append(data)
                 return 0
 
             elif flags[FIN]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="FIN_WAIT_2":
                 tcpData = self.transportLayer.makeFinAck(transheader.src_port, transheader.dst_port, destIp, srcIp)
+                ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                self.messageBuffer.append(ipPacket)
                 self.connections.pop((transheader.dst_port, transheader.src_port, srcIp, destIp))
 
             elif flags[FIN]=='1':
                 tcpData = self.transportLayer.makeFinAck(transheader.dst_port, transheader.src_port, srcIp, destIp)
+                ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                self.messageBuffer.append(ipPacket)
                 self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="CLOSE_WAIT"
                 tcpData = self.transportLayer.makeFin(transheader.dst_port, transheader.src_port, srcIp, destIp)
-            ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                self.messageBuffer.append(ipPacket)
             return(ipPacket)
         else:
             transheader, data = self.transportLayer.processPacketUDP(self.transportData)
@@ -430,6 +456,7 @@ def revertIp(bytes):
 
 host1= ApplicationManager()
 host2= ApplicationManager()
+#Split data 1450 byte packets to be sent one by one
 packet1= host1.send(source_port=144, targetPort=187, targetProtocol="TCP", data="00011100111100101011001000001110", targetIp="10.30.3.40", srcIp="10.20.2.20")
 packet2 = host2.receive(packet1)
 packet3= host1.receive(packet2)
