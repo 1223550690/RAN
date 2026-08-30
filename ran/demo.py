@@ -16,6 +16,7 @@ def main() -> None:
     parser.add_argument("--tick", type=int, default=1, help="simulation tick")
     parser.add_argument("--max-ticks", type=int, default=5000, help="maximum RAN ticks for the upload")
     parser.add_argument("--mode", choices=["aggregate", "tick"], default="aggregate", help="aggregate summary or per-tick states")
+    
     args = parser.parse_args()
 
     scene = SceneService().load_scene(args.scene)

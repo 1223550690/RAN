@@ -18,8 +18,6 @@ from ran.contracts import (
     N6DeliveryResult,
     TransmissionResult,
     Signal,
-    SignalPayload,
-    SignalHeader,
     UEState
 )
 from ran.core import Amf, Upf, deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue, SessionManagementFunction
@@ -97,18 +95,20 @@ class MultiAgentRanScenario:
         self.ticks_executed = 0
         self.servers = self.definition.servers
         self.last_state: dict[str, object] | None = None
+        self.protocolStack = True
         initial_states = self._read_agent_states(tick=0)
         endpoints = []
         for serverId in self.servers:
             server = self.servers[serverId]
-            endpoints.append(EndpointProfile(
-                target=server.name,
-                dnn=server.dnn,
-                ip=server.address,
-                protocol=server.protocol,
-                port=server.port,
-                service_types=server.service_types,
-            ))
+            for protocol in server.protocols:
+                endpoints.append(EndpointProfile(
+                    target=server.name + " "+protocol,
+                    dnn=server.dnn,
+                    ip=server.address,
+                    protocol=protocol,
+                    port=server.port,
+                    service_types=server.service_types,
+                ))
         self.factory = IPPacketFactory(endpoints)
         self.smf = SessionManagementFunction()
         self.ipByUe = {}
@@ -167,181 +167,181 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
-        print(tick)
-        if (tick == 20):
-                    self.servers["10.20.4.40"].receive(Signal(
-                        tickSent= 9,
-                        estimatedArrivalTick= 20,
-                        arrived=True,
-                        direction= "UL",
-                        ticksInTransit= 11,
-                        payload= SignalPayload(
-                            data=None,
-                            service_type = "accept_call",
-                            senderUe = "student_b_phone",
-                            destinationUe= "student_c_phone",
-                            endOfMessage = True,
-                        ),
-                        header= SignalHeader(
-                            senderIp = "10.20.0.16",
-                            destinationIp = "10.20.4.40",
-                            size=4*1024,
-                            sessionId = 2,
-                            protocol = "UDP"
-                        ),
-                    ))
-        if (tick == 35):
-                    self.servers["10.20.4.40"].receive(Signal(
-                        tickSent= 24,
-                        estimatedArrivalTick= 35,
-                        arrived=True,
-                        direction= "UL",
-                        ticksInTransit= 11,
-                        payload= SignalPayload(
-                            data="1:Hello!!!!",
-                            service_type = "call_data",
-                            senderUe = "student_b_phone",
-                            destinationUe= "None",
-                            endOfMessage = True,
-                        ),
-                        header= SignalHeader(
-                            senderIp = "10.20.0.16",
-                            destinationIp = "10.20.4.40",
-                            size=25*1024,
-                            sessionId = 2,
-                            protocol = "UDP"
-                        ),
-                    ))
-        if (tick == 37):
-                            self.servers["10.20.4.40"].receive(Signal(
-                                tickSent= 26,
-                                estimatedArrivalTick= 37,
-                                arrived=True,
-                                direction= "UL",
-                                ticksInTransit= 11,
-                                payload= SignalPayload(
-                                    data="1:Hi how are you!!!!!",
-                                    service_type = "call_data",
-                                    senderUe = "student_c_phone",
-                                    destinationUe= "None",
-                                    endOfMessage = True,
-                                ),
-                                header= SignalHeader(
-                                    senderIp = "10.20.0.17",
-                                    destinationIp = "10.20.4.40",
-                                    size=30*1024,
-                                    sessionId = 2,
-                                    protocol = "UDP"
-                                ),
-                            ))
-        if (tick == 49):
-                                    self.servers["10.20.4.40"].receive(Signal(
-                                        tickSent= 38,
-                                        estimatedArrivalTick= 49,
-                                        arrived=True,
-                                        direction= "UL",
-                                        ticksInTransit= 11,
-                                        payload= SignalPayload(
-                                            data="1:Good!, Bye!!",
-                                            service_type = "call_data",
-                                            senderUe = "student_b_phone",
-                                            destinationUe= "None",
-                                            endOfMessage = True,
-                                        ),
-                                        header= SignalHeader(
-                                            senderIp = "10.20.0.16",
-                                            destinationIp = "10.20.4.40",
-                                            size=23*1024,
-                                            sessionId = 2,
-                                            protocol = "UDP"
-                                        ),
-                                    ))
-        if (tick == 51):
-                                            self.servers["10.20.4.40"].receive(Signal(
-                                                tickSent= 40,
-                                                estimatedArrivalTick= 51,
-                                                arrived=True,
-                                                direction= "UL",
-                                                ticksInTransit= 11,
-                                                payload= SignalPayload(
-                                                    data="1:End",
-                                                    service_type = "end_call",
-                                                    senderUe = "student_b_phone",
-                                                    destinationUe= "None",
-                                                    endOfMessage = True,
-                                                ),
-                                                header= SignalHeader(
-                                                    senderIp = "10.20.0.16",
-                                                    destinationIp = "10.20.4.40",
-                                                    size=20*1024,
-                                                    sessionId = 2,
-                                                    protocol = "UDP"
-                                                ),
-                                            ))
-        if (tick == 30):
-            self.servers["10.20.2.20"].receive(Signal(
-                tickSent= 19,
-                estimatedArrivalTick= 30,
-                arrived=True,
-                direction= "UL",
-                ticksInTransit= 11,
-                payload= SignalPayload(
-                    data=None,
-                    service_type = "accept_challenge",
-                    senderUe = "student_a_phone",
-                    destinationUe= "student_d_phone",
-                    endOfMessage = True,
-                ),
-                header= SignalHeader(
-                    senderIp = "10.20.0.15",
-                    destinationIp = "10.20.2.20",
-                    size=4*1024,
-                    sessionId = 2,
-                    protocol = "TCP"
-                ),
-            ))
-        if (tick == 42):
-                    self.servers["10.20.2.20"].receive(Signal(
-                        tickSent= 31,
-                        estimatedArrivalTick= 42,
-                        arrived=True,
-                        direction= "UL",
-                        ticksInTransit= 11,
-                        payload= SignalPayload(
-                            data=None,
-                            service_type = "check_stats",
-                            senderUe = "student_a_phone",
-                            endOfMessage = True,
-                        ),
-                        header= SignalHeader(
-                            senderIp = "10.20.0.15",
-                            destinationIp = "10.20.1.80",
-                            size=4*1024,
-                            sessionId = 2,
-                            protocol = "TCP"
-                        ),
-                    ))
-        if (tick == 42):
-                            self.servers["10.20.2.20"].receive(Signal(
-                                tickSent= 31,
-                                estimatedArrivalTick= 42,
-                                arrived=True,
-                                direction= "UL",
-                                ticksInTransit= 11,
-                                payload= SignalPayload(
-                                    data=None,
-                                    service_type = "check_stats",
-                                    senderUe = "student_d_phone",
-                                    endOfMessage = True,
-                                ),
-                                header= SignalHeader(
-                                    senderIp = "10.20.0.18",
-                                    destinationIp = "10.20.1.80",
-                                    size=4*1024,
-                                    sessionId = 2,
-                                    protocol = "TCP"
-                                ),
-                            ))
+        # print(tick)
+        # if (tick == 20):
+        #             self.servers["10.20.4.40"].receive(Signal(
+        #                 tickSent= 9,
+        #                 estimatedArrivalTick= 20,
+        #                 arrived=True,
+        #                 direction= "UL",
+        #                 ticksInTransit= 11,
+        #                 payload= SignalPayload(
+        #                     data=None,
+        #                     service_type = "accept_call",
+        #                     senderUe = "student_b_phone",
+        #                     destinationUe= "student_c_phone",
+        #                     endOfMessage = True,
+        #                 ),
+        #                 header= SignalHeader(
+        #                     senderIp = "10.20.0.16",
+        #                     destinationIp = "10.20.4.40",
+        #                     size=4*1024,
+        #                     sessionId = 2,
+        #                     protocol = "UDP"
+        #                 ),
+        #             ))
+        # if (tick == 35):
+        #             self.servers["10.20.4.40"].receive(Signal(
+        #                 tickSent= 24,
+        #                 estimatedArrivalTick= 35,
+        #                 arrived=True,
+        #                 direction= "UL",
+        #                 ticksInTransit= 11,
+        #                 payload= SignalPayload(
+        #                     data="1:Hello!!!!",
+        #                     service_type = "call_data",
+        #                     senderUe = "student_b_phone",
+        #                     destinationUe= "None",
+        #                     endOfMessage = True,
+        #                 ),
+        #                 header= SignalHeader(
+        #                     senderIp = "10.20.0.16",
+        #                     destinationIp = "10.20.4.40",
+        #                     size=25*1024,
+        #                     sessionId = 2,
+        #                     protocol = "UDP"
+        #                 ),
+        #             ))
+        # if (tick == 37):
+        #                     self.servers["10.20.4.40"].receive(Signal(
+        #                         tickSent= 26,
+        #                         estimatedArrivalTick= 37,
+        #                         arrived=True,
+        #                         direction= "UL",
+        #                         ticksInTransit= 11,
+        #                         payload= SignalPayload(
+        #                             data="1:Hi how are you!!!!!",
+        #                             service_type = "call_data",
+        #                             senderUe = "student_c_phone",
+        #                             destinationUe= "None",
+        #                             endOfMessage = True,
+        #                         ),
+        #                         header= SignalHeader(
+        #                             senderIp = "10.20.0.17",
+        #                             destinationIp = "10.20.4.40",
+        #                             size=30*1024,
+        #                             sessionId = 2,
+        #                             protocol = "UDP"
+        #                         ),
+        #                     ))
+        # if (tick == 49):
+        #                             self.servers["10.20.4.40"].receive(Signal(
+        #                                 tickSent= 38,
+        #                                 estimatedArrivalTick= 49,
+        #                                 arrived=True,
+        #                                 direction= "UL",
+        #                                 ticksInTransit= 11,
+        #                                 payload= SignalPayload(
+        #                                     data="1:Good!, Bye!!",
+        #                                     service_type = "call_data",
+        #                                     senderUe = "student_b_phone",
+        #                                     destinationUe= "None",
+        #                                     endOfMessage = True,
+        #                                 ),
+        #                                 header= SignalHeader(
+        #                                     senderIp = "10.20.0.16",
+        #                                     destinationIp = "10.20.4.40",
+        #                                     size=23*1024,
+        #                                     sessionId = 2,
+        #                                     protocol = "UDP"
+        #                                 ),
+        #                             ))
+        # if (tick == 51):
+        #                                     self.servers["10.20.4.40"].receive(Signal(
+        #                                         tickSent= 40,
+        #                                         estimatedArrivalTick= 51,
+        #                                         arrived=True,
+        #                                         direction= "UL",
+        #                                         ticksInTransit= 11,
+        #                                         payload= SignalPayload(
+        #                                             data="1:End",
+        #                                             service_type = "end_call",
+        #                                             senderUe = "student_b_phone",
+        #                                             destinationUe= "None",
+        #                                             endOfMessage = True,
+        #                                         ),
+        #                                         header= SignalHeader(
+        #                                             senderIp = "10.20.0.16",
+        #                                             destinationIp = "10.20.4.40",
+        #                                             size=20*1024,
+        #                                             sessionId = 2,
+        #                                             protocol = "UDP"
+        #                                         ),
+        #                                     ))
+        # if (tick == 30):
+        #     self.servers["10.20.2.20"].receive(Signal(
+        #         tickSent= 19,
+        #         estimatedArrivalTick= 30,
+        #         arrived=True,
+        #         direction= "UL",
+        #         ticksInTransit= 11,
+        #         payload= SignalPayload(
+        #             data=None,
+        #             service_type = "accept_challenge",
+        #             senderUe = "student_a_phone",
+        #             destinationUe= "student_d_phone",
+        #             endOfMessage = True,
+        #         ),
+        #         header= SignalHeader(
+        #             senderIp = "10.20.0.15",
+        #             destinationIp = "10.20.2.20",
+        #             size=4*1024,
+        #             sessionId = 2,
+        #             protocol = "TCP"
+        #         ),
+        #     ))
+        # if (tick == 42):
+        #             self.servers["10.20.2.20"].receive(Signal(
+        #                 tickSent= 31,
+        #                 estimatedArrivalTick= 42,
+        #                 arrived=True,
+        #                 direction= "UL",
+        #                 ticksInTransit= 11,
+        #                 payload= SignalPayload(
+        #                     data=None,
+        #                     service_type = "check_stats",
+        #                     senderUe = "student_a_phone",
+        #                     endOfMessage = True,
+        #                 ),
+        #                 header= SignalHeader(
+        #                     senderIp = "10.20.0.15",
+        #                     destinationIp = "10.20.1.80",
+        #                     size=4*1024,
+        #                     sessionId = 2,
+        #                     protocol = "TCP"
+        #                 ),
+        #             ))
+        # if (tick == 42):
+        #                     self.servers["10.20.2.20"].receive(Signal(
+        #                         tickSent= 31,
+        #                         estimatedArrivalTick= 42,
+        #                         arrived=True,
+        #                         direction= "UL",
+        #                         ticksInTransit= 11,
+        #                         payload= SignalPayload(
+        #                             data=None,
+        #                             service_type = "check_stats",
+        #                             senderUe = "student_d_phone",
+        #                             endOfMessage = True,
+        #                         ),
+        #                         header= SignalHeader(
+        #                             senderIp = "10.20.0.18",
+        #                             destinationIp = "10.20.1.80",
+        #                             size=4*1024,
+        #                             sessionId = 2,
+        #                             protocol = "TCP"
+        #                         ),
+        #                     ))
         self._update_agent_states(tick)
         active_services = [
             self.services[service_id]

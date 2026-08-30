@@ -134,24 +134,6 @@ class TransmissionResult:
     transmission_delay_ms: float  # transmission_delay_ms: base PHY/MAC latency.
     power_report: float = 0.0  # power_report: UE power headroom (tr22068 extension, optional).
 
-@dataclass(slots=True)
-class SignalPayload:
-    data:str
-    service_type: str
-    destinationUe:str = None
-    senderUe:str = None
-    endOfMessage: bool = False
-
-
-
-@dataclass(slots=True)
-class SignalHeader:
-    senderIp: str
-    destinationIp:str
-    size: int
-    sessionId: int
-    protocol: str
-    
 
 @dataclass(slots=True)
 class Signal:
@@ -160,8 +142,7 @@ class Signal:
     arrived: bool
     direction: Direction  # direction: UL or DL.
     ticksInTransit: int
-    payload: SignalPayload
-    header: SignalHeader
+    payload: str
 
 
 

@@ -4,7 +4,8 @@ from dataclasses import dataclass
 
 from ran.contracts import AgentIntent, Position
 from ran.contracts.ue import SelectedAccess
-from ran.contracts.server import WebServer, MessageServer, IotServer, Server, VideoServer, GamingServer, CallServer 
+from ran.contracts.server import WebServer, MessageServer, IotServer, Server, VideoServer, GamingServer, CallServer
+from ran.contracts.managers import ApplicationManager 
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +68,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 agent_id="student_a",
                 agent_pos=Position(520.0, 430.0),
                 action="upload",
-                target="youtube_server",
+                target="youtube_server TCP",
                 content_type="video",
                 service_type="video_upload",
                 requested_payload_bytes=100 * 1024 * 1024,
@@ -83,7 +84,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 agent_id="student_b",
                 agent_pos=Position(340.0, 300.0),
                 action="send_message",
-                target="whatsapp_server",
+                target="whatsapp_server TCP",
                 content_type="text",
                 service_type="message",
                 requested_payload_bytes=4 * 1024,
@@ -100,7 +101,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 agent_id="student_c",
                 agent_pos=Position(200.0, 480.0),
                 action="upload",
-                target="skype_server",
+                target="skype_server TCP",
                 content_type="video",
                 service_type="make_call",
                 recipient="student_b_phone",
@@ -116,7 +117,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 agent_id="student_d",
                 agent_pos=Position(100.0, 480.0),
                 action="upload",
-                target="chess_server",
+                target="chess_server TCP",
                 content_type="challenge",
                 service_type="make_challenge",
                 requested_payload_bytes=50 * 1024 * 1024,
@@ -138,9 +139,10 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             pendingChallenges = {},
             supportedGame = "chess",
             dnn="internet",
-            protocol="TCP",
+            protocols=["TCP"],
             port=3074,
             service_types=frozenset({"make_challenge", "gaming", "accept_challenge", "make_move"}),
+            applicationManager = ApplicationManager()
         ),
         MessageServer(
             name = "whatsapp_server",
@@ -150,9 +152,10 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             requiresDL = False,
             collectedSignals = [],
             dnn="internet",
-            protocol="TCP",
+            protocols=["TCP"],
             port=443,
             service_types=frozenset({"message"}),
+            applicationManager = ApplicationManager()
         ),
         CallServer(
             name = "skype_server",
@@ -162,11 +165,12 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             requiresDL = False,
             collectedSignals = [],
             dnn="internet",
-            protocol="UDP",
+            protocols=["TCP","UDP"],
             port=3478,
             service_types=frozenset({"make_call", "accept_call", "call_data", "end_call"}),
             activeCalls = {},
             pendingCalls = {},
+            applicationManager = ApplicationManager()
         ),
         VideoServer(
             name = "youtube_server",
@@ -177,9 +181,10 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             requiresDL = False,
             collectedSignals = [],
             dnn="internet",
-            protocol="TCP",
+            protocols=["TCP", "UDP"],
             port=443,
             service_types=frozenset({"video_upload", "video_stream", "video_browse", "video_delete"}),
+            applicationManager = ApplicationManager()
         ),
     )
     serverDict = {}

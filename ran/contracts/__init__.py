@@ -5,7 +5,7 @@ from .bearer import Drb, RlcQueue
 from .common import CONTRACT_VERSION, Direction, Position
 from .metrics import EndToEndResult, QosMetrics
 from .qos import PduSession, QoSFlow, SlicePolicy
-from .radio import ChannelState, GnbSite, MacAllocation, TransmissionResult, Signal, SignalHeader, SignalPayload
+from .radio import ChannelState, GnbSite, MacAllocation, TransmissionResult, Signal
 from .scheduler import SchedulerRequest, SchedulerResult
 from .traffic import IPTrafficBatch
 from .transport import N3ForwardingResult, N6DeliveryResult

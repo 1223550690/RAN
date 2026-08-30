@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from .radio import Signal
+from .managers import ApplicationManager
 import random, math
 
 
@@ -56,10 +57,11 @@ class Server:
     bufferOut:list
     requiresDL: bool
     collectedSignals: list[Signal]
-    protocol: str
+    protocols: list[str]
     dnn: str
     port: int
     service_types: frozenset
+    applicationManager: ApplicationManager
     def clearBuffer(self):
             self.bufferOut = []
             self.requiresDL = False
@@ -92,6 +94,7 @@ class VideoServer(Server):
             if(signal.payload.service_type == "video_stream"):
                 name = signal.payload.data
                 self.streamVideo(name, signal)
+            #just generate random bytes for the video
             
     def uploadVideo(self, name, content, creator, size):
         video = Video(
