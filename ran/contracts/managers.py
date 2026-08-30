@@ -40,7 +40,7 @@ class IPManager():
         transportData = packet[headLength *8:packetLength*8]
         header = IpHeader(
             version=int(packet[0:4],2),
-            headerLength=headLength,
+            headerLength=math.floor(headLength/4),
             tos=int(packet[8:16],2),
             totalLength=packetLength,
             identification=int(packet[32:48],2),
@@ -73,7 +73,28 @@ class IPManager():
         header = self.generateHeader(dst_ip, src_ip, transportData, ToS, transportProtocol)
         return header + transportData
     def checksum(self,header:IpHeader):
+        header.headerChecksum = 0
         totalstring = bin(header.version)[2:].zfill(4) + bin(header.headerLength)[2:].zfill(4) +bin(header.tos)[2:].zfill(8) + bin(header.totalLength)[2:].zfill(16) + bin(header.identification)[2:].zfill(16) + bin(header.flags)[2:].zfill(3) + bin(header.fragmentOffset)[2:].zfill(13) + bin(header.ttl)[2:].zfill(8) + bin(header.protocol)[2:].zfill(8) + bin(header.headerChecksum)[2:].zfill(16) +(header.srcIp)+(header.destIp)
+        
+        result = 0
+        for i in range(0,math.ceil(len(totalstring) /16)):
+            result += int(totalstring[i*16:((i+1) *16)],2)
+            binResult = bin(result)[2:].zfill(16)
+            while (len(binResult) >16):
+                result = int(binResult[:len(binResult)-16],2) + int(binResult[len(binResult)-16:],2)
+                binResult = bin(result)[2:].zfill(16)
+        #remove overflow
+        checksum = ""
+        for i in range(0, 16):
+            if binResult[i] == '0':
+                checksum+='1'
+            if binResult[i] == '1':
+                checksum+='0'
+        header.headerChecksum=int(checksum,2)
+        return header
+    def checkChecksum(self, header:IpHeader):
+        totalstring = bin(header.version)[2:].zfill(4) + bin(header.headerLength)[2:].zfill(4) +bin(header.tos)[2:].zfill(8) + bin(header.totalLength)[2:].zfill(16) + bin(header.identification)[2:].zfill(16) + bin(header.flags)[2:].zfill(3) + bin(header.fragmentOffset)[2:].zfill(13) + bin(header.ttl)[2:].zfill(8) + bin(header.protocol)[2:].zfill(8) + bin(header.headerChecksum)[2:].zfill(16) +(header.srcIp)+(header.destIp)
+        
         result = 0
         for i in range(0,math.ceil(len(totalstring) /16)):
             result += int(totalstring[i*16:((i+1) *16)],2)
@@ -88,8 +109,7 @@ class IPManager():
                 checksum+='1'
             if binResult[i] == '1':
                 checksum+='0'
-        header.headerChecksum=int(checksum,2)
-        return header
+        return checksum
          
         
 @dataclass(slots=True)
@@ -119,6 +139,7 @@ class ConnectionData:
     initialSyn:int
     localWindowUsed: int
     otherWindowUsed: int
+    timeout: int
 
 class TransportManager:
     connectionTable: dict[tuple:ConnectionData]
@@ -135,6 +156,7 @@ class TransportManager:
             flags=int(packet[100:112],2),
             window_size=int(packet[112:128],2),
             checksum=int(packet[128:144],2),
+            urg= int(packet[144:160],2),
         )
         headlength = header.do * 4
         transportData = packet[headlength *8:packetLength*8]
@@ -174,6 +196,7 @@ class TransportManager:
         header = bin(header.src_port)[2:].zfill(16) + bin(header.dst_port)[2:].zfill(16) + bin(header.length)[2:].zfill(16) + bin(header.checksum)[2:].zfill(16)
         return header
     def checksumUDP(self, srcIp, targetIp, header, data, padding=0, protocol=17):
+        header.checksum = 0
         srcIp = convertIp(srcIp)
         targetIp = convertIp(targetIp)
         padding = bin(padding)[2:].zfill(8)
@@ -210,7 +233,8 @@ class TransportManager:
                 dataToLeave="",
                 initialSyn=isn,
                 localWindowUsed=0,
-                otherWindowUsed=0
+                otherWindowUsed=0,
+                timeout=0
             )})
             header=self.generateHeaderTCP(
                 src_port=src_port,
@@ -234,7 +258,8 @@ class TransportManager:
                         dataToLeave="",
                         initialSyn=localISN,
                         localWindowUsed=0,
-                        otherWindowUsed=0
+                        otherWindowUsed=0,
+                        timeout=0
                     )})
         header=self.generateHeaderTCP(
                         src_port=src_port,
@@ -323,6 +348,7 @@ class TransportManager:
             targetIp = convertIp(targetIp)
             padding = bin(padding)[2:].zfill(8)
             protocol = bin(protocol)[2:].zfill(8)
+            header.checksum = 0
             if data_length %2 != 0:
                 data += bin(0)[2:].zfill(8)
             length = bin((header.do * 4)+data_length)[2:].zfill(16)
@@ -346,6 +372,53 @@ class TransportManager:
                     checksum+='0'
             header.checksum=int(checksum,2)
             return header
+    def checkChecksumTCP(self, header, srcIp, targetIp, data):
+        length = math.ceil(len(data)/8)
+        if length %2 !=0:
+            data += bin(0)[2:].zfill(8)
+        length = bin((header.do * 4)+length)[2:].zfill(16)
+        totalstring = srcIp + targetIp +bin(0)[2:].zfill(8) + bin(6)[2:].zfill(8) + length + bin(header.src_port)[2:].zfill(16)+ bin(header.dst_port)[2:].zfill(16) + bin(header.seq_num)[2:].zfill(32) + bin(header.ack_num)[2:].zfill(32)+ bin(header.do)[2:].zfill(4)  + bin(header.flags)[2:].zfill(12) + bin(header.window_size)[2:].zfill(16)+ bin(header.checksum)[2:].zfill(16) + bin(header.urg)[2:].zfill(16)
+        if (data is not None):
+            totalstring += data
+        result = 0
+        for i in range(0,math.ceil(len(totalstring) /16)):
+            result += int(totalstring[i*16:((i+1) *16)],2)
+        #remove overflow
+        binResult = bin(result)[2:].zfill(16)
+        while (len(binResult) >16):
+            result = int(binResult[:len(binResult)-16],2) + int(binResult[len(binResult)-16:],2)
+            binResult = bin(result)[2:].zfill(16)
+        checksum = ""
+        for i in range(0, 16):
+            if binResult[i] == '0':
+                checksum+='1'
+            if binResult[i] == '1':
+                checksum+='0'
+        return checksum
+    def checkChecksumUDP(self, header, srcIp, targetIp, data):
+            length = header.length
+            if length %2 !=0:
+                data += bin(0)[2:].zfill(8)
+            length = bin(length)[2:].zfill(16)
+            totalstring = srcIp + targetIp +bin(0)[2:].zfill(8) + bin(17)[2:].zfill(8) + length + bin(header.src_port)[2:].zfill(16) + bin(header.dst_port)[2:].zfill(16) + length + bin(header.checksum)[2:].zfill(16)
+            if (data is not None):
+                totalstring += data
+            result = 0
+            for i in range(0,math.ceil(len(totalstring) /16)):
+                result += int(totalstring[i*16:((i+1) *16)],2)
+            #remove overflow
+            binResult = bin(result)[2:].zfill(16)
+            while (len(binResult) >16):
+                result = int(binResult[:len(binResult)-16],2) + int(binResult[len(binResult)-16:],2)
+                binResult = bin(result)[2:].zfill(16)
+            checksum = ""
+            for i in range(0, 16):
+                if binResult[i] == '0':
+                    checksum+='1'
+                if binResult[i] == '1':
+                    checksum+='0'
+            return checksum
+        
     def makeFlags(self, Cwr=0, Ece=0, Urg=0, Ack=0, Psh=0, Rst=0, Syn=0, Fin=0):
         return (Cwr*128 + Ece*64 + Urg*32 + Ack*16 + Psh*8 + Rst*4 + Syn*2 + Fin*1)
     def decodeFlags(self, flags:int):
@@ -390,102 +463,111 @@ class ApplicationManager():
                 self.transportLayer.connectionTable[(source_port, targetPort, targetIp, srcIp)].dataToLeave+=data
         else:
             byteLength = len(data) /8
-            for i in range(0, math.floor(byteLength/MTU)):
-                dataSegment = data[i*8*MTU:(i+1)*8*MTU]
-                udpData = self.transportLayer.preparePacketUDP(source_port, targetPort, dataSegment, targetIp, srcIp)
-                ipPacket= self.ipLayer.prepareIpPacket(targetIp, srcIp, 0, udpData, 17)
-                self.messageBuffer.append(ipPacket)
-            dataSegment = data[i*8*MTU:]
-            if dataSegment != "":
-                udpData = self.transportLayer.preparePacketUDP(source_port, targetPort, dataSegment, targetIp, srcIp)
-                ipPacket= self.ipLayer.prepareIpPacket(targetIp, srcIp, 0, udpData, 17)
-                self.messageBuffer.append(ipPacket)
+            for i in range(0, math.floor(byteLength/MTU)+1):
+                if (i+1)*MTU*8 < len(data):
+                    dataSegment = data[i*8*MTU:(i+1)*8*MTU]
+                    udpData = self.transportLayer.preparePacketUDP(source_port, targetPort, dataSegment, targetIp, srcIp)
+                    ipPacket= self.ipLayer.prepareIpPacket(targetIp, srcIp, 0, udpData, 17)
+                    self.messageBuffer.append(ipPacket)
+                else:
+                    dataSegment = data[i*8*MTU:]
+                    udpData = self.transportLayer.preparePacketUDP(source_port, targetPort, dataSegment, targetIp, srcIp)
+                    ipPacket= self.ipLayer.prepareIpPacket(targetIp, srcIp, 0, udpData, 17)
+                    self.messageBuffer.append(ipPacket)
+            
+                
         
     def receive(self, data):
         ipheader, transportData = self.ipLayer.process(data)
-        if ipheader.protocol == 6:
-            transheader, data = self.transportLayer.processPacketTCP(transportData)
-            flags = self.transportLayer.decodeFlags(transheader.flags)
-            destIp = revertIp(ipheader.destIp)
-            srcIp = revertIp(ipheader.srcIp)
-            if flags[SYN]=='1' and flags[ACK] !='1': 
-                tcpData = self.transportLayer.makeSynAck(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, otherISN=transheader.seq_num)
-                self.connections.update({(transheader.dst_port, transheader.src_port, srcIp, destIp):"SYN-ACK"})
-                ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
-                self.messageBuffer.append(ipPacket)
-            elif flags[SYN]=='1' and flags[ACK]=='1':
-                tcpData = self.transportLayer.makeAck(transheader.dst_port, transheader.src_port, srcIp, destIp, transheader.seq_num)
-                self.connections.update({(transheader.dst_port, transheader.src_port, srcIp, destIp):"CONNECTED"})
-                ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
-                self.messageBuffer.append(ipPacket)
+        if(self.ipLayer.checkChecksum(ipheader) == "0000000000000000"):
+            if ipheader.protocol == 6:
+                transheader, data = self.transportLayer.processPacketTCP(transportData)
+                if self.transportLayer.checkChecksumTCP(transheader, ipheader.srcIp, ipheader.destIp, data) == "0000000000000000":
+                    flags = self.transportLayer.decodeFlags(transheader.flags)
+                    destIp = revertIp(ipheader.destIp)
+                    srcIp = revertIp(ipheader.srcIp)
+                    if flags[SYN]=='1' and flags[ACK] !='1': 
+                        tcpData = self.transportLayer.makeSynAck(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, otherISN=transheader.seq_num)
+                        self.connections.update({(transheader.dst_port, transheader.src_port, srcIp, destIp):"SYN-ACK"})
+                        ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                        self.messageBuffer.append(ipPacket)
+                    elif flags[SYN]=='1' and flags[ACK]=='1':
+                        tcpData = self.transportLayer.makeAck(transheader.dst_port, transheader.src_port, srcIp, destIp, transheader.seq_num)
+                        self.connections.update({(transheader.dst_port, transheader.src_port, srcIp, destIp):"CONNECTED"})
+                        ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                        self.messageBuffer.append(ipPacket)
 
-            elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="FIN_WAIT_1":
-                if self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN == transheader.ack_num:
-                    self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="FIN_WAIT_2"
-                    self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].dataToLeave = ""
-                else:
-                    self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="CONNECTED"
-                    self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN = transheader.ack_num
-            
-            elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="SYN-ACK":
-                self.connections.update({(transheader.dst_port, transheader.src_port, srcIp, destIp):"CONNECTED"})
-            elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="CLOSE_WAIT":
-                if self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN == transheader.ack_num:
-                    self.connections.pop((transheader.dst_port, transheader.src_port, srcIp, destIp))
-                    self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="CLOSED"
-                    self.transportLayer.connectionTable.pop((transheader.dst_port, transheader.src_port, srcIp, destIp))
-                else:
-                    self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN = transheader.ack_num
-            elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="CONNECTED":
-                #track which packets have been acked and prepare for more sending!
-                dataLength = math.ceil(len(data)/8)
-                if transheader.seq_num != self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN:
-                    #error has occured
-                    tcpData = self.transportLayer.preparePacketTCP(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, data="",ack_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, seq_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN, flags=self.transportLayer.makeFlags(Ack=1), urg=0)
-                    ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
-                    self.messageBuffer.append(ipPacket)
-                
-                else:
-                    self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN = updateISN(self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, dataLength)
-                    self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localWindowUsed =0
-                    if dataLength != 0:
-                        self.dataBuffer.append(data)
-                        self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].otherWindowUsed += dataLength
-                        if self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].otherWindowUsed >64000:
-                            tcpData = self.transportLayer.preparePacketTCP(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, ack_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, seq_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN, flags=self.transportLayer.makeFlags(Ack=1), urg=0, data="")
+                    elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="FIN_WAIT_1":
+                        if self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN == transheader.ack_num:
+                            self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="FIN_WAIT_2"
+                            self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].dataToLeave = ""
+                        else:
+                            self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="CONNECTED"
+                            self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN = transheader.ack_num
+                    
+                    elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="SYN-ACK":
+                        self.connections.update({(transheader.dst_port, transheader.src_port, srcIp, destIp):"CONNECTED"})
+                    elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="CLOSE_WAIT":
+                        if self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN == transheader.ack_num:
+                            self.connections.pop((transheader.dst_port, transheader.src_port, srcIp, destIp))
+                            self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="CLOSED"
+                            self.transportLayer.connectionTable.pop((transheader.dst_port, transheader.src_port, srcIp, destIp))
+                        else:
+                            self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN = transheader.ack_num
+                    elif flags[ACK]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="CONNECTED":
+                        #track which packets have been acked and prepare for more sending!
+                        dataLength = math.ceil(len(data)/8)
+                        if transheader.seq_num != self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN:
+                            #error has occured
+                            tcpData = self.transportLayer.preparePacketTCP(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, data="",ack_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, seq_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN, flags=self.transportLayer.makeFlags(Ack=1), urg=0)
                             ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
                             self.messageBuffer.append(ipPacket)
-                            self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].otherWindowUsed =0
-                
-                if transheader.ack_num != self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN:
-                    #error indicated by incorrect ack number, reset sequence number to earlier one for retransmission
-                    self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN = transheader.ack_num
-                 
-                
+                        
+                        else:
+                            self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN = updateISN(self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, dataLength)
+                            self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localWindowUsed =0
+                            if dataLength != 0:
+                                self.dataBuffer.append(data)
+                                self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].otherWindowUsed += dataLength
+                                if self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].otherWindowUsed >64000:
+                                    tcpData = self.transportLayer.preparePacketTCP(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, ack_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, seq_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN, flags=self.transportLayer.makeFlags(Ack=1), urg=0, data="")
+                                    ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                                    self.messageBuffer.append(ipPacket)
+                                    self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].otherWindowUsed =0
+                        
+                        if transheader.ack_num != self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN:
+                            #error indicated by incorrect ack number, reset sequence number to earlier one for retransmission
+                            self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN = transheader.ack_num
+                        
+                        
 
-            if flags[FIN]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="FIN_WAIT_2":
-                tcpData = self.transportLayer.makeFinAck(transheader.dst_port, transheader.src_port, srcIp, destIp)
-                ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
-                self.messageBuffer.append(ipPacket)
-                self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="CLOSED"
+                    if flags[FIN]=='1' and self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] =="FIN_WAIT_2":
+                        tcpData = self.transportLayer.makeFinAck(transheader.dst_port, transheader.src_port, srcIp, destIp)
+                        ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                        self.messageBuffer.append(ipPacket)
+                        self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="CLOSED"
 
-            elif flags[FIN]=='1':
-                if transheader.seq_num == self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN:
-                    tcpData = self.transportLayer.makeFinAck(transheader.dst_port, transheader.src_port, srcIp, destIp)
-                    ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
-                    self.messageBuffer.append(ipPacket)
-                    self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="CLOSE_WAIT"
-                    tcpData = self.transportLayer.makeFin(transheader.dst_port, transheader.src_port, srcIp, destIp)
-                    ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
-                    self.messageBuffer.append(ipPacket)
+                    elif flags[FIN]=='1':
+                        if transheader.seq_num == self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN:
+                            tcpData = self.transportLayer.makeFinAck(transheader.dst_port, transheader.src_port, srcIp, destIp)
+                            ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                            self.messageBuffer.append(ipPacket)
+                            self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="CLOSE_WAIT"
+                            tcpData = self.transportLayer.makeFin(transheader.dst_port, transheader.src_port, srcIp, destIp)
+                            ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                            self.messageBuffer.append(ipPacket)
+                        else:
+                            tcpData = self.transportLayer.preparePacketTCP(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, ack_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, seq_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN, flags=self.transportLayer.makeFlags(Ack=1))
+                            ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
+                            self.messageBuffer.append(ipPacket)
+            else:
+                transheader, data = self.transportLayer.processPacketUDP(transportData)
+                if (self.transportLayer.checkChecksumUDP(transheader, ipheader.srcIp, ipheader.destIp, data)== "0000000000000000"):
+                    if data != "":
+                        self.dataBuffer.append(data)
                 else:
-                    tcpData = self.transportLayer.preparePacketTCP(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, ack_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, seq_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN, flags=self.transportLayer.makeFlags(Ack=1))
-                    ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
-                    self.messageBuffer.append(ipPacket)
-        else:
-            transheader, data = self.transportLayer.processPacketUDP(transportData)
-            if data != "":
-                self.dataBuffer.append(data)
+                    print("bad checksum")
+        
     def endConnection(self, source_port, targetPort, targetIp, srcIp):
         self.connections[source_port, targetPort, targetIp, srcIp] = "FIN_WAIT_1"
         tcpData = self.transportLayer.makeFin(source_port, targetPort, targetIp, srcIp)
@@ -516,8 +598,6 @@ class ApplicationManager():
                         ipPacket = self.ipLayer.prepareIpPacket(dst_ip=connection[2], src_ip=connection[3], ToS=0, transportData=tcpData, transportProtocol=6)
                         self.messageBuffer.append(ipPacket)
                     else:
-                        print(startingIndex)
-                        print((math.floor(byteLength/MTU)))
                         for i in range(startingIndex, (math.floor(byteLength/MTU)+1)):
                             if (i+1)*MTU*8 < len(connectdata.dataToLeave):
                                 dataSegment = connectdata.dataToLeave[i*8*MTU:(i+1)*8*MTU]
@@ -531,13 +611,14 @@ class ApplicationManager():
                                 connectdata.localWindowUsed += segLength
   
                                 if connectdata.localWindowUsed > 64000:
+                                    connectdata.timeout += 1
+                                    if connectdata.timeout == 50:
+                                        
                                     break
                             
                             else:
-                                print("final segment")
                                 dataSegment = connectdata.dataToLeave[i*8*MTU:]
                                 segLength = math.ceil(len(dataSegment) /8)
-                                print(segLength)
                                 tcpData = self.transportLayer.generateHeaderTCP(src_port=connection[0], dst_port=connection[1], targetIp=connection[2], srcIp=connection[3], data=dataSegment, seq_num=connectdata.localISN, ack_num=connectdata.targetISN, flags=self.transportLayer.makeFlags(Ack=1), windowSize=64000, data_length=segLength, urg=0) +dataSegment
                                 ipPacket = self.ipLayer.prepareIpPacket(dst_ip=connection[2], src_ip=connection[3], ToS=0, transportData=tcpData, transportProtocol=6)
                                 self.messageBuffer.append(ipPacket)
@@ -591,27 +672,21 @@ host1.send(source_port=144, targetPort=187, targetProtocol="TCP", data=data, tar
 
 while(len(host1.messageBuffer) or len(host2.messageBuffer)):
     for message in host1.messageBuffer:
-        print("Host2 message recieve")
         ipheader, data = host1.ipLayer.process(message)
         # print(ipheader, len(data))
         transheader, data = host1.transportLayer.processPacketTCP(data)
-        print(transheader, len(data))
         host2.receive(message)
         
     host1.messageBuffer = []
     
 
     for message in host2.messageBuffer:
-            print("Host1 message recieve")
             host1.receive(message)
             ipheader, data = host2.ipLayer.process(message)
             # print(ipheader, len(data))
             transheader, data = host2.transportLayer.processPacketTCP(data)
-            print(transheader, len(data))
     host2.messageBuffer = []
-    print("Host1 update")
     host1.updateManagers()
-    print("Host2 update")
     host2.updateManagers()
 data2 = ''.join(host2.dataBuffer)
 if constdata == data2:
