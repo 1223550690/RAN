@@ -449,6 +449,10 @@ class ApplicationManager():
         self.messageBuffer = []
         self.dataTable = {}
     #prepare data for division by transport
+    
+    def prepareData(self, message):
+        
+    
     def send(self, targetIp, targetPort, targetProtocol, data, source_port, srcIp):
         if targetProtocol == "TCP":
             tcpData = 0
