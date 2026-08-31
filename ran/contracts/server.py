@@ -61,12 +61,29 @@ class Server:
     dnn: str
     port: int
     service_types: frozenset
-    applicationManager: ApplicationManager
+    applicationLayer: ApplicationManager
     def clearBuffer(self):
             self.bufferOut = []
             self.requiresDL = False
     def prepareBuffer(self):
         return 0
+    def receive(self, signal):
+            self.applicationLayer.receive(signal.payload)
+            for connection in self.applicationLayer.connections:
+                if self.applicationLayer.connections[connection] == "CLOSED":
+                    byteString = ''.join(self.applicationLayer.dataTable[connection])
+                    byteList = []
+                    for i in range(0, math.ceil(len(byteString)/8)):
+                        if (i+1)*8 >= len(byteString):
+                            byteList.append(int(byteString[i*8:],2))
+                        else:
+                            byteList.append(int(byteString[i*8:(i+1)*8],2))
+                    data = ''
+                    for char in byteList:
+                        data += chr(char)
+                    print(data)
+                    self.interpret(data)
+                
 
     
 
@@ -74,24 +91,15 @@ class Server:
 class VideoServer(Server):
     videos: dict[str, Video]
     videosToLeave: list[Message]
-    def receive(self, signal):
-        self.collectedSignals.append(signal)
-        if signal.payload.endOfMessage:
-            size = 0
-            newSignals = []
-            for collectedSignal in self.collectedSignals:
-                if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
-                    size += collectedSignal.header.size
-                else:
-                    newSignals.append(collectedSignal)
-            overhead = max(1, math.ceil(size /1500)) * 2
-            if(signal.payload.service_type == "video_upload"):
+    def interpet(self, data):
+        
+        if(signal.payload.service_type == "video_upload"):
                 video = signal.payload.data.split(':')
                 name = video[0]
                 content = video[1]
                 creator = signal.payload.senderUe
-                self.uploadVideo(name, content, creator, size-overhead)
-            if(signal.payload.service_type == "video_stream"):
+                # self.uploadVideo(name, content, creator, size-overhead)
+        if(signal.payload.service_type == "video_stream"):
                 name = signal.payload.data
                 self.streamVideo(name, signal)
             #just generate random bytes for the video
@@ -135,18 +143,9 @@ class GamingServer(Server):
     messages: list[Message]
     pendingChallenges: dict[str:list[str]]
     supportedGame: str
-    def receive(self, signal):
-        self.collectedSignals.append(signal)
-        if signal.payload.endOfMessage:
-            size = 0
-            newSignals = []
-            for collectedSignal in self.collectedSignals:
-                if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
-                    size += collectedSignal.header.size
-                else:
-                    newSignals.append(collectedSignal)
-
-            match collectedSignal.payload.service_type:
+    def interpret(self, data):
+            splitData = data.split(':')
+            match splitData[0]:
                 case "make_challenge":
                     self.requestGame(signal.payload.senderUe, signal.payload.destinationUe, signal.payload.data)
                 case "accept_challenge":
@@ -264,25 +263,25 @@ class GamingServer(Server):
 class MessageServer(Server):
     #use ips of the sender to differentiate signals, composed with the session ids to distinguish between messages sent by the same person. 
     storedMessages: list[Message]
-    def receive(self, signal):
-        self.collectedSignals.append(signal)
-        if signal.payload.endOfMessage:
-            size = 0
-            newSignals = []
-            for collectedSignal in self.collectedSignals:
-                if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
-                    size += collectedSignal.header.size
-                else:
-                    newSignals.append(collectedSignal)
-            overhead = max(1, math.ceil(size /1500)) * 2
-            self.storedMessages.append(Message(
-                content=signal.payload.data,
-                recipient=signal.payload.destinationUe,
-                sender=signal.payload.senderUe,
-                size=size -overhead,
-                service_type="message"
-            ))
-            self.collectedSignals = newSignals
+    # def receive(self, signal):
+    #     self.collectedSignals.append(signal)
+    #     if signal.payload.endOfMessage:
+    #         size = 0
+    #         newSignals = []
+    #         for collectedSignal in self.collectedSignals:
+    #             if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
+    #                 size += collectedSignal.header.size
+    #             else:
+    #                 newSignals.append(collectedSignal)
+    #         overhead = max(1, math.ceil(size /1500)) * 2
+    #         self.storedMessages.append(Message(
+    #             content=signal.payload.data,
+    #             recipient=signal.payload.destinationUe,
+    #             sender=signal.payload.senderUe,
+    #             size=size -overhead,
+    #             service_type="message"
+    #         ))
+    #         self.collectedSignals = newSignals
 
     def prepareBuffer(self):
         if len(self.storedMessages) != 0:
@@ -298,29 +297,29 @@ class CallServer(Server):
     messages: list[Message]
     activeCalls: dict[int:Call]
     pendingCalls: dict[str:list[str]]
-    def receive(self, signal):
-            self.collectedSignals.append(signal)
-            if signal.payload.endOfMessage:
-                size = 0
-                newSignals = []
-                for collectedSignal in self.collectedSignals:
-                    if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
-                        size += collectedSignal.header.size
-                    else:
-                        newSignals.append(collectedSignal)
-                overhead = max(1, math.ceil(size /1500)) * 2
-                match collectedSignal.payload.service_type:
-                                case "make_call":
-                                    self.requestCall(signal.payload.senderUe, signal.payload.destinationUe)
-                                case "accept_call":
-                                    self.validateCall(signal.payload.destinationUe, signal.payload.senderUe)
-                                case "call_data":
-                                    callId = int(signal.payload.data.split(':')[0])
-                                    self.forwardStream(callId, signal.payload.senderUe, signal.payload.data, size)
-                                case "end_call":
-                                    callId = int(signal.payload.data.split(':')[0])
-                                    self.endCall(callId, signal.payload.senderUe)
-                self.collectedSignals = newSignals
+    # def receive(self, signal):
+    #         self.collectedSignals.append(signal)
+    #         if signal.payload.endOfMessage:
+    #             size = 0
+    #             newSignals = []
+    #             for collectedSignal in self.collectedSignals:
+    #                 if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
+    #                     size += collectedSignal.header.size
+    #                 else:
+    #                     newSignals.append(collectedSignal)
+    #             overhead = max(1, math.ceil(size /1500)) * 2
+    #             match collectedSignal.payload.service_type:
+    #                             case "make_call":
+    #                                 self.requestCall(signal.payload.senderUe, signal.payload.destinationUe)
+    #                             case "accept_call":
+    #                                 self.validateCall(signal.payload.destinationUe, signal.payload.senderUe)
+    #                             case "call_data":
+    #                                 callId = int(signal.payload.data.split(':')[0])
+    #                                 self.forwardStream(callId, signal.payload.senderUe, signal.payload.data, size)
+    #                             case "end_call":
+    #                                 callId = int(signal.payload.data.split(':')[0])
+    #                                 self.endCall(callId, signal.payload.senderUe)
+    #             self.collectedSignals = newSignals
     def setUpCall(self, members):
         callId = random.randint(0,1024)
         while(callId in self.activeCalls):

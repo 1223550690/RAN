@@ -52,19 +52,21 @@ class UEState:
     
     ue_ip: str | None = None  # ue_ip: IP obtained by the UE in the PDU session.
     allowed_slices: list[str] = field(default_factory=list)  # allowed_slices: slices the UE is allowed to use.
+    # def receive(self, signal):
+    #         self.signalBuffer.append(signal)
+    #         if signal.payload.endOfMessage:
+    #                     size = 0
+    #                     newSignals = []
+    #                     for collectedSignal in self.signalBuffer:
+    #                         if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
+    #                             size += collectedSignal.header.size
+    #                         else:
+    #                             newSignals.append(collectedSignal)
+    #                     self.signalBuffer = newSignals                        
+    #                     print(str(self.ue_id) + " recieved a message from "+str(signal.header.senderIp) + ", sent by "+ str(signal.payload.senderUe)+ " containing a "+ str(signal.payload.service_type) + " of content: "+ str(signal.payload.data) + " and size: "+str(size))
+    #                     self.receiveComplex(signal)
     def receive(self, signal):
-            self.signalBuffer.append(signal)
-            if signal.payload.endOfMessage:
-                        size = 0
-                        newSignals = []
-                        for collectedSignal in self.signalBuffer:
-                            if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
-                                size += collectedSignal.header.size
-                            else:
-                                newSignals.append(collectedSignal)
-                        self.signalBuffer = newSignals                        
-                        print(str(self.ue_id) + " recieved a message from "+str(signal.header.senderIp) + ", sent by "+ str(signal.payload.senderUe)+ " containing a "+ str(signal.payload.service_type) + " of content: "+ str(signal.payload.data) + " and size: "+str(size))
-                        self.receiveComplex(signal)
+                self.applicationLayer.receive(signal.payload)
     def receiveComplex(self, signal):
         return 0
     def sendComplex(self, intent:AgentIntent):

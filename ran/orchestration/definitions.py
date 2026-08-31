@@ -73,7 +73,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 service_type="video_upload",
                 requested_payload_bytes=100 * 1024 * 1024,
                 sender= "student_a_phone",
-                content= "My Cat:A video of a cat meowing",
+                content= "video_upload:My Cat:A video of a cat meowing",
             ),
         ),
         AgentScenarioDefinition(
@@ -107,6 +107,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 recipient="student_b_phone",
                 requested_payload_bytes=10 * 1024,
                 sender= "student_c_phone",
+                content= "Call from student_b to student_c"
             ),
         ),
         AgentScenarioDefinition(
@@ -142,7 +143,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             protocols=["TCP"],
             port=3074,
             service_types=frozenset({"make_challenge", "gaming", "accept_challenge", "make_move"}),
-            applicationManager = ApplicationManager()
+            applicationLayer = ApplicationManager()
         ),
         MessageServer(
             name = "whatsapp_server",
@@ -155,7 +156,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             protocols=["TCP"],
             port=443,
             service_types=frozenset({"message"}),
-            applicationManager = ApplicationManager()
+            applicationLayer = ApplicationManager()
         ),
         CallServer(
             name = "skype_server",
@@ -170,7 +171,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             service_types=frozenset({"make_call", "accept_call", "call_data", "end_call"}),
             activeCalls = {},
             pendingCalls = {},
-            applicationManager = ApplicationManager()
+            applicationLayer = ApplicationManager()
         ),
         VideoServer(
             name = "youtube_server",
@@ -184,7 +185,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             protocols=["TCP", "UDP"],
             port=443,
             service_types=frozenset({"video_upload", "video_stream", "video_browse", "video_delete"}),
-            applicationManager = ApplicationManager()
+            applicationLayer = ApplicationManager()
         ),
     )
     serverDict = {}

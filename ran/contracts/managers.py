@@ -450,7 +450,20 @@ class ApplicationManager():
         self.dataTable = {}
     #prepare data for division by transport
     
-    def prepareData(self, message):
+    def prepareString(self, message):
+        byteMessage = message.encode()
+        byteString = ""
+        for byte in list(byteMessage):
+            byteString += bin(byte)[2:].zfill(8)
+        return byteString
+    def prepareIntent(self, intent:AgentIntent, targetIp, srcIp, serverByIp):
+        server = serverByIp[targetIp]
+        srcPort = server.port
+        dstPort = server.port
+        targetProtocol = "TCP"
+        data = self.prepareString(intent.content)
+        self.send(targetIp, dstPort, targetProtocol, data, srcPort, srcIp)
+        return data
         
     
     def send(self, targetIp, targetPort, targetProtocol, data, source_port, srcIp):
@@ -534,6 +547,8 @@ class ApplicationManager():
                             self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN = updateISN(self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, dataLength)
                             self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localWindowUsed =0
                             if dataLength != 0:
+                                if (transheader.dst_port, transheader.src_port, srcIp, destIp) not in self.dataTable:
+                                    self.dataTable.update({(transheader.dst_port, transheader.src_port, srcIp, destIp): []})
                                 self.dataTable[transheader.dst_port, transheader.src_port, srcIp, destIp].append(data)
                                 self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].otherWindowUsed += dataLength
                                 if self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].otherWindowUsed >64000:
@@ -566,15 +581,16 @@ class ApplicationManager():
                             ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
                             self.messageBuffer.append(ipPacket)
                         else:
-                            tcpData = self.transportLayer.preparePacketTCP(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, ack_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, seq_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN, flags=self.transportLayer.makeFlags(Ack=1))
+                            tcpData = self.transportLayer.preparePacketTCP(src_port=transheader.dst_port, dst_port=transheader.src_port, targetIp=srcIp, srcIp=destIp, ack_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN, seq_num=self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].localISN, data="", urg=0, flags=self.transportLayer.makeFlags(Ack=1))
                             ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
                             self.messageBuffer.append(ipPacket)
             else:
                 transheader, data = self.transportLayer.processPacketUDP(transportData)
                 if (self.transportLayer.checkChecksumUDP(transheader, ipheader.srcIp, ipheader.destIp, data)== "0000000000000000"):
                     if data != "":
-                        if (transheader.dst_port, transheader.src_port, ipheader.srcIp, ipheader.destIp) in self.dataTable:
-                            self.dataTabe[transheader.dst_port, transheader.src_port, ipheader.srcIp, ipheader.destIp].append(data)
+                        if (transheader.dst_port, transheader.src_port, srcIp, destIp) not in self.dataTable:
+                            self.dataTable.update({(transheader.dst_port, transheader.src_port, srcIp, destIp): []})
+                        self.dataTable[transheader.dst_port, transheader.src_port, ipheader.srcIp, ipheader.destIp].append(data)
         
     def endConnection(self, source_port, targetPort, targetIp, srcIp):
         self.connections[source_port, targetPort, targetIp, srcIp] = "FIN_WAIT_1"

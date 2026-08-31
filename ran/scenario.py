@@ -169,7 +169,7 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
-        # print(tick)
+        print(tick)
         self._update_agent_states(tick)
         active_services = [
             self.services[service_id]
@@ -215,6 +215,39 @@ class MultiAgentRanScenario:
 
         channel_by_service = {}
         channel_by_link = {}
+        
+        for ue in self.ues:
+            state = self.ues[ue].state
+            for message in state.applicationLayer.messageBuffer:
+                self.transitSignals.append(Signal(
+                    tickSent = tick,
+                    estimatedArrivalTick=tick+11,
+                    arrived=False,
+                    direction="UL",
+                    ticksInTransit = 0,
+                    payload=message,
+                ))
+            state.applicationLayer.messageBuffer = []
+        for server in self.servers:
+            server = self.servers[server]
+            for message in server.applicationLayer.messageBuffer:
+                self.transitSignals.append(Signal(
+                    tickSent = tick,
+                    estimatedArrivalTick=tick+11,
+                    arrived=False,
+                    direction="DL",
+                    ticksInTransit = 0,
+                    payload=message,
+                ))
+            server.applicationLayer.messageBuffer = []
+        
+        for ue in self.ues:
+            state = self.ues[ue].state
+            state.applicationLayer.updateManagers()
+        for server in self.servers:
+            server = self.servers[server]
+            server.applicationLayer.updateManagers()
+        
         for service in active_services:
             channel = estimate_channel(
                 tick=tick,
@@ -392,7 +425,6 @@ class MultiAgentRanScenario:
 
     def receiveUplinkMessage(self, signal):
         #Triggers backhaul and stores data for future downlink to UEs
-        print(signal.payload)
         sender = signal.payload[96:128]
         destination = signal.payload[128:160]
         destination = revertIp(destination)
@@ -401,11 +433,14 @@ class MultiAgentRanScenario:
         return 0
 
     def receiveDownlinkMessage(self, signal):
-        recieverUe = self.ueByIp[signal.header.destinationIp]
+        recieverUe = signal.payload[128:160]
+        recieverUe = self.ueByIp[revertIp(recieverUe)]
+        sender = signal.payload[96:128]
+        sender = revertIp(sender)
         if recieverUe in self.ues:
             self.ues[recieverUe].state.receive(signal)
         else:
-            print(self.serversByIp[signal.destinationIp]+" tried to send a message to "+recieverUe +" but failed as the UE is not connected to the network")
+            print(self.serversByIp[sender].name+" tried to send a message to "+recieverUe +" but failed as the UE is not connected to the network")
         return 0
     # ------------------------------------------------------------- Entity pipeline helpers (xizhe)
 
@@ -474,6 +509,9 @@ class MultiAgentRanScenario:
         )
 
     def _build_contexts(self, initial_states: list[AgentStateSnapshot]) -> None:
+        for server in self.definition.servers:
+                    self.serversByIp.update({self.servers[server].address: self.servers[server]})
+                    self.ipByServers.update({self.servers[server].name: self.servers[server].address})
         state_by_agent = {state.agent_id: state for state in initial_states}
         for index, item in enumerate(self.definition.agents):
             agent_state = state_by_agent[item.agent_id]
@@ -488,9 +526,7 @@ class MultiAgentRanScenario:
                 )
                 continue
             self._create_service(item, item.intent, index)
-        for server in self.definition.servers:
-            self.serversByIp.update({self.servers[server].address: self.servers[server].name})
-            self.ipByServers.update({self.servers[server].name: self.servers[server].address})
+        
 
     def _register_ue(self, item, agent_state) -> None:
         """Register and store the Agent's UE control plane context. Keeps the existing context when the same UE is registered again."""
@@ -568,8 +604,7 @@ class MultiAgentRanScenario:
 
         # RRC setup: the service needs a radio bearer → IDLE/INACTIVE → CONNECTED.
         self.amf.establish_rrc(ue_state)
-
-        ue_state.applicationLayer
+        content = ue_state.applicationLayer.prepareIntent(intent, traffic.dst_ip, traffic.src_ip, self.serversByIp)
         agent_context = self.agents.get(item.agent_id)
         if agent_context is None:
             # Theoretically unreachable: _build_contexts always registers AgentContext first; this fallback guards the invariant.
@@ -614,7 +649,7 @@ class MultiAgentRanScenario:
             upf_buffered_bytes=self.upf.buffered_bytes(ue_state.ue_id, session.pdu_session_id),
             n3_tunnel_id=tunnel.tunnel_id,
             status="ACTIVE",
-            content= dataPayload
+            content= content
         )
         self.service_order.append(service_instance_id)
         return service_instance_id
@@ -711,16 +746,6 @@ class MultiAgentRanScenario:
             self._update_payload_counters(service)
             service.status = "COMPLETED"
             self._maybe_suspend_rrc(service)
-        estimated_delay = 11 #temporary 
-        newSignal = Signal(
-                tickSent=tick,
-                estimatedArrivalTick= tick +estimated_delay,
-                arrived=False,
-                direction="UL",
-                ticksInTransit=0,
-                payload= service.content
-            )
-        self.transitSignals.append(newSignal)
 
         qos = calculate_qos(
             requested_bytes=service.traffic.total_bytes,
@@ -806,16 +831,6 @@ class MultiAgentRanScenario:
             service.status = "COMPLETED"
             self._maybe_suspend_rrc(service)
 
-        estimated_delay = 11 #temporary 
-        newSignal = Signal(
-                tickSent=tick,
-                estimatedArrivalTick= tick +estimated_delay,
-                arrived=False,
-                direction="DL",
-                ticksInTransit=0,
-                payload= service.content,
-            )
-        self.transitSignals.append(newSignal)
 
         n3 = N3ForwardingResult(
             tunnel_id=f"dl_{service.session.pdu_session_id}",
