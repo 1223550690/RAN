@@ -51,6 +51,7 @@ def build_bristol_ablation(
     indoor_refine_scale_m: float = 50.0,
     agent_speed_map_units_per_tick: float = 15.0,
     truth_seed: int = 9042,
+    include_records: bool = False,
 ) -> dict:
     """Run the controlled experiment and return a JSON-serialisable report."""
 
@@ -323,6 +324,8 @@ def build_bristol_ablation(
             "evaluation_order": "predict_score_then_observe",
         },
     }
+    if include_records:
+        report["records"] = records
     return report
 
 
@@ -457,6 +460,11 @@ def main() -> None:
     parser.add_argument("--agent-speed", type=float, default=15.0)
     parser.add_argument("--seed", type=int, default=9042)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--include-records",
+        action="store_true",
+        help="Include per-tick records for line-plot generation.",
+    )
     parser.add_argument("--pretty", action="store_true")
     args = parser.parse_args()
 
@@ -468,6 +476,7 @@ def main() -> None:
         indoor_refine_scale_m=args.indoor_grid,
         agent_speed_map_units_per_tick=args.agent_speed,
         truth_seed=args.seed,
+        include_records=args.include_records,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
