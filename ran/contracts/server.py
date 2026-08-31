@@ -91,18 +91,19 @@ class Server:
 class VideoServer(Server):
     videos: dict[str, Video]
     videosToLeave: list[Message]
-    def interpet(self, data):
-        
-        if(signal.payload.service_type == "video_upload"):
-                video = signal.payload.data.split(':')
-                name = video[0]
-                content = video[1]
-                creator = signal.payload.senderUe
-                # self.uploadVideo(name, content, creator, size-overhead)
-        if(signal.payload.service_type == "video_stream"):
-                name = signal.payload.data
-                self.streamVideo(name, signal)
-            #just generate random bytes for the video
+    def interpret(self, data):
+        # splitData = data.split(':')
+        # if(splitData[0] == "video_upload"):
+        #         video = signal.payload.data.split(':')
+        #         name = video[0]
+        #         content = video[1]
+        #         creator = signal.payload.senderUe
+        #         # self.uploadVideo(name, content, creator, size-overhead)
+        # if(splitData[0] == "video_stream"):
+        #         name = signal.payload.data
+        #         self.streamVideo(name, signal)
+        #     #just generate random bytes for the video
+        return 0
             
     def uploadVideo(self, name, content, creator, size):
         video = Video(
@@ -152,7 +153,6 @@ class GamingServer(Server):
                     self.validateChallenge(signal.payload.destinationUe, signal.payload.senderUe)
                 case "check_stats":
                     self.checkResults(signal.payload.senderUe)
-            self.collectedSignals = newSignals
     def checkResults(self, player):
         if player in self.playerWins:
             self.messages.append(Message(
@@ -263,25 +263,15 @@ class GamingServer(Server):
 class MessageServer(Server):
     #use ips of the sender to differentiate signals, composed with the session ids to distinguish between messages sent by the same person. 
     storedMessages: list[Message]
-    # def receive(self, signal):
-    #     self.collectedSignals.append(signal)
-    #     if signal.payload.endOfMessage:
-    #         size = 0
-    #         newSignals = []
-    #         for collectedSignal in self.collectedSignals:
-    #             if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
-    #                 size += collectedSignal.header.size
-    #             else:
-    #                 newSignals.append(collectedSignal)
-    #         overhead = max(1, math.ceil(size /1500)) * 2
-    #         self.storedMessages.append(Message(
-    #             content=signal.payload.data,
-    #             recipient=signal.payload.destinationUe,
-    #             sender=signal.payload.senderUe,
-    #             size=size -overhead,
-    #             service_type="message"
-    #         ))
-    #         self.collectedSignals = newSignals
+    def interpret(self, data):
+        return 0
+            # self.storedMessages.append(Message(
+            #     content=data,
+            #     recipient=signal.payload.destinationUe,
+            #     sender=signal.payload.senderUe,
+            #     size=math.ceil(len(data)/8),
+            #     service_type="message"
+            # ))
 
     def prepareBuffer(self):
         if len(self.storedMessages) != 0:
@@ -297,17 +287,8 @@ class CallServer(Server):
     messages: list[Message]
     activeCalls: dict[int:Call]
     pendingCalls: dict[str:list[str]]
-    # def receive(self, signal):
-    #         self.collectedSignals.append(signal)
-    #         if signal.payload.endOfMessage:
-    #             size = 0
-    #             newSignals = []
-    #             for collectedSignal in self.collectedSignals:
-    #                 if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
-    #                     size += collectedSignal.header.size
-    #                 else:
-    #                     newSignals.append(collectedSignal)
-    #             overhead = max(1, math.ceil(size /1500)) * 2
+    def interpret(self, signal):
+        return 0
     #             match collectedSignal.payload.service_type:
     #                             case "make_call":
     #                                 self.requestCall(signal.payload.senderUe, signal.payload.destinationUe)
@@ -319,7 +300,6 @@ class CallServer(Server):
     #                             case "end_call":
     #                                 callId = int(signal.payload.data.split(':')[0])
     #                                 self.endCall(callId, signal.payload.senderUe)
-    #             self.collectedSignals = newSignals
     def setUpCall(self, members):
         callId = random.randint(0,1024)
         while(callId in self.activeCalls):
