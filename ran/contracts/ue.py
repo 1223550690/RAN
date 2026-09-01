@@ -41,56 +41,48 @@ class UEState:
     agent_id: str  # agent_id: identifier of the bound Agent.
     position: Position  # position: UE's current map coordinates.
     signalBuffer: list[Signal]
+    applicationLayer: ApplicationManager
     cmax_transmit: int = 23  # cmax_transmit: UE maximum transmit power in dBm (tr22068 PHR extension, optional).
     ue_pusch: int = 10  # ue_pusch: nominal PUSCH parameter (tr22068 extension, optional).
     rm_state: str = "DEREGISTERED"  # rm_state: 5GC registration state.
     cm_state: str = "IDLE"  # cm_state: core network connection management state.
     rrc_state: str = "IDLE"  # rrc_state: radio control state between UE and gNB.
-    applicationLayer: ApplicationManager = ApplicationManager()
-    
-
-    
     ue_ip: str | None = None  # ue_ip: IP obtained by the UE in the PDU session.
     allowed_slices: list[str] = field(default_factory=list)  # allowed_slices: slices the UE is allowed to use.
-    # def receive(self, signal):
-    #         self.signalBuffer.append(signal)
-    #         if signal.payload.endOfMessage:
-    #                     size = 0
-    #                     newSignals = []
-    #                     for collectedSignal in self.signalBuffer:
-    #                         if collectedSignal.header.senderIp == signal.header.senderIp and collectedSignal.header.sessionId == signal.header.sessionId:
-    #                             size += collectedSignal.header.size
-    #                         else:
-    #                             newSignals.append(collectedSignal)
-    #                     self.signalBuffer = newSignals                        
-    #                     print(str(self.ue_id) + " recieved a message from "+str(signal.header.senderIp) + ", sent by "+ str(signal.payload.senderUe)+ " containing a "+ str(signal.payload.service_type) + " of content: "+ str(signal.payload.data) + " and size: "+str(size))
-    #                     self.receiveComplex(signal)
+    
     def receive(self, signal):
             self.applicationLayer.receive(signal.payload)
             ipheader, ipdata = self.applicationLayer.ipLayer.process(signal.payload)
+            print(ipheader)
+            transheader, data = self.applicationLayer.transportLayer.processPacketTCP(ipdata)
+            print(data)
+            print(transheader)
+            print(self.applicationLayer.connections)
             if ipheader.protocol == 6:
                 cleanConnections = []
                 for connection in self.applicationLayer.connections:
                     if self.applicationLayer.connections[connection] == "CLOSED":
-                        byteString = ''.join(self.applicationLayer.dataTable[connection])
-                        byteList = []
-                        for i in range(0, math.ceil(len(byteString)/8)):
-                            if (i+1)*8 >= len(byteString):
-                                byteList.append(int(byteString[i*8:],2))
-                            else:
-                                byteList.append(int(byteString[i*8:(i+1)*8],2))
-                        data = ''
-                        for char in byteList:
-                            data += chr(char)
-                        self.interpret(data, ipheader)
-                        cleanConnections.append(connection)
+                            print(self)
+                            if len(self.applicationLayer.dataTable[connection]) != 0:
+                                byteString = ''.join(self.applicationLayer.dataTable[connection])
+                                byteList = []
+                                for i in range(0, math.ceil(len(byteString)/8)):
+                                    if (i+1)*8 >= len(byteString):
+                                        byteList.append(int(byteString[i*8:],2))
+                                    else:
+                                        byteList.append(int(byteString[i*8:(i+1)*8],2))
+                                data = ''
+                                for char in byteList:
+                                    data += chr(char)
+                                self.interpret(data, ipheader)
+                                cleanConnections.append(connection)
                 for connection in cleanConnections:
                     self.applicationLayer.dataTable.pop(connection)
                     self.applicationLayer.connections.pop(connection)
             else:
                 transheader, data = self.applicationLayer.transportLayer.processPacketUDP(ipdata)
                 byteString = ''.join(self.applicationLayer.dataTable[transheader.dst_port, transheader.src_port, ipheader.srcIp, ipheader.destIp])
-                self.applicationLayer.dataTable[transheader.dst_port, transheader.src_port, ipheader.srcIp, ipheader.destIp] = []
+                self.applicationLayer.dataTable[transheader.dst_port, transheader.src_port, ipheader.srcIp, ipheader.destIp]
                 byteList = []
                 for i in range(0, math.ceil(len(byteString)/8)):
                     if (i+1)*8 >= len(byteString):
@@ -100,9 +92,10 @@ class UEState:
                 data = ''
                 for char in byteList:
                     data += chr(char)
-                self.interpret(data, ipheader)
     def interpret(self, data, header):
-        
+        print(data)
+        splitData = data.split(':')
+        print("message from "+splitData[0])
     def sendComplex(self, intent:AgentIntent):
         self.applicationLayer.encode(None, None, None, None)
          

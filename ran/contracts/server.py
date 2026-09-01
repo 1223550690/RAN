@@ -84,6 +84,7 @@ class Server:
                         data = ''
                         for char in byteList:
                             data += chr(char)
+                        print(data)
                         self.interpret(data, ipheader)
                         cleanConnections.append(connection)
                 for connection in cleanConnections:
@@ -102,6 +103,7 @@ class Server:
                 data = ''
                 for char in byteList:
                     data += chr(char)
+                
                 self.interpret(data, ipheader)
                 
 
@@ -114,16 +116,16 @@ class VideoServer(Server):
     messages: list[Message]
     def interpret(self, data, ipheader:IpHeader):
         splitData = data.split(':')
-        if(splitData[0] == "video_upload"):
+        if(splitData[1] == "video_upload"):
                 name = splitData[1]
                 content = splitData[2]
                 size = splitData[3]
                 creator = revertIp(ipheader.srcIp)
                 self.uploadVideo(name, content, creator, size)
-        if(splitData[0] == "video_stream"):
+        if(splitData[1] == "video_stream"):
                 name = splitData[1]
                 self.streamVideo(name, revertIp(ipheader.srcIp))
-        if(splitData[0] == "video_stream"):
+        if(splitData[1] == "video_stream"):
             name = splitData[1]
             if self.videos[name].creator == revertIp(ipheader.srcIp):
                 self.deleteVideo(name)
@@ -163,6 +165,7 @@ class VideoServer(Server):
                 for message in self.videosToLeave:
                     self.bufferOut.append(message)
                 self.requiresDL = True
+                print(self.requiresDL)
                 self.videosToLeave = []
 
 @dataclass(slots=True)
@@ -178,7 +181,7 @@ class GamingServer(Server):
     supportedGame: str
     def interpret(self, data, ipheader:IpHeader):
             splitData = data.split(':')
-            match splitData[0]:
+            match splitData[1]:
                 case "make_challenge":
                     self.requestGame(revertIp(ipheader.srcIp), revertIp(ipheader.destIp), splitData[1])
                 case "accept_challenge":
@@ -284,6 +287,7 @@ class GamingServer(Server):
                                 service_type="error"
                                 ))
     def prepareBuffer(self):
+                
                 if len(self.messages) != 0:
                     for message in self.messages:
                         self.bufferOut.append(message)

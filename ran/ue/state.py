@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ran.contracts import Position, UEState
+from ran.contracts import Position, UEState, ApplicationManager
 
 
 def build_demo_ue_state(*, agent_id: str, ue_id: str, position: Position) -> UEState:
@@ -14,4 +14,5 @@ def build_demo_ue_state(*, agent_id: str, ue_id: str, position: Position) -> UES
         cmax_transmit = 23,
         ue_pusch = 0,
         signalBuffer = [],
+        applicationLayer= ApplicationManager()
     )

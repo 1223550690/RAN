@@ -20,7 +20,8 @@ from ran.contracts import (
     Signal,
     UEState, 
     revertIp,
-    convertIp
+    convertIp,
+    ApplicationManager,
 )
 from ran.core import Amf, Upf, deliver_to_data_network, establish_pdu_session, forward_via_upf, register_ue, SessionManagementFunction
 from ran.gnb import build_scheduler_request, forward_to_n3, receive_radio
@@ -170,7 +171,6 @@ class MultiAgentRanScenario:
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
         self._update_agent_states(tick)
-        print(self.transitSignals)
         active_services = [
             self.services[service_id]
             for service_id in self.service_order
@@ -354,7 +354,9 @@ class MultiAgentRanScenario:
                                 rrc_state="CONNECTED",
                                 allowed_slices=["embb", "urllc", "mmtc"],
                                 signalBuffer = None,
+                                applicationLayer = ApplicationManager(),
                             )
+                            
                             access = select_access(request, self.gnb)
                             session = self.smf.establish(ue=state, request=request, slice_id="embb")
                             traffic = self.factory.build(request, session)
@@ -402,6 +404,9 @@ class MultiAgentRanScenario:
                                 status="ACTIVE",
                                 content= message.content,
                             )
+                            dataString = self.servers[server].applicationLayer.prepareString(str(message.sender) + ':' + message.service_type + ':' + message.content + ':' + str(message.size))
+                            print(dataString)
+                            self.servers[server].applicationLayer.send(traffic.dst_ip, self.servers[server].port,"TCP", dataString, self.servers[server].port, self.servers[server].address)
                             self.services[service.service_instance_id] = service
                             self.service_order.append(service.service_instance_id)
                         self.servers[server].clearBuffer()
@@ -548,6 +553,7 @@ class MultiAgentRanScenario:
 
         service_instance_id = f"service_{intent.intent_id}"
         ue_state = self.ues[item.ue_id].state
+        ue_state.applicationLayer = ApplicationManager()
         ue_request = build_ue_request(
             intent,
             ue_id=ue_state.ue_id,
