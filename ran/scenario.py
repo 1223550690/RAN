@@ -169,8 +169,8 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
-        print(tick)
         self._update_agent_states(tick)
+        print(self.transitSignals)
         active_services = [
             self.services[service_id]
             for service_id in self.service_order
@@ -330,9 +330,10 @@ class MultiAgentRanScenario:
                     self.servers[server].prepareBuffer()
                     if self.servers[server].requiresDL:
                         for message in self.servers[server].bufferOut:
+                            recipient = self.ueByIp[message.recipient] if message.recipient in self.ueByIp else message.recipient
                             request = UERequest(
-                                ue_id=message.recipient,
-                                agent_id=f"agent_{message.recipient}",
+                                ue_id=recipient,
+                                agent_id=f"agent_{recipient}",
                                 position=Position(10.0, 20.0),
                                 direction="DL", 
                                 selected_access="5g",
@@ -399,7 +400,7 @@ class MultiAgentRanScenario:
                                 upf_buffered_bytes=self.upf.buffered_bytes(state.ue_id, session.pdu_session_id),
                                 n3_tunnel_id=tunnel.tunnel_id,
                                 status="ACTIVE",
-                                content= message.data,
+                                content= message.content,
                             )
                             self.services[service.service_instance_id] = service
                             self.service_order.append(service.service_instance_id)
@@ -429,7 +430,6 @@ class MultiAgentRanScenario:
         destination = signal.payload[128:160]
         destination = revertIp(destination)
         self.servers[destination].receive(signal)
-        # print(str(signal.header.destinationIp) + " recieved a message from "+str(signal.header.senderIp) + ", sent by "+ str(signal.payload.senderUe)+ " containing a "+ str(signal.payload.service_type) + " of content: "+ str(signal.payload.data))
         return 0
 
     def receiveDownlinkMessage(self, signal):
@@ -439,8 +439,6 @@ class MultiAgentRanScenario:
         sender = revertIp(sender)
         if recieverUe in self.ues:
             self.ues[recieverUe].state.receive(signal)
-        else:
-            print(self.serversByIp[sender].name+" tried to send a message to "+recieverUe +" but failed as the UE is not connected to the network")
         return 0
     # ------------------------------------------------------------- Entity pipeline helpers (xizhe)
 
@@ -604,7 +602,7 @@ class MultiAgentRanScenario:
 
         # RRC setup: the service needs a radio bearer → IDLE/INACTIVE → CONNECTED.
         self.amf.establish_rrc(ue_state)
-        content = ue_state.applicationLayer.prepareIntent(intent, traffic.dst_ip, traffic.src_ip, self.serversByIp)
+        content = ue_state.applicationLayer.prepareIntent(intent, traffic.dst_ip, traffic.src_ip, self.serversByIp, traffic.protocol)
         agent_context = self.agents.get(item.agent_id)
         if agent_context is None:
             # Theoretically unreachable: _build_contexts always registers AgentContext first; this fallback guards the invariant.

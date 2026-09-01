@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from .radio import Signal
-from .managers import ApplicationManager
+from .managers import ApplicationManager, IpHeader, revertIp, convertIp
 import random, math
 
 
@@ -69,20 +69,40 @@ class Server:
         return 0
     def receive(self, signal):
             self.applicationLayer.receive(signal.payload)
-            for connection in self.applicationLayer.connections:
-                if self.applicationLayer.connections[connection] == "CLOSED":
-                    byteString = ''.join(self.applicationLayer.dataTable[connection])
-                    byteList = []
-                    for i in range(0, math.ceil(len(byteString)/8)):
-                        if (i+1)*8 >= len(byteString):
-                            byteList.append(int(byteString[i*8:],2))
-                        else:
-                            byteList.append(int(byteString[i*8:(i+1)*8],2))
-                    data = ''
-                    for char in byteList:
-                        data += chr(char)
-                    print(data)
-                    self.interpret(data)
+            ipheader, ipdata = self.applicationLayer.ipLayer.process(signal.payload)
+            if ipheader.protocol == 6:
+                cleanConnections = []
+                for connection in self.applicationLayer.connections:
+                    if self.applicationLayer.connections[connection] == "CLOSED":
+                        byteString = ''.join(self.applicationLayer.dataTable[connection])
+                        byteList = []
+                        for i in range(0, math.ceil(len(byteString)/8)):
+                            if (i+1)*8 >= len(byteString):
+                                byteList.append(int(byteString[i*8:],2))
+                            else:
+                                byteList.append(int(byteString[i*8:(i+1)*8],2))
+                        data = ''
+                        for char in byteList:
+                            data += chr(char)
+                        self.interpret(data, ipheader)
+                        cleanConnections.append(connection)
+                for connection in cleanConnections:
+                    self.applicationLayer.dataTable.pop(connection)
+                    self.applicationLayer.connections.pop(connection)
+            else:
+                transheader, data = self.applicationLayer.transportLayer.processPacketUDP(ipdata)
+                byteString = ''.join(self.applicationLayer.dataTable[transheader.dst_port, transheader.src_port, ipheader.srcIp, ipheader.destIp])
+                self.applicationLayer.dataTable[transheader.dst_port, transheader.src_port, ipheader.srcIp, ipheader.destIp] = []
+                byteList = []
+                for i in range(0, math.ceil(len(byteString)/8)):
+                    if (i+1)*8 >= len(byteString):
+                        byteList.append(int(byteString[i*8:],2))
+                    else:
+                        byteList.append(int(byteString[i*8:(i+1)*8],2))
+                data = ''
+                for char in byteList:
+                    data += chr(char)
+                self.interpret(data, ipheader)
                 
 
     
@@ -91,18 +111,30 @@ class Server:
 class VideoServer(Server):
     videos: dict[str, Video]
     videosToLeave: list[Message]
-    def interpret(self, data):
-        # splitData = data.split(':')
-        # if(splitData[0] == "video_upload"):
-        #         video = signal.payload.data.split(':')
-        #         name = video[0]
-        #         content = video[1]
-        #         creator = signal.payload.senderUe
-        #         # self.uploadVideo(name, content, creator, size-overhead)
-        # if(splitData[0] == "video_stream"):
-        #         name = signal.payload.data
-        #         self.streamVideo(name, signal)
-        #     #just generate random bytes for the video
+    messages: list[Message]
+    def interpret(self, data, ipheader:IpHeader):
+        splitData = data.split(':')
+        if(splitData[0] == "video_upload"):
+                name = splitData[1]
+                content = splitData[2]
+                size = splitData[3]
+                creator = revertIp(ipheader.srcIp)
+                self.uploadVideo(name, content, creator, size)
+        if(splitData[0] == "video_stream"):
+                name = splitData[1]
+                self.streamVideo(name, revertIp(ipheader.srcIp))
+        if(splitData[0] == "video_stream"):
+            name = splitData[1]
+            if self.videos[name].creator == revertIp(ipheader.srcIp):
+                self.deleteVideo(name)
+            else:
+                self.messages.append(Message(
+                                                content="You cannot delete this video as you did not post it",
+                                                recipient=revertIp(ipheader.srcIp),
+                                                sender=None,
+                                                size= 2*1024,
+                                                service_type="error"
+                                                ))
         return 0
             
     def uploadVideo(self, name, content, creator, size):
@@ -117,11 +149,11 @@ class VideoServer(Server):
     def deleteVideo(self, name):
         self.videos.pop(name)
     
-    def streamVideo(self, name, signal):
+    def streamVideo(self, name, recipient):
         video = self.videos[name]
         self.videosToLeave.append(Message(
             video.content,
-            recipient=signal.payload.senderUe,
+            recipient=recipient,
             sender=video.creator,
             size= video.size,
             service_type="video"
@@ -144,15 +176,15 @@ class GamingServer(Server):
     messages: list[Message]
     pendingChallenges: dict[str:list[str]]
     supportedGame: str
-    def interpret(self, data):
+    def interpret(self, data, ipheader:IpHeader):
             splitData = data.split(':')
             match splitData[0]:
                 case "make_challenge":
-                    self.requestGame(signal.payload.senderUe, signal.payload.destinationUe, signal.payload.data)
+                    self.requestGame(revertIp(ipheader.srcIp), revertIp(ipheader.destIp), splitData[1])
                 case "accept_challenge":
-                    self.validateChallenge(signal.payload.destinationUe, signal.payload.senderUe)
+                    self.validateChallenge(revertIp(ipheader.destIp), revertIp(ipheader.srcIp))
                 case "check_stats":
-                    self.checkResults(signal.payload.senderUe)
+                    self.checkResults(revertIp(ipheader.srcIp))
     def checkResults(self, player):
         if player in self.playerWins:
             self.messages.append(Message(
@@ -263,15 +295,14 @@ class GamingServer(Server):
 class MessageServer(Server):
     #use ips of the sender to differentiate signals, composed with the session ids to distinguish between messages sent by the same person. 
     storedMessages: list[Message]
-    def interpret(self, data):
-        return 0
-            # self.storedMessages.append(Message(
-            #     content=data,
-            #     recipient=signal.payload.destinationUe,
-            #     sender=signal.payload.senderUe,
-            #     size=math.ceil(len(data)/8),
-            #     service_type="message"
-            # ))
+    def interpret(self, data, ipheader):
+            self.storedMessages.append(Message(
+                content=data,
+                recipient=data.split(':')[0],
+                sender=ipheader.srcIp,
+                size=math.ceil(len(data)/8),
+                service_type="message"
+            ))
 
     def prepareBuffer(self):
         if len(self.storedMessages) != 0:
@@ -287,19 +318,19 @@ class CallServer(Server):
     messages: list[Message]
     activeCalls: dict[int:Call]
     pendingCalls: dict[str:list[str]]
-    def interpret(self, signal):
-        return 0
-    #             match collectedSignal.payload.service_type:
-    #                             case "make_call":
-    #                                 self.requestCall(signal.payload.senderUe, signal.payload.destinationUe)
-    #                             case "accept_call":
-    #                                 self.validateCall(signal.payload.destinationUe, signal.payload.senderUe)
-    #                             case "call_data":
-    #                                 callId = int(signal.payload.data.split(':')[0])
-    #                                 self.forwardStream(callId, signal.payload.senderUe, signal.payload.data, size)
-    #                             case "end_call":
-    #                                 callId = int(signal.payload.data.split(':')[0])
-    #                                 self.endCall(callId, signal.payload.senderUe)
+    def interpret(self, data, ipheader:IpHeader):
+        splitdata = data.split(':')
+        match splitdata[1]:
+                                case "make_call":
+                                    self.requestCall(revertIp(ipheader.srcIp), splitdata[0])
+                                case "accept_call":
+                                    self.validateCall(splitdata[0], revertIp(ipheader.srcIp))
+                                case "call_data":
+                                    callId = int(splitdata[2])
+                                    self.forwardStream(callId, revertIp(ipheader.srcIp), data, splitdata[len(splitdata)-1])
+                                case "end_call":
+                                    callId = int(splitdata[2])
+                                    self.endCall(callId, revertIp(ipheader.srcIp))
     def setUpCall(self, members):
         callId = random.randint(0,1024)
         while(callId in self.activeCalls):

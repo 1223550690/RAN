@@ -73,7 +73,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 service_type="video_upload",
                 requested_payload_bytes=100 * 1024 * 1024,
                 sender= "student_a_phone",
-                content= "video_upload:My Cat:A video of a cat meowing",
+                content= "My Cat:A video of a cat meowing",
             ),
         ),
         AgentScenarioDefinition(
@@ -185,7 +185,8 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             protocols=["TCP", "UDP"],
             port=443,
             service_types=frozenset({"video_upload", "video_stream", "video_browse", "video_delete"}),
-            applicationLayer = ApplicationManager()
+            applicationLayer = ApplicationManager(),
+            messages= []
         ),
     )
     serverDict = {}

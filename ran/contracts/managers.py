@@ -456,13 +456,13 @@ class ApplicationManager():
         for byte in list(byteMessage):
             byteString += bin(byte)[2:].zfill(8)
         return byteString
-    def prepareIntent(self, intent:AgentIntent, targetIp, srcIp, serverByIp):
+    def prepareIntent(self, intent:AgentIntent, targetIp, srcIp, serverByIp, protocol):
         server = serverByIp[targetIp]
         srcPort = server.port
         dstPort = server.port
-        targetProtocol = "TCP"
-        data = self.prepareString(intent.content)
-        self.send(targetIp, dstPort, targetProtocol, data, srcPort, srcIp)
+        encodedString = intent.sender + ':' + intent.service_type + ':' + intent.content + ':' + str(intent.requested_payload_bytes)
+        data = self.prepareString(encodedString)
+        self.send(targetIp, dstPort, protocol, data, srcPort, srcIp)
         return data
         
     
@@ -570,6 +570,7 @@ class ApplicationManager():
                         ipPacket = self.ipLayer.prepareIpPacket(dst_ip=srcIp, src_ip=destIp, ToS=0, transportData=tcpData, transportProtocol=6)
                         self.messageBuffer.append(ipPacket)
                         self.connections[transheader.dst_port, transheader.src_port, srcIp, destIp] ="CLOSED"
+                        self.transportLayer.connectionTable.pop((transheader.dst_port, transheader.src_port, srcIp, destIp))
 
                     elif flags[FIN]=='1':
                         if transheader.seq_num == self.transportLayer.connectionTable[transheader.dst_port, transheader.src_port, srcIp, destIp].targetISN:

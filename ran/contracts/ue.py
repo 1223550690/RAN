@@ -66,9 +66,43 @@ class UEState:
     #                     print(str(self.ue_id) + " recieved a message from "+str(signal.header.senderIp) + ", sent by "+ str(signal.payload.senderUe)+ " containing a "+ str(signal.payload.service_type) + " of content: "+ str(signal.payload.data) + " and size: "+str(size))
     #                     self.receiveComplex(signal)
     def receive(self, signal):
-                self.applicationLayer.receive(signal.payload)
-    def receiveComplex(self, signal):
-        return 0
+            self.applicationLayer.receive(signal.payload)
+            ipheader, ipdata = self.applicationLayer.ipLayer.process(signal.payload)
+            if ipheader.protocol == 6:
+                cleanConnections = []
+                for connection in self.applicationLayer.connections:
+                    if self.applicationLayer.connections[connection] == "CLOSED":
+                        byteString = ''.join(self.applicationLayer.dataTable[connection])
+                        byteList = []
+                        for i in range(0, math.ceil(len(byteString)/8)):
+                            if (i+1)*8 >= len(byteString):
+                                byteList.append(int(byteString[i*8:],2))
+                            else:
+                                byteList.append(int(byteString[i*8:(i+1)*8],2))
+                        data = ''
+                        for char in byteList:
+                            data += chr(char)
+                        self.interpret(data, ipheader)
+                        cleanConnections.append(connection)
+                for connection in cleanConnections:
+                    self.applicationLayer.dataTable.pop(connection)
+                    self.applicationLayer.connections.pop(connection)
+            else:
+                transheader, data = self.applicationLayer.transportLayer.processPacketUDP(ipdata)
+                byteString = ''.join(self.applicationLayer.dataTable[transheader.dst_port, transheader.src_port, ipheader.srcIp, ipheader.destIp])
+                self.applicationLayer.dataTable[transheader.dst_port, transheader.src_port, ipheader.srcIp, ipheader.destIp] = []
+                byteList = []
+                for i in range(0, math.ceil(len(byteString)/8)):
+                    if (i+1)*8 >= len(byteString):
+                        byteList.append(int(byteString[i*8:],2))
+                    else:
+                        byteList.append(int(byteString[i*8:(i+1)*8],2))
+                data = ''
+                for char in byteList:
+                    data += chr(char)
+                self.interpret(data, ipheader)
+    def interpret(self, data, header):
+        
     def sendComplex(self, intent:AgentIntent):
         self.applicationLayer.encode(None, None, None, None)
          
