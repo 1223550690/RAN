@@ -164,21 +164,18 @@ class MultiAgentRanScenario:
     
     def step(self, tick: int) -> dict[str, object]:
         """Advance one tick: aggregate all active queues, schedule once, then execute per service."""
-        # if self.completed:
-        #     # Even with no active services, keep refreshing the RAN-side Agent copies to avoid stale nested snapshots
-        #     # (the completed fast path used to skip re-reading Agent coordinates, so the preview page
-        #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
-        #     self._update_agent_states(tick)
-        #     return self.snapshot(tick=tick, status="completed")
+        if self.completed:
+            # Even with no active services, keep refreshing the RAN-side Agent copies to avoid stale nested snapshots
+            # (the completed fast path used to skip re-reading Agent coordinates, so the preview page
+            #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
+            self._update_agent_states(tick)
+            return self.snapshot(tick=tick, status="completed")
         self._update_agent_states(tick)
         active_services = [
             self.services[service_id]
             for service_id in self.service_order
             if self.services[service_id].status not in TERMINAL_SERVICE_STATUSES
         ]
-        # if not active_services:
-        #     self.completed = True
-        #     return self.snapshot(tick=tick, status="completed")
 
         # N3 flow: UPF buffer → gNB DL queue (downlink; instantaneous arrival by default, bounded by n3 bandwidth).
         # Placed before scheduling so this scheduling window can see downlink data that has reached the gNB.
@@ -270,7 +267,7 @@ class MultiAgentRanScenario:
             slot_ms=self.tick_ms,
         )
         scheduler_result = self.scheduler.allocate(scheduler_request)
-        # self._validate_scheduler_result(scheduler_request, scheduler_result)
+        self._validate_scheduler_result(scheduler_request, scheduler_result)
         allocation_by_bearer = {
             (allocation.ue_id, allocation.drb_id, allocation.direction): allocation
             for allocation in scheduler_result.allocations

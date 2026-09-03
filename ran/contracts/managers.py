@@ -443,7 +443,6 @@ class ApplicationManager():
     dataTable: dict[tuple:list[str]]
     def __init__(self):
         self.connections = {}
-        self.delayedData = {}
         self.transportLayer = TransportManager()
         self.ipLayer = IPManager()
         self.messageBuffer = []
@@ -469,9 +468,6 @@ class ApplicationManager():
     def send(self, targetIp, targetPort, targetProtocol, data, source_port, srcIp):
         if targetProtocol == "TCP":
             tcpData = 0
-            # if (source_port, targetPort, targetIp, srcIp) in self.connections and self.connections[(source_port, targetPort, targetIp, srcIp)] == "CONNECTED":
-            #     tcpData = self.transportLayer.preparePacketTCP(source_port, targetPort, data, targetIp, srcIp)
-            #     ipPacket = self.ipLayer.prepareIpPacket(targetIp, srcIp, 0, tcpData, 6)
             if (source_port, targetPort, targetIp, srcIp) not in self.connections:
                 tcpData = self.transportLayer.makeSyn(source_port, targetPort, targetIp, srcIp)
                 ipPacket = self.ipLayer.prepareIpPacket(targetIp, srcIp, 0, tcpData, 6)

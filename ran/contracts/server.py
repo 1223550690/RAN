@@ -56,7 +56,6 @@ class Server:
     address:str
     bufferOut:list
     requiresDL: bool
-    collectedSignals: list[Signal]
     protocols: list[str]
     dnn: str
     port: int
@@ -295,7 +294,7 @@ class GamingServer(Server):
 
 @dataclass(slots=True)
 class MessageServer(Server):
-    #use ips of the sender to differentiate signals, composed with the session ids to distinguish between messages sent by the same person. 
+
     storedMessages: list[Message]
     def interpret(self, data, ipheader):
             self.storedMessages.append(Message(
@@ -337,8 +336,6 @@ class CallServer(Server):
         callId = random.randint(0,1024)
         while(callId in self.activeCalls):
             callId = random.randint(0,1024)
-        #TEMPORARY, PLEASE REMOVE
-        callId = 1
         self.activeCalls.update({callId:Call(
             id = callId,
             members=members,
