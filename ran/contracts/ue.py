@@ -53,29 +53,25 @@ class UEState:
     def receive(self, signal):
             self.applicationLayer.receive(signal.payload)
             ipheader, ipdata = self.applicationLayer.ipLayer.process(signal.payload)
-            print(ipheader)
             transheader, data = self.applicationLayer.transportLayer.processPacketTCP(ipdata)
-            print(data)
-            print(transheader)
-            print(self.applicationLayer.connections)
             if ipheader.protocol == 6:
                 cleanConnections = []
                 for connection in self.applicationLayer.connections:
                     if self.applicationLayer.connections[connection] == "CLOSED":
-                            print(self)
-                            if len(self.applicationLayer.dataTable[connection]) != 0:
-                                byteString = ''.join(self.applicationLayer.dataTable[connection])
-                                byteList = []
-                                for i in range(0, math.ceil(len(byteString)/8)):
-                                    if (i+1)*8 >= len(byteString):
-                                        byteList.append(int(byteString[i*8:],2))
-                                    else:
-                                        byteList.append(int(byteString[i*8:(i+1)*8],2))
-                                data = ''
-                                for char in byteList:
-                                    data += chr(char)
-                                self.interpret(data, ipheader)
-                                cleanConnections.append(connection)
+                            if connection in self.applicationLayer.dataTable:
+                                if len(self.applicationLayer.dataTable[connection]) != 0:
+                                    byteString = ''.join(self.applicationLayer.dataTable[connection])
+                                    byteList = []
+                                    for i in range(0, math.ceil(len(byteString)/8)):
+                                        if (i+1)*8 >= len(byteString):
+                                            byteList.append(int(byteString[i*8:],2))
+                                        else:
+                                            byteList.append(int(byteString[i*8:(i+1)*8],2))
+                                    data = ''
+                                    for char in byteList:
+                                        data += chr(char)
+                                    self.interpret(data, ipheader)
+                                    cleanConnections.append(connection)
                 for connection in cleanConnections:
                     self.applicationLayer.dataTable.pop(connection)
                     self.applicationLayer.connections.pop(connection)
@@ -93,7 +89,6 @@ class UEState:
                 for char in byteList:
                     data += chr(char)
     def interpret(self, data, header):
-        print(data)
         splitData = data.split(':')
         print("message from "+splitData[0])
     def sendComplex(self, intent:AgentIntent):

@@ -74,19 +74,19 @@ class Server:
                 cleanConnections = []
                 for connection in self.applicationLayer.connections:
                     if self.applicationLayer.connections[connection] == "CLOSED":
-                        byteString = ''.join(self.applicationLayer.dataTable[connection])
-                        byteList = []
-                        for i in range(0, math.ceil(len(byteString)/8)):
-                            if (i+1)*8 >= len(byteString):
-                                byteList.append(int(byteString[i*8:],2))
-                            else:
-                                byteList.append(int(byteString[i*8:(i+1)*8],2))
-                        data = ''
-                        for char in byteList:
-                            data += chr(char)
-                        print(data)
-                        self.interpret(data, ipheader)
-                        cleanConnections.append(connection)
+                        if connection in self.applicationLayer.dataTable:
+                            byteString = ''.join(self.applicationLayer.dataTable[connection])
+                            byteList = []
+                            for i in range(0, math.ceil(len(byteString)/8)):
+                                if (i+1)*8 >= len(byteString):
+                                    byteList.append(int(byteString[i*8:],2))
+                                else:
+                                    byteList.append(int(byteString[i*8:(i+1)*8],2))
+                            data = ''
+                            for char in byteList:
+                                data += chr(char)
+                            self.interpret(data, ipheader)
+                            cleanConnections.append(connection)
                 for connection in cleanConnections:
                     self.applicationLayer.dataTable.pop(connection)
                     self.applicationLayer.connections.pop(connection)
@@ -103,7 +103,6 @@ class Server:
                 data = ''
                 for char in byteList:
                     data += chr(char)
-                
                 self.interpret(data, ipheader)
                 
 
@@ -117,16 +116,16 @@ class VideoServer(Server):
     def interpret(self, data, ipheader:IpHeader):
         splitData = data.split(':')
         if(splitData[1] == "video_upload"):
-                name = splitData[1]
-                content = splitData[2]
-                size = splitData[3]
+                name = splitData[3]
+                content = splitData[4]
+                size = splitData[5]
                 creator = revertIp(ipheader.srcIp)
                 self.uploadVideo(name, content, creator, size)
         if(splitData[1] == "video_stream"):
-                name = splitData[1]
+                name = splitData[3]
                 self.streamVideo(name, revertIp(ipheader.srcIp))
         if(splitData[1] == "video_stream"):
-            name = splitData[1]
+            name = splitData[3]
             if self.videos[name].creator == revertIp(ipheader.srcIp):
                 self.deleteVideo(name)
             else:
@@ -165,7 +164,6 @@ class VideoServer(Server):
                 for message in self.videosToLeave:
                     self.bufferOut.append(message)
                 self.requiresDL = True
-                print(self.requiresDL)
                 self.videosToLeave = []
 
 @dataclass(slots=True)
@@ -183,11 +181,11 @@ class GamingServer(Server):
             splitData = data.split(':')
             match splitData[1]:
                 case "make_challenge":
-                    self.requestGame(revertIp(ipheader.srcIp), revertIp(ipheader.destIp), splitData[1])
+                    self.requestGame(splitData[0], splitData[2], splitData[3])
                 case "accept_challenge":
-                    self.validateChallenge(revertIp(ipheader.destIp), revertIp(ipheader.srcIp))
+                    self.validateChallenge(splitData[2], splitData[0])
                 case "check_stats":
-                    self.checkResults(revertIp(ipheader.srcIp))
+                    self.checkResults(splitData[0])
     def checkResults(self, player):
         if player in self.playerWins:
             self.messages.append(Message(
@@ -354,7 +352,7 @@ class CallServer(Server):
                             seen = True
                     if (not seen):
                         self.messages.append(Message(
-                                    content=None,
+                                    content="",
                                     recipient=callee,
                                     sender=caller,
                                     size= 2*1024,
@@ -365,13 +363,13 @@ class CallServer(Server):
                         self.messages.append(Message(
                                         content="You have already called this person, please wait for their response",
                                         recipient=caller,
-                                        sender=None,
+                                        sender="",
                                         size= 2*1024,
                                         service_type="error"
                                         ))
         self.pendingCalls.update({caller:[callee]})
         self.messages.append(Message(
-                                        content=None,
+                                        content="",
                                         recipient=callee,
                                         sender=caller,
                                         size= 2*1024,

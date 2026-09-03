@@ -170,6 +170,7 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
+        print(tick)
         self._update_agent_states(tick)
         active_services = [
             self.services[service_id]
@@ -316,16 +317,7 @@ class MultiAgentRanScenario:
                 self._execute_service_tick(service, channel, executed_allocation, tick)
             )
 
-        self.ticks_executed += 1
-        self._refresh_lifecycle_states(tick)
-        self.completed = all(
-            service.status in TERMINAL_SERVICE_STATUSES for service in self.services.values()
-        )
-        if self.completed:
-            for signal in self.transitSignals:
-                if signal.arrived == False:
-                    self.completed = False
-                    break
+
         for server in self.servers:
                     self.servers[server].prepareBuffer()
                     if self.servers[server].requiresDL:
@@ -405,11 +397,20 @@ class MultiAgentRanScenario:
                                 content= message.content,
                             )
                             dataString = self.servers[server].applicationLayer.prepareString(str(message.sender) + ':' + message.service_type + ':' + message.content + ':' + str(message.size))
-                            print(dataString)
                             self.servers[server].applicationLayer.send(traffic.dst_ip, self.servers[server].port,"TCP", dataString, self.servers[server].port, self.servers[server].address)
                             self.services[service.service_instance_id] = service
                             self.service_order.append(service.service_instance_id)
                         self.servers[server].clearBuffer()
+        self.ticks_executed += 1
+        self._refresh_lifecycle_states(tick)
+        self.completed = all(
+            service.status in TERMINAL_SERVICE_STATUSES for service in self.services.values()
+        )
+        if self.completed:
+            for signal in self.transitSignals:
+                if signal.arrived == False:
+                    self.completed = False
+                    break
         state = self._compose_state(
             tick=tick,
             status="completed" if self.completed else "running",

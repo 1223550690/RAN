@@ -74,6 +74,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 requested_payload_bytes=100 * 1024 * 1024,
                 sender= "student_a_phone",
                 content= "My Cat:A video of a cat meowing",
+                recipient=""
             ),
         ),
         AgentScenarioDefinition(
@@ -107,7 +108,7 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
                 recipient="student_b_phone",
                 requested_payload_bytes=10 * 1024,
                 sender= "student_c_phone",
-                content= "Call from student_b to student_c"
+                content= "Hello"
             ),
         ),
         AgentScenarioDefinition(

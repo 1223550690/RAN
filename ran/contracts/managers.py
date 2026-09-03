@@ -460,7 +460,7 @@ class ApplicationManager():
         server = serverByIp[targetIp]
         srcPort = server.port
         dstPort = server.port
-        encodedString = intent.sender + ':' + intent.service_type + ':' + intent.content + ':' + str(intent.requested_payload_bytes)
+        encodedString = intent.sender + ':' + intent.service_type + ':'+ intent.recipient + ':'+ intent.content + ':' + str(intent.requested_payload_bytes)
         data = self.prepareString(encodedString)
         self.send(targetIp, dstPort, protocol, data, srcPort, srcIp)
         return data
