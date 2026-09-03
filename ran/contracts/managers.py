@@ -163,7 +163,6 @@ class TransportManager:
         transportData = packet[headlength *8:packetLength*8]
         return header, transportData
     def processPacketUDP(self, packet):
-            length = math.ceil(len(packet)/8)
             header = UDPHeader(
                 src_port=int(packet[0:16],2),
                 dst_port=int(packet[16:32],2),
@@ -312,8 +311,6 @@ class TransportManager:
                             urg=0
                         )
             return header
-    def convertPacket(self):
-        return 0
     def generateHeaderTCP(self, src_port, dst_port, seq_num, ack_num, flags, windowSize, srcIp, targetIp, data, data_length, urg):
         header = TCPHeader(
             src_port=src_port,
@@ -436,7 +433,6 @@ class TransportManager:
 
 class ApplicationManager():
     connections: dict[tuple:str]
-    delayedData: dict[tuple: str]
     transportLayer:TransportManager
     ipLayer: IPManager
     messageBuffer: list[str]

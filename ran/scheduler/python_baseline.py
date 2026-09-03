@@ -23,7 +23,7 @@ class PythonBaselineScheduler:
             return _build_result(request, allocations=[], debug={"reason": "no_active_queue"})
         channel_by_ue = {state.ue_id: state for state in request.channel_states}
         policy_by_slice = {policy.slice_id: policy for policy in request.slice_policies}
-        allocations = grantBasedScheduling(channel_by_ue, request, active)
+        allocations = proportionalScheduling(channel_by_ue, request, active)
         return _build_result(request, allocations=allocations, debug={})
 
 
@@ -104,7 +104,7 @@ def roundRobinScheduling(channel_by_ue, request, active):
             )
         return allocations
     
-def priorityScheduling(channel_by_ue, request, active, policy_by_slice):
+def priorityAware(channel_by_ue, request, active, policy_by_slice):
             weights: dict[tuple[str, int], float] = {}
             for queue in active:
                 channel = channel_by_ue.get(queue.ue_id)
@@ -183,7 +183,7 @@ def maxThroughputScheduling(channel_by_ue, request, active):
             )
         return allocations
 
-def grantBasedScheduling(channel_by_ue, request, active):
+def proportionalScheduling(channel_by_ue, request, active):
         weight_sum = 0.0
         weights: dict[tuple[str, int], float] = {}
         for queue in active:
