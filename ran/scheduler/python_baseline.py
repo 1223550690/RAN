@@ -23,45 +23,8 @@ class PythonBaselineScheduler:
             return _build_result(request, allocations=[], debug={"reason": "no_active_queue"})
         channel_by_ue = {state.ue_id: state for state in request.channel_states}
         policy_by_slice = {policy.slice_id: policy for policy in request.slice_policies}
-        weights: dict[tuple[str, int], float] = {}
-        for queue in active:
-            channel = channel_by_ue.get(queue.ue_id)
-            policy = policy_by_slice.get(queue.slice_id)
-            cqi = channel.cqi if channel else 1
-            priority = policy.priority if policy else 5
-            weight = max(1.0, (queue.queued_bytes + queue.retransmission_bytes) / 1_000_000) * max(1, cqi) / max(1, priority)
-            weights[(queue.ue_id, queue.drb_id)] = weight
-
-        prbs_by_queue = _apportion_prbs(weights, request.total_prbs)
-        allocations: list[MacAllocation] = []
-        for queue in active:
-            channel = channel_by_ue.get(queue.ue_id)
-            queue_key = (queue.ue_id, queue.drb_id)
-            prbs = prbs_by_queue.get(queue_key, 0)
-            if prbs <= 0:
-                continue
-            cqi = channel.cqi if channel else 1
-            mcs = cqi_to_mcs(cqi)  # standard CQI→MCS mapping (TS 38.214)
-            layers = 1 if cqi < 10 else 2
-            capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
-            scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
-            allocations.append(
-                MacAllocation(
-                    allocation_id=f"allocation_{request.simulation_id}_{request.tick}_{queue.ue_id}_{queue.drb_id}",
-                    ue_id=queue.ue_id,
-                    drb_id=queue.drb_id,
-                    qfi=queue.qfi,
-                    slice_id=queue.slice_id,
-                    direction=queue.direction,
-                    prbs=prbs,
-                    mcs=mcs,
-                    layers=layers,
-                    scheduled_bytes=scheduled, 
-                    expected_error_rate=channel.estimated_packet_error_rate if channel else 0.2,
-                    is_retransmission=queue.retransmission_bytes > 0,
-                )
-            )
-        return _build_result(request, allocations=allocations, debug={"implementation": "python_baseline"})
+        allocations = grantBasedScheduling(channel_by_ue, request, active)
+        return _build_result(request, allocations=allocations, debug={})
 
 
 def _apportion_prbs(weights: dict[tuple[str, int], float], total_prbs: int) -> dict[tuple[str, int], int]:
@@ -107,7 +70,7 @@ def _build_result(
 # tr22068 scheduling algorithms (standalone functions, switchable)
 # ---------------------------------------------------------------------------
 
-def roundRobinDLScheduling(channel_by_ue, request, active):
+def roundRobinScheduling(channel_by_ue, request, active):
         weight_sum = 0.0
         weights: dict[tuple[str, int], float] = {}
         for queue in active:
@@ -140,9 +103,49 @@ def roundRobinDLScheduling(channel_by_ue, request, active):
                 )
             )
         return allocations
+    
+def priorityScheduling(channel_by_ue, request, active, policy_by_slice):
+            weights: dict[tuple[str, int], float] = {}
+            for queue in active:
+                channel = channel_by_ue.get(queue.ue_id)
+                policy = policy_by_slice.get(queue.slice_id)
+                cqi = channel.cqi if channel else 1
+                priority = policy.priority if policy else 5
+                weight = max(1.0, (queue.queued_bytes + queue.retransmission_bytes) / 1_000_000) * max(1, cqi) / max(1, priority)
+                weights[(queue.ue_id, queue.drb_id)] = weight
+            prbs_by_queue = _apportion_prbs(weights, request.total_prbs)
+            allocations: list[MacAllocation] = []
+            for queue in active:
+                channel = channel_by_ue.get(queue.ue_id)
+                queue_key = (queue.ue_id, queue.drb_id)
+                prbs = prbs_by_queue.get(queue_key, 0)
+                if prbs <= 0:
+                    continue
+                cqi = channel.cqi if channel else 1
+                mcs = cqi_to_mcs(cqi)  # standard CQI→MCS mapping (TS 38.214)
+                layers = 1 if cqi < 10 else 2
+                capacity = estimate_transport_bytes(prbs=prbs, mcs=mcs, layers=layers, slot_ms=request.slot_ms)
+                scheduled = min(queue.queued_bytes + queue.retransmission_bytes, capacity)
+                allocations.append(
+                    MacAllocation(
+                        allocation_id=f"allocation_{request.simulation_id}_{request.tick}_{queue.ue_id}_{queue.drb_id}",
+                        ue_id=queue.ue_id,
+                        drb_id=queue.drb_id,
+                        qfi=queue.qfi,
+                        slice_id=queue.slice_id,
+                        direction=queue.direction,
+                        prbs=prbs,
+                        mcs=mcs,
+                        layers=layers,
+                        scheduled_bytes=scheduled, 
+                        expected_error_rate=channel.estimated_packet_error_rate if channel else 0.2,
+                        is_retransmission=queue.retransmission_bytes > 0,
+                    )
+                )
+                return allocations
 
 #Highest potential throughput gets most PRBs
-def maxThroughputDLScheduling(channel_by_ue, request, active):
+def maxThroughputScheduling(channel_by_ue, request, active):
         
         weights: dict[str, float] = {}
         channel_by_ue = sortByCQI(channel_by_ue)
@@ -180,7 +183,7 @@ def maxThroughputDLScheduling(channel_by_ue, request, active):
             )
         return allocations
 
-def grantBasedULScheduling(channel_by_ue, request, active):
+def grantBasedScheduling(channel_by_ue, request, active):
         weight_sum = 0.0
         weights: dict[tuple[str, int], float] = {}
         for queue in active:
@@ -217,7 +220,7 @@ def grantBasedULScheduling(channel_by_ue, request, active):
             )
         return allocations
 
-def weightedULScheduling(channel_by_ue, request, active):
+def weightedScheduling(channel_by_ue, request, active):
         weight_sum = 0.0
         weights: dict[tuple[str, int], float] = {}
         active = sortByBSR(active)

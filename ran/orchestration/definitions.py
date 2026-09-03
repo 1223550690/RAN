@@ -95,6 +95,40 @@ def build_default_three_agent_definition() -> RanScenarioDefinition:
             ),
         ),
         AgentScenarioDefinition(
+                    agent_id="student_e",
+                    ue_id="student_e_phone",
+                    intent=AgentIntent(
+                        intent_id="intent_chat_message_003",
+                        agent_id="student_e",
+                        agent_pos=Position(340.0, 300.0),
+                        action="send_message",
+                        target="whatsapp_server TCP",
+                        content_type="text",
+                        service_type="message",
+                        requested_payload_bytes=4000 *100* 1024,
+                        recipient="student_c_phone",
+                        sender= "student_e_phone",
+                        content="hello!"
+                    ),
+                ),
+        AgentScenarioDefinition(
+                    agent_id="student_f",
+                    ue_id="student_f_phone",
+                    intent=AgentIntent(
+                        intent_id="intent_chat_message_004",
+                        agent_id="student_f",
+                        agent_pos=Position(340.0, 300.0),
+                        action="send_message",
+                        target="whatsapp_server TCP",
+                        content_type="text",
+                        service_type="message",
+                        requested_payload_bytes=2000 *50* 1024,
+                        recipient="student_c_phone",
+                        sender= "student_f_phone",
+                        content="hello!"
+                    ),
+                ),
+        AgentScenarioDefinition(
             agent_id="student_c",
             ue_id="student_c_phone",
             intent=AgentIntent(
