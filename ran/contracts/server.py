@@ -299,9 +299,9 @@ class MessageServer(Server):
     storedMessages: list[Message]
     def interpret(self, data, ipheader):
             self.storedMessages.append(Message(
-                content=data,
+                content=data.split(':')[2],
                 recipient=data.split(':')[0],
-                sender=ipheader.srcIp,
+                sender=revertIp(ipheader.srcIp),
                 size=math.ceil(len(data)/8),
                 service_type="message"
             ))

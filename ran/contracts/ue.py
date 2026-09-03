@@ -90,7 +90,6 @@ class UEState:
                     data += chr(char)
     def interpret(self, data, header):
         splitData = data.split(':')
-        print("message from "+splitData[0])
     def sendComplex(self, intent:AgentIntent):
         self.applicationLayer.encode(None, None, None, None)
          

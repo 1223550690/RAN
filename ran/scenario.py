@@ -170,7 +170,6 @@ class MultiAgentRanScenario:
         #     #  saw a frozen movement phase when reading this copy, until the first intent submission reactivated the scenario)
         #     self._update_agent_states(tick)
         #     return self.snapshot(tick=tick, status="completed")
-        print(tick)
         self._update_agent_states(tick)
         active_services = [
             self.services[service_id]
